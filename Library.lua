@@ -11,12 +11,22 @@ local Teams: Teams = cloneref(game:GetService("Teams"))
 local TweenService: TweenService = cloneref(game:GetService("TweenService"))
 
 local getgenv = getgenv or function()
-    return shared
+    return getfenv()
 end
 local setclipboard = setclipboard or nil
-local protectgui = protectgui or (syn and syn.protect_gui) or function() end
+local protectgui = protectgui or (syn and syn.protect_gui) or function(Object: Instance)
+	local ProtectionCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789`~!@#$%^&*()-_=+[{]}\\|;:'\",<.>/?"
+	local Result = {}
+
+	for _ = 1, 32 do
+		local CharacterNumber = math.random(1, #ProtectionCharacters)
+		table.insert(Result, ProtectionCharacters:sub(CharacterNumber, CharacterNumber))
+	end
+	
+	Object.Name = table.concat(Result)
+end
 local gethui = gethui or function() 
-    return CoreGui 
+    return CoreGui
 end
 
 local LocalPlayer = Players.LocalPlayer
