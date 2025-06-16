@@ -3951,6 +3951,7 @@ do
 
                         Library:SafeCallback(Dropdown.Callback, Dropdown.Value)
                         Library:SafeCallback(Dropdown.Changed, Dropdown.Value)
+						Library:UpdateDependencyBoxes()
                     end)
                 end
 
@@ -3990,6 +3991,7 @@ do
             if not Dropdown.Disabled then
                 Library:SafeCallback(Dropdown.Callback, Dropdown.Value)
                 Library:SafeCallback(Dropdown.Changed, Dropdown.Value)
+				Library:UpdateDependencyBoxes()
             end
         end
 
@@ -4160,11 +4162,25 @@ do
             for _, Dependency in pairs(Depbox.Dependencies) do
                 local Element = Dependency[1]
                 local Value = Dependency[2]
-
+                
                 if Element.Type == "Toggle" and Element.Value ~= Value then
                     DepboxContainer.Visible = false
                     Depbox.Visible = false
                     return
+                elseif Element.Type == "Dropdown" then
+                    if typeof(Element.Value) == "table" then
+                        if not Element.Value[Value] then
+                            DepboxContainer.Visible = false
+                            Depbox.Visible = false
+                            return
+                        end
+                    else
+                        if Element.Value ~= Value then
+                            DepboxContainer.Visible = false
+                            Depbox.Visible = false
+                            return
+                        end
+                    end
                 end
             end
 
@@ -4266,6 +4282,20 @@ do
                     Background.Visible = false
                     DepGroupbox.Visible = false
                     return
+                elseif Element.Type == "Dropdown" then
+                    if typeof(Element.Value) == "table" then
+                        if not Element.Value[Value] then
+                            Background.Visible = false
+                            DepGroupbox.Visible = false
+                            return
+                        end
+                    else
+                        if Element.Value ~= Value then
+                            Background.Visible = false
+                            DepGroupbox.Visible = false
+                            return
+                        end
+                    end
                 end
             end
 
