@@ -4680,6 +4680,16 @@ function Library:CreateWindow(WindowInfo)
             Library:MakeOutline(MainFrame, WindowInfo.CornerRadius, 0)
         end
 
+        if WindowInfo.BackgroundImage then
+       		New("ImageLabel", {
+                Image = WindowInfo.BackgroundImage,
+                Position = UDim2.fromScale(0, 0),
+                Size = UDim2.fromScale(1, 1),
+                ScaleType = Enum.ScaleType.Stretch,
+                Parent = MainFrame,
+            })
+        end
+
         if WindowInfo.Center then
             MainFrame.Position = UDim2.new(0.5, -MainFrame.Size.X.Offset / 2, 0.5, -MainFrame.Size.Y.Offset / 2)
         end
