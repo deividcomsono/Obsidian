@@ -1093,19 +1093,20 @@ function Library:SafeCallback(Func: (...any) -> ...any, ...: any)
         return
     end
 
-    local Success, Response = pcall(Func, ...)
-    if Success then
-        return Response
+    local Result = table.pack(xpcall(Func, function(Error)
+        task.defer(error, debug.traceback(Error, 2))
+        if Library.NotifyOnError then
+            Library:Notify(Error)
+        end
+
+        return Error
+    end, ...))
+
+    if not Result[1] then
+        return nil
     end
 
-    local Traceback = debug.traceback():gsub("\n", " ")
-    local _, i = Traceback:find(":%d+ ")
-    Traceback = Traceback:sub(i + 1):gsub(" :", ":")
-
-    task.defer(error, Response .. " - " .. Traceback)
-    if Library.NotifyOnError then
-        Library:Notify(Response)
-    end
+    return table.unpack(Result, 2, Result.n)
 end
 
 function Library:MakeDraggable(UI: GuiObject, DragFrame: GuiObject, IgnoreToggled: boolean?, IsMainWindow: boolean?)
