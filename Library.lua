@@ -5564,11 +5564,13 @@ function Library:CreateWindow(WindowInfo)
         local TabContainer
         local TabLeft
         local TabRight
-
+		
         local WarningBox
+        local WarningBoxScrollingFrame
         local WarningTitle
         local WarningText
         local WarningStroke
+        local WarningBoxLockSize = false
 
         Icon = Library:GetIcon(Icon)
         do
@@ -5676,6 +5678,7 @@ function Library:CreateWindow(WindowInfo)
                 Library:UpdateDPI(TabRight, { Size = TabRight.Size })
             end
 
+            --// Warning Box \\--
             WarningBox = New("Frame", {
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundColor3 = Color3.fromRGB(127, 0, 0),
@@ -5687,12 +5690,24 @@ function Library:CreateWindow(WindowInfo)
                 Visible = false,
                 Parent = TabContainer,
             })
+
+            WarningBoxScrollingFrame = New("ScrollingFrame", {
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, 0, 0.5, -3),
+                Size = UDim2.new(1, 0, 1, -3),
+                CanvasSize = UDim2.new(0, 0, 0, 0),
+                AutomaticCanvasSize = Enum.AutomaticSize.Y,
+                ScrollBarThickness = 3,
+                Parent = WarningBox,
+            })
             New("UIPadding", {
                 PaddingBottom = UDim.new(0, 4),
                 PaddingLeft = UDim.new(0, 6),
                 PaddingRight = UDim.new(0, 6),
                 PaddingTop = UDim.new(0, 4),
-                Parent = WarningBox,
+                Parent = WarningBoxScrollingFrame,
             })
 
             WarningTitle = New("TextLabel", {
@@ -5702,7 +5717,7 @@ function Library:CreateWindow(WindowInfo)
                 TextColor3 = Color3.fromRGB(255, 50, 50),
                 TextSize = 14,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                Parent = WarningBox,
+                Parent = WarningBoxScrollingFrame,
             })
             WarningStroke = New("UIStroke", {
                 ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
@@ -5714,12 +5729,13 @@ function Library:CreateWindow(WindowInfo)
             WarningText = New("TextLabel", {
                 BackgroundTransparency = 1,
                 Position = UDim2.fromOffset(0, 16),
-                Size = UDim2.fromScale(1, 0),
+                Size = UDim2.new(1, 0, 1, -14),
                 Text = "",
                 TextSize = 14,
-                TextXAlignment = Enum.TextXAlignment.Left,
                 TextWrapped = true,
-                Parent = WarningBox,
+                Parent = WarningBoxScrollingFrame,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextYAlignment = Enum.TextYAlignment.Top,
             })
             New("UIStroke", {
                 ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
@@ -5741,9 +5757,14 @@ function Library:CreateWindow(WindowInfo)
         }
 
         function Tab:UpdateWarningBox(Info)
+            if typeof(Info.LockSize) == "boolean" then
+                WarningBoxLockSize = Info.LockSize
+                Tab:Resize(true)
+            end
+
             if typeof(Info.Visible) == "boolean" then
                 WarningBox.Visible = Info.Visible
-                Tab:Resize()
+                Tab:Resize(true)
             end
 
             if typeof(Info.Title) == "string" then
@@ -5761,7 +5782,7 @@ function Library:CreateWindow(WindowInfo)
                 WarningText.Size = UDim2.new(1, 0, 0, Y)
                 WarningText.Text = Info.Text
                 Library:UpdateDPI(WarningText, { Size = WarningText.Size })
-                Tab:Resize()
+                Tab:Resize(true)
             end
 
             WarningBox.BackgroundColor3 = Info.IsNormal == true and Library.Scheme.BackgroundColor
@@ -5800,15 +5821,18 @@ function Library:CreateWindow(WindowInfo)
 
         function Tab:Resize(ResizeWarningBox: boolean?)
             if ResizeWarningBox then
+                local MaximumSize = math.floor(TabContainer.AbsoluteSize.Y / 3.25);
                 local _, Y = Library:GetTextBounds(
                     WarningText.Text,
                     Library.Scheme.Font,
                     WarningText.TextSize,
                     WarningText.AbsoluteSize.X
                 )
+				
+                if WarningBoxLockSize == true and Y >= MaximumSize then Y = MaximumSize; end
 
-                WarningText.Size = UDim2.new(1, 0, 0, Y)
-                Library:UpdateDPI(WarningText, { Size = WarningText.Size })
+                WarningBox.Size = UDim2.new(1, 0, 0, Y)
+                Library:UpdateDPI(WarningText, { Size = WarningBox.Size })
             end
 
             local Offset = WarningBox.Visible and WarningBox.AbsoluteSize.Y + 6 or 0

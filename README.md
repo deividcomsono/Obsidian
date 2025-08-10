@@ -105,12 +105,12 @@ local UISettingsTab = Window:AddTab({
 
 #### Methods
 
-| Method                                                                                      | Description                                                                     |
-| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `Window:AddTab(name, iconName, description)`                                                | Adds a new tab with the given name and optional icon and a optional description |
-| `Window:AddTab({ Name = "Tab Name", Icon = "icon_name", Description = "Tab description" })` | Adds a new tab with a table containing name, icon, and description              |
-| `Window:AddKeyTab(name)`                                                                    | Adds a special tab for key input                                                |
-| `Tab:UpdateWarningBox({Title = "Warning", Text = "Example", Visible = true})`               | Updates the warning box in a tab                                                |
+| Method                                                                                            | Description                                                                     |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `Window:AddTab(name, iconName, description)`                                                      | Adds a new tab with the given name and optional icon and a optional description |
+| `Window:AddTab({ Name = "Tab Name", Icon = "icon_name", Description = "Tab description" })`       | Adds a new tab with a table containing name, icon, and description              |
+| `Window:AddKeyTab(name)`                                                                          | Adds a special tab for key input                                                |
+| `Tab:UpdateWarningBox({ Title = "Warning", Text = "Example", Visible = true, LockSize = true })`  | Updates the warning box in a tab                                                |
 
 ### Groupboxes
 

@@ -1,3 +1,9 @@
+### 10.08.2025
+
+```diff
++ Added a LockSize option `Tab:UpdateWarningBox()` to set the maximum size of the warning box to 3.25 size of the Tab Container (optional)
+```
+
 ### 17.07.2025
 
 ```diff
