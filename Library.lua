@@ -5734,7 +5734,7 @@ function Library:CreateWindow(WindowInfo)
             WarningText = New("TextLabel", {
                 BackgroundTransparency = 1,
                 Position = UDim2.fromOffset(0, 16),
-                Size = UDim2.new(1, 0, 1, -14),
+                Size = UDim2.new(1, 0, 0, 0),
                 Text = "",
                 TextSize = 14,
                 TextWrapped = true,
@@ -5777,16 +5777,7 @@ function Library:CreateWindow(WindowInfo)
             end
 
             if typeof(Info.Text) == "string" then
-                local _, Y = Library:GetTextBounds(
-                    Info.Text,
-                    Library.Scheme.Font,
-                    WarningText.TextSize,
-                    WarningText.AbsoluteSize.X
-                )
-
-                WarningText.Size = UDim2.new(1, 0, 0, Y)
                 WarningText.Text = Info.Text
-                Library:UpdateDPI(WarningText, { Size = WarningText.Size })
                 Tab:Resize(true)
             end
 
@@ -5833,11 +5824,12 @@ function Library:CreateWindow(WindowInfo)
                     WarningText.TextSize,
                     WarningText.AbsoluteSize.X
                 )
+                Y = 14 + 2 + Y + 8
 				
                 if WarningBoxLockSize == true and Y >= MaximumSize then Y = MaximumSize; end
 
                 WarningBox.Size = UDim2.new(1, 0, 0, Y)
-                Library:UpdateDPI(WarningText, { Size = WarningBox.Size })
+                Library:UpdateDPI(WarningBox, { Size = WarningBox.Size })
             end
 
             local Offset = WarningBox.Visible and WarningBox.AbsoluteSize.Y + 6 or 0

@@ -1,3 +1,9 @@
+### 12.08.2025
+
+```diff
++ Fixed `Tab:UpdateWarningBox()` not resizing properly
+```
+
 ### 10.08.2025
 
 ```diff
