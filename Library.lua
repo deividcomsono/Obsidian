@@ -1035,24 +1035,24 @@ end
 
 --// Main Instances \\-
 local function SafeParentUI(Instance: Instance, Parent: Instance | () -> Instance)
-    local success, _error = pcall(function()
-        if not Parent then
-            Parent = CoreGui
-        end
+	local success, _error = pcall(function()
+		if not Parent then
+			Parent = CoreGui
+		end
 
-        local DestinationParent
-        if typeof(Parent) == "function" then
-            DestinationParent = Parent()
-        else
-            DestinationParent = Parent
-        end
+		local DestinationParent
+		if typeof(Parent) == "function" then
+			DestinationParent = Parent()
+		else
+			DestinationParent = Parent
+		end
 
-        Instance.Parent = DestinationParent
-    end)
-
-    if not (success and Instance.Parent) then
-        Instance.Parent = Library.LocalPlayer:WaitForChild("PlayerGui", math.huge)
-    end
+		Instance.Parent = DestinationParent
+	end)
+	
+	if not (success and Instance.Parent) then
+		Instance.Parent = Library.LocalPlayer:WaitForChild("PlayerGui", math.huge)
+	end
 end
 
 local function ParentUI(UI: Instance, SkipHiddenUI: boolean?)
@@ -2047,24 +2047,24 @@ do
 			Library:UpdateKeybindFrame()
 		end
 
-        function KeyPicker:GetState()
-            if KeyPicker.Mode == "Always" then
-                return true
-            elseif KeyPicker.Mode == "Hold" then
-                local Key = KeyPicker.Value
-                if Key == "None" then
-                    return false
-                end
+		function KeyPicker:GetState()
+			if KeyPicker.Mode == "Always" then
+				return true
+			elseif KeyPicker.Mode == "Hold" then
+				local Key = KeyPicker.Value
+				if Key == "None" then
+					return false
+				end
 
-                if SpecialKeys[Key] ~= nil then
-                    return UserInputService:IsMouseButtonPressed(SpecialKeys[Key]) and not UserInputService:GetFocusedTextBox()
-                else
-                    return UserInputService:IsKeyDown(Enum.KeyCode[Key]) and not UserInputService:GetFocusedTextBox()
-                end
-            else
-                return KeyPicker.Toggled
-            end
-        end
+				if SpecialKeys[Key] ~= nil then
+					return UserInputService:IsMouseButtonPressed(SpecialKeys[Key]) and not UserInputService:GetFocusedTextBox();
+				else
+					return UserInputService:IsKeyDown(Enum.KeyCode[Key]) and not UserInputService:GetFocusedTextBox();
+				end;
+			else
+				return KeyPicker.Toggled
+			end
+		end
 
 		function KeyPicker:OnChanged(Func)
 			KeyPicker.Changed = Func
@@ -2113,12 +2113,12 @@ do
 			local Input = UserInputService.InputBegan:Wait()
 			local Key = "Unknown"
 
-            if SpecialKeysInput[Input.UserInputType] ~= nil then
-                Key = SpecialKeysInput[Input.UserInputType]
-                
-            elseif Input.UserInputType == Enum.UserInputType.Keyboard then
-                Key = Input.KeyCode == Enum.KeyCode.Escape and "None" or Input.KeyCode.Name
-            end
+			if SpecialKeysInput[Input.UserInputType] ~= nil then
+				Key = SpecialKeysInput[Input.UserInputType];
+
+			elseif Input.UserInputType == Enum.UserInputType.Keyboard then
+				Key = Input.KeyCode == Enum.KeyCode.Escape and "None" or Input.KeyCode.Name
+			end
 
 			KeyPicker.Value = Key
 			KeyPicker:Update()
@@ -5695,16 +5695,16 @@ function Library:CreateWindow(WindowInfo)
 				Parent = TabContainer,
 			})
 
-            WarningBoxScrollingFrame = New("ScrollingFrame", {
-                BackgroundTransparency = 1,
-                BorderSizePixel = 0,
-                AnchorPoint = Vector2.new(0.5, 0.5),
-                Position = UDim2.new(0.5, 0, 0.5, -3),
-                Size = UDim2.new(1, 0, 1, -3),
-                CanvasSize = UDim2.new(0, 0, 0, 0),
-                ScrollBarThickness = 3,
-                Parent = WarningBox,
-            })
+			WarningBoxScrollingFrame = New("ScrollingFrame", {
+				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.new(0.5, 0, 0.5, -3),
+				Size = UDim2.new(1, 0, 1, -3),
+				CanvasSize = UDim2.new(0, 0, 0, 0),
+				ScrollBarThickness = 3,
+				Parent = WarningBox,
+			})
 			New("UIPadding", {
 				PaddingBottom = UDim.new(0, 4),
 				PaddingLeft = UDim.new(0, 6),
@@ -5713,15 +5713,15 @@ function Library:CreateWindow(WindowInfo)
 				Parent = WarningBoxScrollingFrame,
 			})
 
-            WarningTitle = New("TextLabel", {
-                BackgroundTransparency = 1,
-                Size = UDim2.new(1, -4, 0, 14),
-                Text = "",
-                TextColor3 = Color3.fromRGB(255, 50, 50),
-                TextSize = 14,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                Parent = WarningBoxScrollingFrame,
-            })
+			WarningTitle = New("TextLabel", {
+				BackgroundTransparency = 1,
+				Size = UDim2.new(1, -4, 0, 14),
+				Text = "",
+				TextColor3 = Color3.fromRGB(255, 50, 50),
+				TextSize = 14,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				Parent = WarningBoxScrollingFrame,
+			})
 			WarningStroke = New("UIStroke", {
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
 				Color = Color3.fromRGB(169, 0, 0),
@@ -5729,17 +5729,17 @@ function Library:CreateWindow(WindowInfo)
 				Parent = WarningTitle,
 			})
 
-            WarningText = New("TextLabel", {
-                BackgroundTransparency = 1,
-                Position = UDim2.fromOffset(0, 16),
-                Size = UDim2.new(1, -4, 0, 0),
-                Text = "",
-                TextSize = 14,
-                TextWrapped = true,
-                Parent = WarningBoxScrollingFrame,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                TextYAlignment = Enum.TextYAlignment.Top,
-            })
+			WarningText = New("TextLabel", {
+				BackgroundTransparency = 1,
+				Position = UDim2.fromOffset(0, 16),
+				Size = UDim2.new(1, -4, 0, 0),
+				Text = "",
+				TextSize = 14,
+				TextWrapped = true,
+				Parent = WarningBoxScrollingFrame,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				TextYAlignment = Enum.TextYAlignment.Top,
+			})
 			New("UIStroke", {
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
 				Color = "Dark",
@@ -5813,9 +5813,9 @@ function Library:CreateWindow(WindowInfo)
 			end
 		end
 
-        function Tab:Resize(ResizeWarningBox: boolean?)
-            if ResizeWarningBox then
-                local MaximumSize = math.floor(TabContainer.AbsoluteSize.Y / 3.25)
+		function Tab:Resize(ResizeWarningBox: boolean?)
+			if ResizeWarningBox then
+                local MaximumSize = math.floor(TabContainer.AbsoluteSize.Y / 3.25);
                 local _, YText = Library:GetTextBounds(
                     WarningText.Text,
                     Library.Scheme.Font,
@@ -5825,7 +5825,7 @@ function Library:CreateWindow(WindowInfo)
 
                 local YBox = 24 + YText
                 if WarningBoxLockSize == true and YBox >= MaximumSize then
-                    YBox = MaximumSize
+                    YBox = MaximumSize;
                     WarningBoxScrollingFrame.CanvasSize = UDim2.fromOffset(0, YBox - 4)
                 else
                     WarningBoxScrollingFrame.CanvasSize = UDim2.fromOffset(0, 0)
@@ -5836,18 +5836,18 @@ function Library:CreateWindow(WindowInfo)
 
                 WarningBox.Size = UDim2.new(1, 0, 0, YBox)
                 Library:UpdateDPI(WarningBox, { Size = WarningBox.Size })
-            end
+			end
 
-            local Offset = WarningBox.Visible and WarningBox.AbsoluteSize.Y + 6 or 0
-            for _, Side in pairs(Tab.Sides) do
-                Side.Position = UDim2.new(Side.Position.X.Scale, 0, 0, Offset)
-                Side.Size = UDim2.new(0, math.floor(TabContainer.AbsoluteSize.X / 2) - 3, 1, -Offset)
-                Library:UpdateDPI(Side, {
-                    Position = Side.Position,
-                    Size = Side.Size,
-                })
-            end
-        end
+			local Offset = WarningBox.Visible and WarningBox.AbsoluteSize.Y + 6 or 0
+			for _, Side in pairs(Tab.Sides) do
+				Side.Position = UDim2.new(Side.Position.X.Scale, 0, 0, Offset)
+				Side.Size = UDim2.new(0, math.floor(TabContainer.AbsoluteSize.X / 2) - 3, 1, -Offset)
+				Library:UpdateDPI(Side, {
+					Position = Side.Position,
+					Size = Side.Size,
+				})
+			end
+		end
 
 		function Tab:AddGroupbox(Info)
 			local BoxHolder = New("Frame", {
