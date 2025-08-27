@@ -5776,6 +5776,7 @@ function Library:CreateWindow(WindowInfo)
         }
 
         function Tab:UpdateWarningBox(Info)
+            if typeof(Info.IsNormal) == "boolean"   then Tab.WarningBox.IsNormal    = Info.IsNormal end
             if typeof(Info.LockSize) == "boolean"   then Tab.WarningBox.LockSize    = Info.LockSize end
             if typeof(Info.Visible) == "boolean"    then Tab.WarningBox.Visible     = Info.Visible end
             if typeof(Info.Title) == "string"       then Tab.WarningBox.Title       = Info.Title end
@@ -5786,10 +5787,10 @@ function Library:CreateWindow(WindowInfo)
             WarningText.Text = Tab.WarningBox.Text
             Tab:Resize(true)
 
-            WarningBox.BackgroundColor3 = Info.IsNormal == true and Library.Scheme.BackgroundColor or Color3.fromRGB(127, 0, 0)
-            WarningBox.BorderColor3 = Info.IsNormal == true and Library.Scheme.OutlineColor or Color3.fromRGB(255, 50, 50)
-            WarningTitle.TextColor3 = Info.IsNormal == true and Library.Scheme.FontColor or Color3.fromRGB(255, 50, 50)
-            WarningStroke.Color = Info.IsNormal == true and Library.Scheme.OutlineColor or Color3.fromRGB(169, 0, 0)
+            WarningBox.BackgroundColor3 = Tab.WarningBox.IsNormal == true and Library.Scheme.BackgroundColor or Color3.fromRGB(127, 0, 0)
+            WarningBox.BorderColor3 = Tab.WarningBox.IsNormal == true and Library.Scheme.OutlineColor or Color3.fromRGB(255, 50, 50)
+            WarningTitle.TextColor3 = Tab.WarningBox.IsNormal == true and Library.Scheme.FontColor or Color3.fromRGB(255, 50, 50)
+            WarningStroke.Color = Tab.WarningBox.IsNormal == true and Library.Scheme.OutlineColor or Color3.fromRGB(169, 0, 0)
 
             if not Library.Registry[WarningBox] then
                 Library:AddToRegistry(WarningBox, {})
@@ -5802,19 +5803,19 @@ function Library:CreateWindow(WindowInfo)
             end
 
             Library.Registry[WarningBox].BackgroundColor3 = function()
-                return Info.IsNormal == true and Library.Scheme.BackgroundColor or Color3.fromRGB(127, 0, 0)
+                return Tab.WarningBox.IsNormal == true and Library.Scheme.BackgroundColor or Color3.fromRGB(127, 0, 0)
             end
 
             Library.Registry[WarningBox].BorderColor3 = function()
-                return Info.IsNormal == true and Library.Scheme.OutlineColor or Color3.fromRGB(255, 50, 50)
+                return Tab.WarningBox.IsNormal == true and Library.Scheme.OutlineColor or Color3.fromRGB(255, 50, 50)
             end
 
             Library.Registry[WarningTitle].TextColor3 = function()
-                return Info.IsNormal == true and Library.Scheme.FontColor or Color3.fromRGB(255, 50, 50)
+                return Tab.WarningBox.IsNormal == true and Library.Scheme.FontColor or Color3.fromRGB(255, 50, 50)
             end
 
             Library.Registry[WarningStroke].Color = function()
-                return Info.IsNormal == true and Library.Scheme.OutlineColor or Color3.fromRGB(169, 0, 0)
+                return Tab.WarningBox.IsNormal == true and Library.Scheme.OutlineColor or Color3.fromRGB(169, 0, 0)
             end
         end
 
