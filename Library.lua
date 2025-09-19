@@ -145,7 +145,7 @@ do
             return AssetData.Id
         end
 
-        local AssetID = `rbxassetid://{AssetData.RobloxId}`
+        local AssetID = string.format("rbxassetid://%s", AssetData.RobloxId)
 
         if getcustomasset then
             local Success, NewID = pcall(getcustomasset, AssetData.Path)
@@ -5201,7 +5201,7 @@ function Library:Notify(...)
     if Data.SoundId then
         local SoundId = Data.SoundId
         if typeof(SoundId) == "number" then
-            SoundId = `rbxassetid://{SoundId}`
+            SoundId = string.format("rbxassetid://%d", SoundId)
         end
 
         New("Sound", {
@@ -5371,7 +5371,7 @@ function Library:CreateWindow(WindowInfo)
 
         if WindowInfo.Icon then
             New("ImageLabel", {
-                Image = if tonumber(WindowInfo.Icon) then `rbxassetid://{WindowInfo.Icon}` else WindowInfo.Icon,
+                Image = if tonumber(WindowInfo.Icon) then string.format("rbxassetid://%s", WindowInfo.Icon) else WindowInfo.Icon,
                 Size = WindowInfo.IconSize,
                 Parent = TitleHolder,
             })
