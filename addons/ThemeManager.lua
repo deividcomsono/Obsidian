@@ -291,10 +291,10 @@ do
         local fields = { "FontColor", "MainColor", "AccentColor", "BackgroundColor", "OutlineColor" }
         for _, field in pairs(fields) do
             if typeof(theme[field]) == "Color3" then
-                FinalTheme[field] = `#{theme[field]:ToHex()}`
+                FinalTheme[field] = "#" .. theme[field]:ToHex()
                 LibraryScheme[field] = theme[field]
             elseif typeof(theme[field]) == "string" then
-                FinalTheme[field] = if theme[field]:sub(1, 1) == "#" then theme[field] else `#{theme[field]}`
+                FinalTheme[field] = if theme[field]:sub(1, 1) == "#" then theme[field] else ("#" .. theme[field])
                 LibraryScheme[field] = Color3.fromHex(theme[field])
             else
                 FinalTheme[field] = ThemeManager.BuiltInThemes["Default"][2][field]
