@@ -1101,19 +1101,21 @@ ScreenGui.DescendantRemoving:Connect(function(Instance)
 end)
 
 local ModalScreenGui = New("ScreenGui", {
-    Name = "ObsidanModal",
-    DisplayOrder = 999,
+    Name = "ObsidianModal",
+    DisplayOrder = -999,
+    IgnoreGuiInset = true,
     ResetOnSpawn = false,
+    Enabled = false
 })
 ParentUI(ModalScreenGui, true)
 
-local ModalElement = New("TextButton", {
+--[[ local ModalElement = --]] New("TextButton", {
     BackgroundTransparency = 1,
-    Modal = false,
-    Size = UDim2.fromScale(0, 0),
+    Modal = true,
+    Size = UDim2.fromScale(1, 1),
+    AnchorPoint = Vector2.zero,
     Text = "",
-    ZIndex = -999,
-    Parent = ModalScreenGui,
+    Parent = ModalScreenGui
 })
 
 --// Cursor
@@ -6490,7 +6492,7 @@ function Library:CreateWindow(WindowInfo)
         end
 
         MainFrame.Visible = Library.Toggled
-        ModalElement.Modal = Library.Toggled
+        ModalScreenGui.Enabled = Library.Toggled
 
         if Library.Toggled and not Library.IsMobile then
             local OldMouseIconEnabled = UserInputService.MouseIconEnabled
