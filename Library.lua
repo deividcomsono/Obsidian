@@ -6225,6 +6225,10 @@ function Library:CreateWindow(WindowInfo)
             TabContainer.Visible = true
 
             Library.ActiveTab = Tab
+
+            if Library.Searching then
+                Library:UpdateSearch(Library.SearchText)
+            end
         end
 
         function Tab:Hide()
