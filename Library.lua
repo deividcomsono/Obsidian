@@ -339,6 +339,7 @@ local Templates = {
     KeyPicker = {
         Text = "KeyPicker",
         Default = "None",
+        DefaultModifiers = {},
         Mode = "Toggle",
         Modes = { "Always", "Toggle", "Hold" },
         SyncToggleState = false,
@@ -1845,7 +1846,7 @@ do
             Text = Info.Text,
 
             Value = Info.Default, -- Key
-            Modifiers = {}, -- Modifiers
+            Modifiers = Info.DefaultModifiers, -- Modifiers
             DisplayValue = Info.Default, -- Picker Text
 
             Toggled = false,
@@ -2221,8 +2222,8 @@ do
         function KeyPicker:SetValue(Data)
             local Key, Mode, Modifiers = Data[1], Data[2], Data[3]
 
-            KeyPicker.Value = Key
-            KeyPicker.Modifiers = if typeof(Modifiers) == "table" then Modifiers else KeyPicker.Modifiers
+            KeyPicker.Value = Key;
+            KeyPicker.Modifiers = if typeof(Modifiers) == "table" then Modifiers else (if typeof(KeyPicker.Modifiers) == "table" then KeyPicker.Modifiers else {});
             KeyPicker.DisplayValue = if GetTableSize(KeyPicker.Modifiers) > 0 then (table.concat(KeyPicker.Modifiers, " + ") .. " + " .. KeyPicker.Value) else KeyPicker.Value;
 
             if ModeButtons[Mode] then
