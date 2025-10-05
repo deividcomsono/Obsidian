@@ -83,11 +83,11 @@ local SaveManager = {} do
         },
         KeyPicker = {
             Save = function(idx, object)
-                return { type = "KeyPicker", idx = idx, mode = object.Mode, key = object.Value }
+                return { type = "KeyPicker", idx = idx, mode = object.Mode, key = object.Value, modifiers = object.Modifiers }
             end,
             Load = function(idx, data)
                 if SaveManager.Library.Options[idx] then
-                    SaveManager.Library.Options[idx]:SetValue({ data.key, data.mode })
+                    SaveManager.Library.Options[idx]:SetValue({ data.key, data.mode, data.modifiers })
                 end
             end,
         },

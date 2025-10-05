@@ -1,3 +1,10 @@
+## 5.10.2025
+
+```diff
++ Added support for modifier keys in KeyPicker (for example: LCtrl + E)
++ Fixed DoClick not calling the correct callbacks
+```
+
 ## 17.09.2025
 
 ```diff

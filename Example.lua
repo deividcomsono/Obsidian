@@ -576,9 +576,9 @@ LeftGroupBox:AddLabel("Keybind"):AddKeyPicker("KeyPicker", {
 		print("[cb] Keybind clicked!", Value)
 	end,
 
-	-- Occurs when the keybind itself is changed, `New` is a KeyCode Enum OR a UserInputType Enum
-	ChangedCallback = function(New)
-		print("[cb] Keybind changed!", New)
+	-- Occurs when the keybind itself is changed, `NewKey` is a KeyCode Enum OR a UserInputType Enum, `NewModifiers` is a table with KeyCode Enum(s) or nil
+	ChangedCallback = function(NewKey, NewModifiers)
+		print("[cb] Keybind changed!", table.unpack(NewModifiers or {}), NewKey)
 	end,
 })
 
@@ -589,7 +589,7 @@ Options.KeyPicker:OnClick(function()
 end)
 
 Options.KeyPicker:OnChanged(function()
-	print("Keybind changed!", Options.KeyPicker.Value)
+	print("Keybind changed!", table.unpack(Options.KeyPicker.Modifiers or {}), Options.KeyPicker.Value)
 end)
 
 task.spawn(function()

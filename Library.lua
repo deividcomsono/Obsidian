@@ -1843,7 +1843,11 @@ do
 
         local KeyPicker = {
             Text = Info.Text,
-            Value = Info.Default,
+
+            Value = Info.Default, -- Key
+            Modifiers = {}, -- Modifiers
+            DisplayValue = Info.Default, -- Picker Text
+
             Toggled = false,
             Mode = Info.Mode,
             SyncToggleState = Info.SyncToggleState,
@@ -1869,6 +1873,9 @@ do
             Info.Mode = "Toggle"
         end
 
+        local Picking = false
+
+        -- Special Keys
         local SpecialKeys = {
             ["MB1"] = Enum.UserInputType.MouseButton1,
             ["MB2"] = Enum.UserInputType.MouseButton2,
@@ -1880,6 +1887,94 @@ do
             [Enum.UserInputType.MouseButton2] = "MB2",
             [Enum.UserInputType.MouseButton3] = "MB3"
         }
+
+        -- Modifiers
+        local Modifiers = {
+            ["LAlt"] = Enum.KeyCode.LeftAlt,
+            ["RAlt"] = Enum.KeyCode.RightAlt,
+
+            ["LCtrl"] = Enum.KeyCode.LeftControl,
+            ["RCtrl"] = Enum.KeyCode.RightControl,
+
+            ["LShift"] = Enum.KeyCode.LeftShift,
+            ["RShift"] = Enum.KeyCode.RightShift,
+
+            ["Tab"] = Enum.KeyCode.Tab,
+            ["CapsLock"] = Enum.KeyCode.CapsLock
+        }
+
+        local ModifiersInput = {
+            [Enum.KeyCode.LeftAlt] = "LAlt",
+            [Enum.KeyCode.RightAlt] = "RAlt",
+
+            [Enum.KeyCode.LeftControl] = "LCtrl",
+            [Enum.KeyCode.RightControl] = "RCtrl",
+
+            [Enum.KeyCode.LeftShift] = "LShift",
+            [Enum.KeyCode.RightShift] = "RShift",
+
+            [Enum.KeyCode.Tab] = "Tab",
+            [Enum.KeyCode.CapsLock] = "CapsLock"
+        }
+
+        local IsModifierInput = function(Input)
+            return Input.UserInputType == Enum.UserInputType.Keyboard and ModifiersInput[Input.KeyCode] ~= nil;
+        end;
+
+        local GetActiveModifiers = function()
+            local ActiveModifiers = {};
+
+            for Name, Input in Modifiers do
+                if table.find(ActiveModifiers, Name) then continue end
+                if not UserInputService:IsKeyDown(Input) then continue end
+
+                table.insert(ActiveModifiers, Name);
+            end;
+
+            return ActiveModifiers;
+        end
+
+        local AreModifiersHeld = function(Required)
+            if not (typeof(Required) == "table" and GetTableSize(Required) > 0) then 
+                return true;
+            end;
+
+            local ActiveModifiers = GetActiveModifiers();
+            local Holding = true;
+
+            for _, Name in Required do
+                if table.find(ActiveModifiers, Name) then continue end
+
+                Holding = false;
+                break;
+            end
+
+            return Holding;
+        end
+
+        local IsInputDown = function(Input)
+            if not Input then 
+                return false;
+            end;
+
+            if SpecialKeysInput[Input.UserInputType] ~= nil then
+                return UserInputService:IsMouseButtonPressed(Input.UserInputType) and not UserInputService:GetFocusedTextBox();
+            elseif Input.UserInputType == Enum.UserInputType.Keyboard then
+                return UserInputService:IsKeyDown(Input.KeyCode) and not UserInputService:GetFocusedTextBox();
+            else
+                return false;
+            end
+        end
+
+        local ConvertToInputModifiers = function(CurrentModifiers)
+            local InputModifiers = {};
+
+            for _, name in CurrentModifiers do
+                table.insert(InputModifiers, Modifiers[name]);
+            end
+
+            return InputModifiers;
+        end
 
         local Picker = New("TextButton", {
             BackgroundColor3 = "MainColor",
@@ -2034,8 +2129,8 @@ do
             end
 
             local X, Y =
-                Library:GetTextBounds(KeyPicker.Value, Picker.FontFace, Picker.TextSize, ToggleLabel.AbsoluteSize.X)
-            Picker.Text = KeyPicker.Value
+                Library:GetTextBounds(KeyPicker.DisplayValue, Picker.FontFace, Picker.TextSize, ToggleLabel.AbsoluteSize.X)
+            Picker.Text = KeyPicker.DisplayValue
             Picker.Size = UDim2.fromOffset(X + 9 * Library.DPIScale, Y + 4 * Library.DPIScale)
         end
 
@@ -2061,7 +2156,7 @@ do
                     KeybindsToggle:SetNormal(true)
                 end
 
-                KeybindsToggle:SetText(("[%s] %s (%s)"):format(KeyPicker.Value, KeyPicker.Text, KeyPicker.Mode))
+                KeybindsToggle:SetText(("[%s] %s (%s)"):format(KeyPicker.DisplayValue, KeyPicker.Text, KeyPicker.Mode))
                 KeybindsToggle:SetVisibility(true)
                 KeybindsToggle:Display(State)
             end
@@ -2071,18 +2166,24 @@ do
 
         function KeyPicker:GetState()
             if KeyPicker.Mode == "Always" then
-                return true
+                return true;
+
             elseif KeyPicker.Mode == "Hold" then
                 local Key = KeyPicker.Value
                 if Key == "None" then
-                    return false
+                    return false;
                 end
+
+                if not AreModifiersHeld(KeyPicker.Modifiers) then
+                    return false;
+                end;
 
                 if SpecialKeys[Key] ~= nil then
                     return UserInputService:IsMouseButtonPressed(SpecialKeys[Key]) and not UserInputService:GetFocusedTextBox();
                 else
                     return UserInputService:IsKeyDown(Enum.KeyCode[Key]) and not UserInputService:GetFocusedTextBox();
                 end;
+
             else
                 return KeyPicker.Toggled;
             end
@@ -2110,7 +2211,7 @@ do
             end
 
             Library:SafeCallback(KeyPicker.Callback, KeyPicker.Toggled)
-            Library:SafeCallback(KeyPicker.Changed, KeyPicker.Toggled)
+            Library:SafeCallback(KeyPicker.Clicked, KeyPicker.Toggled)
 
             if KeyPicker.Mode == "Press" then
                 KeyPicker.Toggled = false
@@ -2118,12 +2219,25 @@ do
         end
 
         function KeyPicker:SetValue(Data)
-            local Key, Mode = Data[1], Data[2]
+            local Key, Mode, Modifiers = Data[1], Data[2], Data[3]
 
             KeyPicker.Value = Key
+            KeyPicker.Modifiers = if typeof(Modifiers) == "table" then Modifiers else KeyPicker.Modifiers
+            KeyPicker.DisplayValue = if GetTableSize(KeyPicker.Modifiers) > 0 then (table.concat(KeyPicker.Modifiers, " + ") .. " + " .. KeyPicker.Value) else KeyPicker.Value;
+
             if ModeButtons[Mode] then
                 ModeButtons[Mode]:Select()
             end
+
+            local NewKey, NewModifiers = if SpecialKeys[Key] == nil then Enum.KeyCode[Key] else SpecialKeys[Key], ConvertToInputModifiers(KeyPicker.Modifiers);
+            Library:SafeCallback(
+                KeyPicker.ChangedCallback,
+                NewKey, NewModifiers
+            )
+            Library:SafeCallback(
+                KeyPicker.Changed,
+                NewKey, NewModifiers
+            )
 
             KeyPicker:Update()
         end
@@ -2133,7 +2247,6 @@ do
             KeyPicker:Update()
         end
 
-        local Picking = false
         Picker.MouseButton1Click:Connect(function()
             if Picking then
                 return
@@ -2144,29 +2257,32 @@ do
             Picker.Text = "..."
             Picker.Size = UDim2.fromOffset(29 * Library.DPIScale, 18 * Library.DPIScale)
 
-            local Input = UserInputService.InputBegan:Wait()
+            -- Wait for an non modifier key --
+            local Input
+            repeat
+                Input = UserInputService.InputBegan:Wait()
+                if UserInputService:GetFocusedTextBox() then
+                    Picking = false
+                    KeyPicker:Update()
+                    return
+                end
+            until not IsModifierInput(Input)
+
             local Key = "Unknown"
+            local ActiveModifiers = 
+                if Input.KeyCode == Enum.KeyCode.Escape then {} else GetActiveModifiers();
 
             if SpecialKeysInput[Input.UserInputType] ~= nil then
                 Key = SpecialKeysInput[Input.UserInputType];
-
             elseif Input.UserInputType == Enum.UserInputType.Keyboard then
-                Key = Input.KeyCode == Enum.KeyCode.Escape and "None" or Input.KeyCode.Name
+                Key = Input.KeyCode == Enum.KeyCode.Escape and "None" or Input.KeyCode.Name;
             end
 
-            KeyPicker.Value = Key
-            KeyPicker:Update()
+            KeyPicker.Toggled = false;
+            KeyPicker:SetValue({ Key, KeyPicker.Mode, ActiveModifiers })
 
-            Library:SafeCallback(
-                KeyPicker.ChangedCallback,
-                Input.KeyCode == Enum.KeyCode.Unknown and Input.UserInputType or Input.KeyCode
-            )
-            Library:SafeCallback(
-                KeyPicker.Changed,
-                Input.KeyCode == Enum.KeyCode.Unknown and Input.UserInputType or Input.KeyCode
-            )
-
-            RunService.RenderStepped:Wait()
+            -- RunService.RenderStepped:Wait()
+            repeat task.wait() until not IsInputDown(Input) or UserInputService:GetFocusedTextBox()
             Picking = false
         end)
         Picker.MouseButton2Click:Connect(MenuTable.Toggle)
@@ -2182,14 +2298,15 @@ do
                 return
             end
 
-            local Key = KeyPicker.Value
-            local HoldingKey = false
+            local Key = KeyPicker.Value;
+            local HoldingModifiers = AreModifiersHeld(KeyPicker.Modifiers);
+            local HoldingKey = false;
 
             if 
-                Key and (
+                Key and HoldingModifiers == true and (
                     SpecialKeysInput[Input.UserInputType] == Key or 
                     (Input.UserInputType == Enum.UserInputType.Keyboard and Input.KeyCode.Name == Key)
-                ) 
+                )
             then
                 HoldingKey = true
             end
