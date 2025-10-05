@@ -1977,6 +1977,24 @@ do
             return InputModifiers;
         end
 
+        local VerifyModifiers = function(CurrentModifiers)
+            if typeof(CurrentModifiers) ~= "table" then
+                return {};
+            end;
+
+            local ValidModifiers = {};
+
+            for _, name in CurrentModifiers do
+                if not Modifiers[name] then continue end
+
+                table.insert(ValidModifiers, name);
+            end
+
+            return ValidModifiers;
+        end
+
+        KeyPicker.Modifiers = VerifyModifiers(KeyPicker.Modifiers); -- Verify default modifiers
+
         local Picker = New("TextButton", {
             BackgroundColor3 = "MainColor",
             BorderColor3 = "OutlineColor",
@@ -2223,7 +2241,7 @@ do
             local Key, Mode, Modifiers = Data[1], Data[2], Data[3]
 
             KeyPicker.Value = Key;
-            KeyPicker.Modifiers = if typeof(Modifiers) == "table" then Modifiers else (if typeof(KeyPicker.Modifiers) == "table" then KeyPicker.Modifiers else {});
+            KeyPicker.Modifiers = VerifyModifiers(if typeof(Modifiers) == "table" then Modifiers else KeyPicker.Modifiers);
             KeyPicker.DisplayValue = if GetTableSize(KeyPicker.Modifiers) > 0 then (table.concat(KeyPicker.Modifiers, " + ") .. " + " .. KeyPicker.Value) else KeyPicker.Value;
 
             if ModeButtons[Mode] then
