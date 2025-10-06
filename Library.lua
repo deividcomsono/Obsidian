@@ -2241,6 +2241,11 @@ do
             local Key, Mode, Modifiers = Data[1], Data[2], Data[3]
 
             local IsKeyValid, UserInputType = pcall(function() 
+                if Key == "None" then
+                    Key = nil;
+                    return nil;
+                end;
+
                 if SpecialKeys[Key] == nil then 
                     return Enum.KeyCode[Key];
                 end; 
