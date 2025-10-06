@@ -2240,7 +2240,22 @@ do
         function KeyPicker:SetValue(Data)
             local Key, Mode, Modifiers = Data[1], Data[2], Data[3]
 
-            KeyPicker.Value = Key;
+            local IsKeyValid, UserInputType = pcall(function() 
+                if SpecialKeys[Key] == nil then 
+                    return Enum.KeyCode[Key];
+                end; 
+
+                return SpecialKeys[Key]; 
+            end);
+
+            if Key == nil then
+                KeyPicker.Value = "None";
+            elseif IsKeyValid then
+                KeyPicker.Value = Key;
+            else
+                KeyPicker.Value = "Unknown";
+            end
+
             KeyPicker.Modifiers = VerifyModifiers(if typeof(Modifiers) == "table" then Modifiers else KeyPicker.Modifiers);
             KeyPicker.DisplayValue = if GetTableSize(KeyPicker.Modifiers) > 0 then (table.concat(KeyPicker.Modifiers, " + ") .. " + " .. KeyPicker.Value) else KeyPicker.Value;
 
@@ -2248,14 +2263,14 @@ do
                 ModeButtons[Mode]:Select()
             end
 
-            local NewKey, NewModifiers = if SpecialKeys[Key] == nil then Enum.KeyCode[Key] else SpecialKeys[Key], ConvertToInputModifiers(KeyPicker.Modifiers);
+            local NewModifiers = ConvertToInputModifiers(KeyPicker.Modifiers);
             Library:SafeCallback(
                 KeyPicker.ChangedCallback,
-                NewKey, NewModifiers
+                UserInputType, NewModifiers
             )
             Library:SafeCallback(
                 KeyPicker.Changed,
-                NewKey, NewModifiers
+                UserInputType, NewModifiers
             )
 
             KeyPicker:Update()
