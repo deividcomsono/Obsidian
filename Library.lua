@@ -1373,6 +1373,7 @@ function Library:MakeLine(Frame: GuiObject, Info)
         BackgroundColor3 = "OutlineColor",
         Position = Info.Position,
         Size = Info.Size,
+        ZIndex = Info.ZIndex or 1,
         Parent = Frame,
     })
 
@@ -5485,39 +5486,39 @@ function Library:CreateWindow(WindowInfo)
             ["Tabs"] = {},
             ["Container"] = {},
             ["TabButtonUIPadding"] = {},
-            ["TabLabel"] = {}
+            ["TabLabel"] = {},
         },
 
         [true] = {
             ["Line"] = {
-                Position = UDim2.fromScale(0.075, 0),
+                Position = UDim2.fromOffset(55, 0),
             },
 
             ["TitleHolder"] = {
-                Size =  UDim2.fromScale(0.075, 1),
+                Size = UDim2.new(0, 54, 1, 0),
             },
 
             ["WindowIcon"] = {
                 Visible = function(Element)
-                    return true;
-                end
+                    return true
+                end,
             },
 
             ["WindowTitle"] = {
-                Visible = false
+                Visible = false,
             },
 
             ["RightWrapper"] = {
-                Position = UDim2.new(0.075, 8, 0.5, 0),
-                Size = UDim2.new(0.9, -37, 1, -16)
+                Position = UDim2.new(0, 54 + 8, 0.5, 0),
+                Size = UDim2.new(0.9, -37, 1, -16),
             },
 
             ["Tabs"] = {
-                Size = UDim2.new(0.075, 0, 1, -70)
+                Size = UDim2.new(0, 54, 1, -70),
             },
 
             ["Container"] = {
-                Size = UDim2.new(0.925, -1, 1, -70)
+                Size = UDim2.new(1, -55, 1, -70),
             },
 
             ["TabButtonUIPadding"] = {
@@ -5528,8 +5529,8 @@ function Library:CreateWindow(WindowInfo)
             },
 
             ["TabLabel"] = {
-                Visible = false
-            }
+                Visible = false,
+            },
         },
 
         [false] = {
@@ -5538,15 +5539,15 @@ function Library:CreateWindow(WindowInfo)
             },
 
             ["TitleHolder"] = {
-                Size =  UDim2.fromScale(0.3, 1),
+                Size = UDim2.fromScale(0.3, 1),
             },
 
             ["WindowIcon"] = {
                 Visible = function(Element)
-                    return WindowInfo.Icon ~= nil;
-                end
+                    return WindowInfo.Icon ~= nil
+                end,
             },
-            
+
             ["WindowTitle"] = {
                 Size = function(Element)
                     local X = Library:GetTextBounds(
@@ -5557,7 +5558,7 @@ function Library:CreateWindow(WindowInfo)
                     )
                     return UDim2.new(0, X, 1, 0)
                 end,
-                Visible = true
+                Visible = true,
             },
 
             ["RightWrapper"] = {
@@ -5570,7 +5571,7 @@ function Library:CreateWindow(WindowInfo)
             },
 
             ["Container"] = {
-                Size = UDim2.new(0.7, -1, 1, -70)
+                Size = UDim2.new(0.7, -1, 1, -70),
             },
 
             ["TabButtonUIPadding"] = {
@@ -5581,16 +5582,20 @@ function Library:CreateWindow(WindowInfo)
             },
 
             ["TabLabel"] = {
-                Visible = true
-            }
-        }
+                Visible = true,
+            },
+        },
     }
     local LoadingSizes = ElementSizes[WindowInfo.Compact]
     local ToggleCompactDebounce = false
     local ToggleCompactClickCount = 0
     local ToggleCompact = function()
-        if not ElementSizes.Loaded then return end
-        if ToggleCompactDebounce then return end
+        if not ElementSizes.Loaded then
+            return
+        end
+        if ToggleCompactDebounce then
+            return
+        end
 
         ToggleCompactDebounce = true
         WindowInfo.Compact = not WindowInfo.Compact
@@ -5600,7 +5605,9 @@ function Library:CreateWindow(WindowInfo)
             local Elements = ElementSizes.Elements[ElementName]
             for _, Element in Elements do
                 for PropertyName, PropertyValue in Properties do
-                    Element[PropertyName] = if typeof(PropertyValue) == "function" then PropertyValue(Element) else PropertyValue;
+                    Element[PropertyName] = if typeof(PropertyValue) == "function"
+                        then PropertyValue(Element)
+                        else PropertyValue
                 end
             end
         end
@@ -5609,7 +5616,9 @@ function Library:CreateWindow(WindowInfo)
             Tab:RefreshSides()
         end
 
-        task.delay(0.01, function() ToggleCompactDebounce = false end)
+        task.delay(0.01, function()
+            ToggleCompactDebounce = false
+        end)
     end
     local DoubleClickToggleCompact = function()
         ToggleCompactClickCount = ToggleCompactClickCount + 1
@@ -5651,10 +5660,14 @@ function Library:CreateWindow(WindowInfo)
             Parent = MainFrame,
         })
         do
-            table.insert(ElementSizes.Elements["Line"], Library:MakeLine(MainFrame, {
-                Position = LoadingSizes["Line"].Position,
-                Size = UDim2.new(0, 1, 1, -21)
-            }))
+            table.insert(
+                ElementSizes.Elements["Line"],
+                Library:MakeLine(MainFrame, {
+                    Position = LoadingSizes["Line"].Position,
+                    Size = UDim2.new(0, 1, 1, -21),
+                    ZIndex = 2,
+                })
+            )
 
             local Lines = {
                 {
@@ -5748,7 +5761,9 @@ function Library:CreateWindow(WindowInfo)
             Visible = LoadingSizes["WindowTitle"].Visible,
             Parent = TitleHolder,
         })
-        WindowTitle.Size = if LoadingSizes["WindowTitle"].Size then LoadingSizes["WindowTitle"].Size(WindowTitle) else UDim2.fromScale(0, 1);
+        WindowTitle.Size = if LoadingSizes["WindowTitle"].Size
+            then LoadingSizes["WindowTitle"].Size(WindowTitle)
+            else UDim2.fromScale(0, 1)
 
         if not WindowInfo.DisableCompactChanges then
             Library:GiveSignal(WindowTitle.MouseButton1Click:Connect(DoubleClickToggleCompact))
@@ -6024,13 +6039,16 @@ function Library:CreateWindow(WindowInfo)
                 Parent = Tabs,
             })
 
-            table.insert(ElementSizes.Elements["TabButtonUIPadding"], New("UIPadding", {
-                PaddingBottom = LoadingSizes["TabButtonUIPadding"].PaddingBottom,
-                PaddingLeft = LoadingSizes["TabButtonUIPadding"].PaddingLeft,
-                PaddingRight = LoadingSizes["TabButtonUIPadding"].PaddingRight,
-                PaddingTop = LoadingSizes["TabButtonUIPadding"].PaddingTop,
-                Parent = TabButton,
-            }))
+            table.insert(
+                ElementSizes.Elements["TabButtonUIPadding"],
+                New("UIPadding", {
+                    PaddingBottom = LoadingSizes["TabButtonUIPadding"].PaddingBottom,
+                    PaddingLeft = LoadingSizes["TabButtonUIPadding"].PaddingLeft,
+                    PaddingRight = LoadingSizes["TabButtonUIPadding"].PaddingRight,
+                    PaddingTop = LoadingSizes["TabButtonUIPadding"].PaddingTop,
+                    Parent = TabButton,
+                })
+            )
 
             TabLabel = New("TextLabel", {
                 BackgroundTransparency = 1,
@@ -6691,13 +6709,16 @@ function Library:CreateWindow(WindowInfo)
                 Text = "",
                 Parent = Tabs,
             })
-            table.insert(ElementSizes.Elements["TabButtonUIPadding"], New("UIPadding", {
-                PaddingBottom = LoadingSizes["TabButtonUIPadding"].PaddingBottom,
-                PaddingLeft = LoadingSizes["TabButtonUIPadding"].PaddingLeft,
-                PaddingRight = LoadingSizes["TabButtonUIPadding"].PaddingRight,
-                PaddingTop = LoadingSizes["TabButtonUIPadding"].PaddingTop,
-                Parent = TabButton,
-            }))
+            table.insert(
+                ElementSizes.Elements["TabButtonUIPadding"],
+                New("UIPadding", {
+                    PaddingBottom = LoadingSizes["TabButtonUIPadding"].PaddingBottom,
+                    PaddingLeft = LoadingSizes["TabButtonUIPadding"].PaddingLeft,
+                    PaddingRight = LoadingSizes["TabButtonUIPadding"].PaddingRight,
+                    PaddingTop = LoadingSizes["TabButtonUIPadding"].PaddingTop,
+                    Parent = TabButton,
+                })
+            )
 
             TabLabel = New("TextLabel", {
                 BackgroundTransparency = 1,
