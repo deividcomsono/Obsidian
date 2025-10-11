@@ -266,6 +266,7 @@ local Templates = {
         SidebarMinWidth = 180,
         SidebarCompactWidth = 54,
         SidebarCollapseThreshold = 0.5,
+        SidebarHighlightCallback = nil,
     },
     Toggle = {
         Text = "Toggle",
@@ -492,6 +493,10 @@ local function GetTeams()
     end)
 
     return TeamList
+end
+local function GetLighterColor(Color)
+    local H, S, V = Color:ToHSV()
+    return Color3.fromHSV(H, math.max(0, S - 0.1), math.min(1, V + 0.1))
 end
 
 function Library:UpdateKeybindFrame()
@@ -5482,6 +5487,8 @@ function Library:CreateWindow(WindowInfo)
     local Container
     local Window
 
+    local SidebarHighlightCallback = WindowInfo.SidebarHighlightCallback
+
     local LayoutState = {
         IsCompact = WindowInfo.Compact,
         MinWidth = WindowInfo.SidebarMinWidth,
@@ -5554,12 +5561,23 @@ function Library:CreateWindow(WindowInfo)
     end
 
     local function SetSidebarHighlight(IsActive)
-        if not LayoutRefs.DividerLine then
+        local DividerLine = LayoutRefs.DividerLine
+        if not DividerLine then
             return
         end
 
         LayoutState.GrabberHighlighted = IsActive == true
-        LayoutRefs.DividerLine.BackgroundTransparency = IsActive and 0.7 or 0
+
+        if typeof(SidebarHighlightCallback) == "function" then
+            Library:SafeCallback(SidebarHighlightCallback, DividerLine, LayoutState.GrabberHighlighted)
+        else
+            local TargetColor = LayoutState.GrabberHighlighted and GetLighterColor(Library.Scheme.OutlineColor)
+                or Library.Scheme.OutlineColor
+
+            TweenService:Create(DividerLine, Library.TweenInfo, {
+                BackgroundColor3 = TargetColor,
+            }):Play()
+        end
     end
 
     local function ApplySidebarLayout()

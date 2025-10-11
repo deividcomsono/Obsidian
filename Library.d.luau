@@ -598,6 +598,11 @@ export type KeyTab = BaseGroupbox & {
 }
 
 export type Window = {
+    GetSidebarWidth: (self: Window) -> number,
+    IsSidebarCompacted: (self: Window) -> boolean,
+    SetSidebarWidth: (self: Window, Width: number) -> (),
+    SetCompact: (self: Window, State: boolean) -> (),
+    ApplyLayout: (self: Window) -> (),
     AddTab: (
         self: Window,
         Info: { Name: string, Icon: string?, Description: string? } | string,
@@ -706,8 +711,7 @@ export type Library = {
             SoundId: string | number?,
             Steps: number?,
             Persist: boolean?,
-        }
-            | string,
+        } | string,
         Time: number?,
         SoundId: string | number?
     ) -> Notification,
@@ -733,6 +737,15 @@ export type Library = {
             ToggleKeybind: Enum.KeyCode?,
             MobileButtonsSide: "Left" | "Right"?,
             UnlockMouseWhileOpen: boolean?,
+            Compact: boolean?,
+            EnableSidebarResize: boolean?,
+            SidebarMinWidth: number?,
+            SidebarCompactWidth: number?,
+            SidebarCollapseThreshold: number?,
+            SidebarHighlightCallback: ((Frame, boolean) -> ())?,
+            InitialSidebarWidth: number?,
+            InitialSidebarScale: number?,
+            MinContentWidth: number?,
         }
     ) -> Window,
     Toggle: (self: Library, Value: boolean?) -> (),
