@@ -601,6 +601,13 @@ export type DependencyGroupbox = BaseGroupbox & {
     SetupDependencies: (self: DependencyGroupbox, Dependencies: { { Element } }) -> (),
 }
 
+export type Module = {
+    Value : boolean,
+    Disabled : boolean,
+    Callback: ((boolean) -> ())?,
+    Changed: ((boolean) -> ())?
+}
+
 export type Groupbox = BaseGroupbox & {
     BoxHolder: Frame,
     Holder: Frame,
@@ -609,6 +616,7 @@ export type Groupbox = BaseGroupbox & {
     DependencyBoxes: { [number]: DependencyBox },
     Elements: { [number]: Element },
 
+    GetModule: ((self: Groupbox) -> Module)?
     Resize: (self: Groupbox) -> (),
 }
 

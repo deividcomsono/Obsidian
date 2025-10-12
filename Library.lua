@@ -3493,6 +3493,88 @@ do
         return Toggle
     end
 
+    function Funcs:AddRawToggle(Parent)
+        local RawToggle = {
+            Type = "RawToggle",
+        }
+
+        local Switch = New("Frame", {
+            AnchorPoint = Vector2.new(1, 0),
+            BackgroundColor3 = "MainColor",
+            Position = UDim2.fromScale(1, 0),
+            Size = UDim2.fromOffset(32, 18),
+            Parent = Parent,
+        })
+
+        RawToggle.Switch = Switch
+
+        New("UICorner", {
+            CornerRadius = UDim.new(1, 0),
+            Parent = Switch,
+        })
+        New("UIPadding", {
+            PaddingBottom = UDim.new(0, 2),
+            PaddingLeft = UDim.new(0, 2),
+            PaddingRight = UDim.new(0, 2),
+            PaddingTop = UDim.new(0, 2),
+            Parent = Switch,
+        })
+        local SwitchStroke = New("UIStroke", {
+            Color = "OutlineColor",
+            Parent = Switch,
+        })
+
+        local Ball = New("Frame", {
+            BackgroundColor3 = "FontColor",
+            Size = UDim2.fromScale(1, 1),
+            SizeConstraint = Enum.SizeConstraint.RelativeYY,
+            Parent = Switch,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(1, 0),
+            Parent = Ball,
+        })
+
+        function RawToggle:Display(Disabled, Value)
+            if Library.Unloaded then
+                return
+            end
+
+            local Offset = Value and 1 or 0
+
+            Switch.BackgroundTransparency = Disabled and 0.75 or 0
+            SwitchStroke.Transparency = Disabled and 0.75 or 0
+
+            Switch.BackgroundColor3 = Value and Library.Scheme.AccentColor or Library.Scheme.MainColor
+            SwitchStroke.Color = Value and Library.Scheme.AccentColor or Library.Scheme.OutlineColor
+
+            Library.Registry[Switch].BackgroundColor3 = Value and "AccentColor" or "MainColor"
+            Library.Registry[SwitchStroke].Color = Value and "AccentColor" or "OutlineColor"
+
+            if Disabled then
+                Ball.AnchorPoint = Vector2.new(Offset, 0)
+                Ball.Position = UDim2.fromScale(Offset, 0)
+
+                Ball.BackgroundColor3 = Library:GetDarkerColor(Library.Scheme.FontColor)
+                Library.Registry[Ball].BackgroundColor3 = function()
+                    return Library:GetDarkerColor(Library.Scheme.FontColor)
+                end
+
+                return
+            end
+
+            TweenService:Create(Ball, Library.TweenInfo, {
+                AnchorPoint = Vector2.new(Offset, 0),
+                Position = UDim2.fromScale(Offset, 0),
+            }):Play()
+
+            Ball.BackgroundColor3 = Library.Scheme.FontColor
+            Library.Registry[Ball].BackgroundColor3 = "FontColor"
+        end
+
+        return RawToggle
+    end
+
     function Funcs:AddToggle(Idx, Info)
         if Library.ForceCheckbox then
             return Funcs.AddCheckbox(self, Idx, Info)
@@ -3548,39 +3630,7 @@ do
             Parent = Label,
         })
 
-        local Switch = New("Frame", {
-            AnchorPoint = Vector2.new(1, 0),
-            BackgroundColor3 = "MainColor",
-            Position = UDim2.fromScale(1, 0),
-            Size = UDim2.fromOffset(32, 18),
-            Parent = Button,
-        })
-        New("UICorner", {
-            CornerRadius = UDim.new(1, 0),
-            Parent = Switch,
-        })
-        New("UIPadding", {
-            PaddingBottom = UDim.new(0, 2),
-            PaddingLeft = UDim.new(0, 2),
-            PaddingRight = UDim.new(0, 2),
-            PaddingTop = UDim.new(0, 2),
-            Parent = Switch,
-        })
-        local SwitchStroke = New("UIStroke", {
-            Color = "OutlineColor",
-            Parent = Switch,
-        })
-
-        local Ball = New("Frame", {
-            BackgroundColor3 = "FontColor",
-            Size = UDim2.fromScale(1, 1),
-            SizeConstraint = Enum.SizeConstraint.RelativeYY,
-            Parent = Switch,
-        })
-        New("UICorner", {
-            CornerRadius = UDim.new(1, 0),
-            Parent = Ball,
-        })
+        local RawToggle = Groupbox:AddRawToggle(Button)
 
         function Toggle:UpdateColors()
             Toggle:Display()
@@ -3591,40 +3641,11 @@ do
                 return
             end
 
-            local Offset = Toggle.Value and 1 or 0
-
-            Switch.BackgroundTransparency = Toggle.Disabled and 0.75 or 0
-            SwitchStroke.Transparency = Toggle.Disabled and 0.75 or 0
-
-            Switch.BackgroundColor3 = Toggle.Value and Library.Scheme.AccentColor or Library.Scheme.MainColor
-            SwitchStroke.Color = Toggle.Value and Library.Scheme.AccentColor or Library.Scheme.OutlineColor
-
-            Library.Registry[Switch].BackgroundColor3 = Toggle.Value and "AccentColor" or "MainColor"
-            Library.Registry[SwitchStroke].Color = Toggle.Value and "AccentColor" or "OutlineColor"
-
-            if Toggle.Disabled then
-                Label.TextTransparency = 0.8
-                Ball.AnchorPoint = Vector2.new(Offset, 0)
-                Ball.Position = UDim2.fromScale(Offset, 0)
-
-                Ball.BackgroundColor3 = Library:GetDarkerColor(Library.Scheme.FontColor)
-                Library.Registry[Ball].BackgroundColor3 = function()
-                    return Library:GetDarkerColor(Library.Scheme.FontColor)
-                end
-
-                return
-            end
+            RawToggle:Display(Toggle.Disabled, Toggle.Value)
 
             TweenService:Create(Label, Library.TweenInfo, {
                 TextTransparency = Toggle.Value and 0 or 0.4,
             }):Play()
-            TweenService:Create(Ball, Library.TweenInfo, {
-                AnchorPoint = Vector2.new(Offset, 0),
-                Position = UDim2.fromScale(Offset, 0),
-            }):Play()
-
-            Ball.BackgroundColor3 = Library.Scheme.FontColor
-            Library.Registry[Ball].BackgroundColor3 = "FontColor"
         end
 
         function Toggle:OnChanged(Func)
@@ -6392,18 +6413,18 @@ function Library:CreateWindow(WindowInfo)
         end
 
         local TabButton: TextButton
-        local TabLabel
-        local TabIcon
+        local TabLabel : TextLabel
+        local TabIcon : ImageLabel
 
-        local TabContainer
-        local TabLeft
-        local TabRight
+        local TabContainer : Frame
+        local TabLeft : ScrollingFrame
+        local TabRight : ScrollingFrame
 
-        local WarningBox
-        local WarningBoxScrollingFrame
-        local WarningTitle
-        local WarningText
-        local WarningStroke
+        local WarningBox : Frame
+        local WarningBoxScrollingFrame : ScrollingFrame
+        local WarningTitle : TextLabel
+        local WarningText : TextLabel
+        local WarningStroke : UIStroke
 
         Icon = Library:GetCustomIcon(Icon)
         do
@@ -6585,6 +6606,7 @@ function Library:CreateWindow(WindowInfo)
             Groupboxes = {},
             Tabboxes = {},
             DependencyGroupboxes = {},
+            LastUsedSide = 1, -- so that it starts at beginning obviously
             Sides = {
                 TabLeft,
                 TabRight,
@@ -6696,7 +6718,24 @@ function Library:CreateWindow(WindowInfo)
             Tab:RefreshSides()
         end
 
+        function Tab:AddModule(Info) 
+            if Info.Side == nil then
+                Info.Side = Tab.LastUsedSide == 0 and 1 or 0
+            end
+
+            Tab.LastUsedSide = Info.Side
+            Info.IsModule = true
+            Info.Value = Info.Value or false
+            Info.Disabled = Info.Disabled or false
+
+            return Tab:AddGroupbox(Info)
+        end
+
         function Tab:AddGroupbox(Info)
+            if Info.Side ~= nil then
+                Tab.LastUsedSide = Info.Side
+            end
+
             local BoxHolder = New("Frame", {
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
@@ -6794,11 +6833,77 @@ function Library:CreateWindow(WindowInfo)
                 Elements = {},
             }
 
+            local Module : Module
+
             function Groupbox:Resize()
                 Background.Size = UDim2.new(1, 0, 0, GroupboxList.AbsoluteContentSize.Y + 53 * Library.DPIScale)
             end
 
+            function Groupbox:GetModule()
+                return Module
+            end
+
+
             setmetatable(Groupbox, BaseGroupbox)
+
+
+            if Info.IsModule then
+                Module = {
+                    Value = Info.Value,
+                    Disabled = Info.Disabled,
+
+                    Callback = Info.Callback,
+                    Changed = Info.Changed,
+                }
+
+                local Button = New("TextButton", {
+                    Active = not Module.Disabled,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, -7, 0, 18),
+                    Text = "",
+                    Visible = true,
+                    Parent = GroupboxHolder,
+                    Position = UDim2.fromOffset(0, 8),
+                })
+
+                local RawToggle = Groupbox:AddRawToggle(Button)
+
+                function Module:SetValue(Value)
+                    if Module.Disabled then
+                        return
+                    end
+
+                    Module.Value = Value
+                    Module:Display()
+
+                    Library:SafeCallback(Module.Callback, Module.Value)
+                    Library:SafeCallback(Module.Changed, Module.Value)
+                    Library:UpdateDependencyBoxes()
+                end
+
+                function Module:Display()
+                    if Library.Unloaded then
+                        return
+                    end
+
+                    RawToggle:Display(Module.Disabled, Module.Value)
+
+                    TweenService:Create(GroupboxLabel, Library.TweenInfo, {
+                        TextTransparency = Module.Value and 0 or 0.4,
+                    }):Play()
+                end
+
+                Button.MouseButton1Click:Connect(function()
+                    if Module.Disabled then
+                        return
+                    end
+
+                    Module:SetValue(not Module.Value)
+                end)
+
+                Module:Display()
+                Groupbox.Module = Module
+            end
 
             Groupbox:Resize()
             Tab.Groupboxes[Info.Name] = Groupbox
