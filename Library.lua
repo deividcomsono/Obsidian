@@ -4022,7 +4022,7 @@ do
         function Slider:SetMin(Value)
             assert(Value < Slider.Max, "Min value cannot be greater than the current max value.")
     
-            Slider:SetValue(math.clamp(Slider.Value, Value, Slider.Max))
+            Slider:SetValue(math.clamp(Slider.Value, Value, Slider.Max)) --same here. adding these comments for the funny
             Slider.Min = Value
             Slider:Display()
         end
@@ -4033,7 +4033,7 @@ do
             end
 
             local Num = tonumber(Str)
-            if not Num or Num == Slider.Value then --pb will work
+            if not Num or Num == Slider.Value then
                 return
             end
 
