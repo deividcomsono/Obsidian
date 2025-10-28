@@ -1900,6 +1900,9 @@ do
         local KeyPicker = {
             Text = Info.Text,
 
+            Default = Info.Default,
+            DefaultModifiers = Info.DefaultModifiers,
+
             Value = Info.Default, -- Key
             Modifiers = Info.DefaultModifiers, -- Modifiers
             DisplayValue = Info.Default, -- Picker Text
@@ -2534,7 +2537,9 @@ do
         local ToggleLabel = ParentObj.TextLabel
 
         local ColorPicker = {
+            Default = Info.Default,
             Value = Info.Default,
+
             Transparency = Info.Transparency or 0,
             Title = Info.Title,
 
@@ -3371,6 +3376,8 @@ do
 
         local Toggle = {
             Text = Info.Text,
+
+            Default = Info.Default,
             Value = Info.Default,
 
             Tooltip = Info.Tooltip,
@@ -3572,6 +3579,8 @@ do
 
         local Toggle = {
             Text = Info.Text,
+
+            Default = Info.Default,
             Value = Info.Default,
 
             Tooltip = Info.Tooltip,
@@ -3788,7 +3797,10 @@ do
 
         local Input = {
             Text = Info.Text,
+
+            Default = Info.Default,
             Value = Info.Default,
+
             Finished = Info.Finished,
             Numeric = Info.Numeric,
             ClearTextOnFocus = Info.ClearTextOnFocus,
@@ -3947,7 +3959,10 @@ do
 
         local Slider = {
             Text = Info.Text,
+
+            Default = Info.Default,
             Value = Info.Default,
+
             Min = Info.Min,
             Max = Info.Max,
 
@@ -4210,8 +4225,13 @@ do
             Info.Values = GetTeams()
             Info.AllowNull = true
         end
+
         local Dropdown = {
             Text = typeof(Info.Text) == "string" and Info.Text or nil,
+
+            Default = nil,
+            DefaultValues = Info.Values,
+
             Value = Info.Multi and {} or nil,
             Values = Info.Values,
             DisabledValues = Info.DisabledValues,
@@ -4600,6 +4620,7 @@ do
             if Index then
                 table.insert(Defaults, Index)
             end
+
         elseif typeof(Info.Default) == "table" then
             for _, Value in next, Info.Default do
                 local Index = table.find(Dropdown.Values, Value)
@@ -4607,9 +4628,11 @@ do
                     table.insert(Defaults, Index)
                 end
             end
+            
         elseif Dropdown.Values[Info.Default] ~= nil then
             table.insert(Defaults, Info.Default)
         end
+
         if next(Defaults) then
             for i = 1, #Defaults do
                 local Index = Defaults[i]
@@ -4624,6 +4647,8 @@ do
                 end
             end
         end
+
+        Dropdown.Default = Defaults;
 
         if typeof(Dropdown.Tooltip) == "string" or typeof(Dropdown.DisabledTooltip) == "string" then
             Dropdown.TooltipTable = Library:AddTooltip(Dropdown.Tooltip, Dropdown.DisabledTooltip, Display)
