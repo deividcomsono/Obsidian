@@ -1899,10 +1899,6 @@ do
 
         local KeyPicker = {
             Text = Info.Text,
-
-            Default = Info.Default,
-            DefaultModifiers = Info.DefaultModifiers,
-
             Value = Info.Default, -- Key
             Modifiers = Info.DefaultModifiers, -- Modifiers
             DisplayValue = Info.Default, -- Picker Text
@@ -2521,6 +2517,9 @@ do
             table.insert(ParentObj.Addons, KeyPicker)
         end
 
+        KeyPicker.Default = KeyPicker.Value
+        KeyPicker.DefaultModifiers = table.clone(KeyPicker.Modifiers or {})
+
         Options[Idx] = KeyPicker
 
         return self
@@ -2537,7 +2536,6 @@ do
         local ToggleLabel = ParentObj.TextLabel
 
         local ColorPicker = {
-            Default = Info.Default,
             Value = Info.Default,
 
             Transparency = Info.Transparency or 0,
@@ -2816,8 +2814,12 @@ do
         end
 
         function ColorPicker:SetValue(HSV, Transparency)
-            local Color = Color3.fromHSV(HSV[1], HSV[2], HSV[3])
+            if typeof(HSV) == "Color3" then
+                ColorPicker:SetValueRGB(HSV, Transparency)
+                return
+            end
 
+            local Color = Color3.fromHSV(HSV[1], HSV[2], HSV[3])
             ColorPicker.Transparency = Info.Transparency and Transparency or 0
             ColorPicker:SetHSVFromRGB(Color)
             ColorPicker:Update()
@@ -2919,6 +2921,8 @@ do
         if ParentObj.Addons then
             table.insert(ParentObj.Addons, ColorPicker)
         end
+
+        ColorPicker.Default = ColorPicker.Value
 
         Options[Idx] = ColorPicker
 
@@ -3376,8 +3380,6 @@ do
 
         local Toggle = {
             Text = Info.Text,
-
-            Default = Info.Default,
             Value = Info.Default,
 
             Tooltip = Info.Tooltip,
@@ -3562,6 +3564,8 @@ do
         Toggle.Holder = Button
         table.insert(Groupbox.Elements, Toggle)
 
+        Toggle.Default = Toggle.Value
+
         Toggles[Idx] = Toggle
 
         return Toggle
@@ -3579,8 +3583,6 @@ do
 
         local Toggle = {
             Text = Info.Text,
-
-            Default = Info.Default,
             Value = Info.Default,
 
             Tooltip = Info.Tooltip,
@@ -3784,6 +3786,8 @@ do
         Toggle.Holder = Button
         table.insert(Groupbox.Elements, Toggle)
 
+        Toggle.Default = Toggle.Value
+
         Toggles[Idx] = Toggle
 
         return Toggle
@@ -3797,8 +3801,6 @@ do
 
         local Input = {
             Text = Info.Text,
-
-            Default = Info.Default,
             Value = Info.Default,
 
             Finished = Info.Finished,
@@ -3946,6 +3948,8 @@ do
         Input.Holder = Holder
         table.insert(Groupbox.Elements, Input)
 
+        Input.Default = Input.Value
+
         Options[Idx] = Input
 
         return Input
@@ -3959,8 +3963,6 @@ do
 
         local Slider = {
             Text = Info.Text,
-
-            Default = Info.Default,
             Value = Info.Default,
 
             Min = Info.Min,
@@ -4207,6 +4209,8 @@ do
         Slider.Holder = Holder
         table.insert(Groupbox.Elements, Slider)
 
+        Slider.Default = Slider.Value
+
         Options[Idx] = Slider
 
         return Slider
@@ -4228,10 +4232,6 @@ do
 
         local Dropdown = {
             Text = typeof(Info.Text) == "string" and Info.Text or nil,
-
-            Default = nil,
-            DefaultValues = Info.Values,
-
             Value = Info.Multi and {} or nil,
             Values = Info.Values,
             DisabledValues = Info.DisabledValues,
@@ -4648,8 +4648,6 @@ do
             end
         end
 
-        Dropdown.Default = Defaults;
-
         if typeof(Dropdown.Tooltip) == "string" or typeof(Dropdown.DisabledTooltip) == "string" then
             Dropdown.TooltipTable = Library:AddTooltip(Dropdown.Tooltip, Dropdown.DisabledTooltip, Display)
             Dropdown.TooltipTable.Disabled = Dropdown.Disabled
@@ -4662,6 +4660,9 @@ do
 
         Dropdown.Holder = Holder
         table.insert(Groupbox.Elements, Dropdown)
+
+        Dropdown.Default = Defaults
+        Dropdown.DefaultValues = Dropdown.Values
 
         Options[Idx] = Dropdown
 
