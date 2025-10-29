@@ -3886,7 +3886,7 @@ do
             end
 
             if Input.Numeric then
-                if #Text > 0 and not tonumber(Text) then
+                if #tostring(Text) > 0 and not tonumber(Text) then
                     Text = Input.Value
                 end
             end
