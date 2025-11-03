@@ -1537,7 +1537,7 @@ end
 do
     local WatermarkBackground = Library:MakeOutline(ScreenGui, Library.CornerRadius, 10)
     WatermarkBackground.AutomaticSize = Enum.AutomaticSize.Y
-    WatermarkBackground.Position = UDim2.fromOffset(250, 6)
+    WatermarkBackground.Position = UDim2.new(0.25, 0, 0, 6)
     WatermarkBackground.Size = UDim2.fromOffset(0, 0)
     WatermarkBackground.Visible = false
 
