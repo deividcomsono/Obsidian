@@ -1,3 +1,9 @@
+## 09.11.2025
+
+```diff
++ Added Library.ImageManager (https://docs.mspaint.cc/obsidian/core/library#custom-asset-icons)
+```
+
 ## 02.11.2025
 
 ```diff

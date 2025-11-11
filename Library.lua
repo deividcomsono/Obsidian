@@ -27,6 +27,116 @@ local Buttons = {}
 local Toggles = {}
 local Options = {}
 
+local BaseURL = "https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/"
+local CustomImageManager = {}
+local CustomImageManagerAssets = {
+    TransparencyTexture = {
+        RobloxId = 139785960036434,
+        Path = "Obsidian/assets/TransparencyTexture.png",
+        URL = BaseURL .. "assets/TransparencyTexture.png",
+
+        Id = nil,
+    },
+
+    SaturationMap = {
+        RobloxId = 4155801252,
+        Path = "Obsidian/assets/SaturationMap.png",
+        URL = BaseURL .. "assets/SaturationMap.png",
+
+        Id = nil,
+    }
+}
+do
+    local function RecursiveCreatePath(Path: string, IsFile: boolean?)
+        if not isfolder or not makefolder then
+            return
+        end
+
+        local Segments = Path:split("/")
+        local TraversedPath = ""
+
+        if IsFile then
+            table.remove(Segments, #Segments)
+        end
+
+        for _, Segment in ipairs(Segments) do
+            if not isfolder(TraversedPath .. Segment) then
+                makefolder(TraversedPath .. Segment)
+            end
+
+            TraversedPath = TraversedPath .. Segment .. "/"
+        end
+
+        return TraversedPath
+    end
+
+    function CustomImageManager.AddAsset(AssetName: string, RobloxAssetId: number, URL: string, ForceRedownload: boolean?)
+        if CustomImageManagerAssets[AssetName] ~= nil then
+            error(string.format("Asset %q already exists", AssetName))
+        end
+
+        assert(typeof(RobloxAssetId) == "number", "RobloxAssetId must be a number")
+
+        CustomImageManagerAssets[AssetName] = {
+            RobloxId = RobloxAssetId,
+            Path = string.format("Obsidian/custom_assets/%s", AssetName),
+            URL = URL,
+
+            Id = nil,
+        }
+
+        CustomImageManager.DownloadAsset(AssetName, ForceRedownload)
+    end
+
+    function CustomImageManager.GetAsset(AssetName: string)
+        if not CustomImageManagerAssets[AssetName] then
+            return nil
+        end
+
+        local AssetData = CustomImageManagerAssets[AssetName]
+        if AssetData.Id then
+            return AssetData.Id
+        end
+
+        local AssetID = string.format("rbxassetid://%s", AssetData.RobloxId)
+
+        if getcustomasset then
+            local Success, NewID = pcall(getcustomasset, AssetData.Path)
+
+            if Success and NewID then
+                AssetID = NewID
+            end
+        end
+
+        AssetData.Id = AssetID
+        return AssetID
+    end
+
+    function CustomImageManager.DownloadAsset(AssetName: string, ForceRedownload: boolean?)
+        if not getcustomasset or not writefile or not isfile then
+            return false, "missing functions"
+        end
+
+        local AssetData = CustomImageManagerAssets[AssetName]
+
+        RecursiveCreatePath(AssetData.Path, true)
+
+        if ForceRedownload ~= true and isfile(AssetData.Path) then
+            return true, nil
+        end
+
+        local success, errorMessage = pcall(function()
+            writefile(AssetData.Path, game:HttpGet(AssetData.URL))
+        end)
+
+        return success, errorMessage
+    end
+
+    for AssetName, _ in CustomImageManagerAssets do
+        CustomImageManager.DownloadAsset(AssetName)
+    end
+end
+
 local Library = {
     LocalPlayer = LocalPlayer,
     DevicePlatform = nil,
@@ -37,6 +147,7 @@ local Library = {
 
     SearchText = "",
     Searching = false,
+    GlobalSearch = false,
     LastSearchTab = nil,
 
     ActiveTab = nil,
@@ -92,94 +203,9 @@ local Library = {
 
     Registry = {},
     DPIRegistry = {},
+    
+    ImageManager = CustomImageManager,
 }
-
-local ObsidianImageManager = {
-    Assets = {
-        TransparencyTexture = {
-            RobloxId = 139785960036434,
-            Path = "Obsidian/assets/TransparencyTexture.png",
-
-            Id = nil,
-        },
-
-        SaturationMap = {
-            RobloxId = 4155801252,
-            Path = "Obsidian/assets/SaturationMap.png",
-
-            Id = nil,
-        },
-    },
-}
-do
-    local BaseURL = "https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/"
-
-    local function RecursiveCreatePath(Path: string, IsFile: boolean?)
-        if not isfolder or not makefolder then
-            return
-        end
-
-        local Segments = Path:split("/")
-        local TraversedPath = ""
-
-        if IsFile then
-            table.remove(Segments, #Segments)
-        end
-
-        for _, Segment in ipairs(Segments) do
-            if not isfolder(TraversedPath .. Segment) then
-                makefolder(TraversedPath .. Segment)
-            end
-
-            TraversedPath = TraversedPath .. Segment .. "/"
-        end
-
-        return TraversedPath
-    end
-
-    function ObsidianImageManager.GetAsset(AssetName: string)
-        if not ObsidianImageManager.Assets[AssetName] then
-            return nil
-        end
-
-        local AssetData = ObsidianImageManager.Assets[AssetName]
-        if AssetData.Id then
-            return AssetData.Id
-        end
-
-        local AssetID = string.format("rbxassetid://%s", AssetData.RobloxId)
-
-        if getcustomasset then
-            local Success, NewID = pcall(getcustomasset, AssetData.Path)
-
-            if Success and NewID then
-                AssetID = NewID
-            end
-        end
-
-        AssetData.Id = AssetID
-        return AssetID
-    end
-
-    function ObsidianImageManager.DownloadAsset(AssetPath: string)
-        if not getcustomasset or not writefile or not isfile then
-            return
-        end
-
-        RecursiveCreatePath(AssetPath, true)
-
-        if isfile(AssetPath) then
-            return
-        end
-
-        local URLPath = AssetPath:gsub("Obsidian/", "")
-        writefile(AssetPath, game:HttpGet(BaseURL .. URLPath))
-    end
-
-    for _, Data in ObsidianImageManager.Assets do
-        ObsidianImageManager.DownloadAsset(Data.Path)
-    end
-end
 
 if RunService:IsStudio() then
     if UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
@@ -254,6 +280,7 @@ local Templates = {
         Center = true,
         Resizable = true,
         SearchbarSize = UDim2.fromScale(1, 1),
+        GlobalSearch = false,
         CornerRadius = 4,
         NotifySide = "Right",
         ShowCustomCursor = true,
@@ -335,6 +362,7 @@ local Templates = {
     Image = {
         Image = "",
         Transparency = 0,
+        BackgroundTransparency = 0,
         Color = Color3.new(1, 1, 1),
         RectOffset = Vector2.zero,
         RectSize = Vector2.zero,
@@ -615,9 +643,24 @@ end
 function Library:UpdateSearch(SearchText)
     Library.SearchText = SearchText
 
-    --// Reset Elements Visibility in Last Tab Searched
-    if Library.LastSearchTab then
-        for _, Groupbox in pairs(Library.LastSearchTab.Groupboxes) do
+    local TabsToReset = {}
+
+    if Library.GlobalSearch then
+        for _, Tab in pairs(Library.Tabs) do
+            if typeof(Tab) == "table" and not Tab.IsKeyTab then
+                table.insert(TabsToReset, Tab)
+            end
+        end
+    elseif Library.LastSearchTab and typeof(Library.LastSearchTab) == "table" then
+        table.insert(TabsToReset, Library.LastSearchTab)
+    end
+
+    local function ResetTab(Tab)
+        if not Tab then
+            return
+        end
+
+        for _, Groupbox in pairs(Tab.Groupboxes) do
             for _, ElementInfo in pairs(Groupbox.Elements) do
                 ElementInfo.Holder.Visible = typeof(ElementInfo.Visible) == "boolean" and ElementInfo.Visible or true
 
@@ -639,11 +682,11 @@ function Library:UpdateSearch(SearchText)
             Groupbox.Holder.Visible = true
         end
 
-        for _, Tabbox in pairs(Library.LastSearchTab.Tabboxes) do
-            for _, Tab in pairs(Tabbox.Tabs) do
-                for _, ElementInfo in pairs(Tab.Elements) do
-                    ElementInfo.Holder.Visible = typeof(ElementInfo.Visible) == "boolean" and ElementInfo.Visible
-                        or true
+        for _, Tabbox in pairs(Tab.Tabboxes) do
+            for _, SubTab in pairs(Tabbox.Tabs) do
+                for _, ElementInfo in pairs(SubTab.Elements) do
+                    ElementInfo.Holder.Visible =
+                        typeof(ElementInfo.Visible) == "boolean" and ElementInfo.Visible or true
 
                     if ElementInfo.SubButton then
                         ElementInfo.Base.Visible = ElementInfo.Visible
@@ -651,7 +694,7 @@ function Library:UpdateSearch(SearchText)
                     end
                 end
 
-                for _, Depbox in pairs(Tab.DependencyBoxes) do
+                for _, Depbox in pairs(SubTab.DependencyBoxes) do
                     if not Depbox.Visible then
                         continue
                     end
@@ -659,20 +702,23 @@ function Library:UpdateSearch(SearchText)
                     RestoreDepbox(Depbox)
                 end
 
-                Tab.ButtonHolder.Visible = true
+                SubTab.ButtonHolder.Visible = true
             end
 
-            Tabbox.ActiveTab:Resize()
+            if Tabbox.ActiveTab then
+                Tabbox.ActiveTab:Resize()
+            end
             Tabbox.Holder.Visible = true
         end
 
-        for _, DepGroupbox in pairs(Library.LastSearchTab.DependencyGroupboxes) do
+        for _, DepGroupbox in pairs(Tab.DependencyGroupboxes) do
             if not DepGroupbox.Visible then
                 continue
             end
 
             for _, ElementInfo in pairs(DepGroupbox.Elements) do
-                ElementInfo.Holder.Visible = typeof(ElementInfo.Visible) == "boolean" and ElementInfo.Visible or true
+                ElementInfo.Holder.Visible =
+                    typeof(ElementInfo.Visible) == "boolean" and ElementInfo.Visible or true
 
                 if ElementInfo.SubButton then
                     ElementInfo.Base.Visible = ElementInfo.Visible
@@ -693,9 +739,17 @@ function Library:UpdateSearch(SearchText)
         end
     end
 
-    --// Cancel Search if Search Text is empty
+    for _, Tab in ipairs(TabsToReset) do
+        ResetTab(Tab)
+    end
+
     local Search = SearchText:lower()
-    if Trim(Search) == "" or Library.ActiveTab.IsKeyTab then
+    if Trim(Search) == "" then
+        Library.Searching = false
+        Library.LastSearchTab = nil
+        return
+    end
+    if not Library.GlobalSearch and Library.ActiveTab and Library.ActiveTab.IsKeyTab then
         Library.Searching = false
         Library.LastSearchTab = nil
         return
@@ -703,69 +757,33 @@ function Library:UpdateSearch(SearchText)
 
     Library.Searching = true
 
-    --// Loop through Groupboxes to get Elements Info
-    for _, Groupbox in pairs(Library.ActiveTab.Groupboxes) do
-        local VisibleElements = 0
+    local TabsToSearch = {}
 
-        for _, ElementInfo in pairs(Groupbox.Elements) do
-            if ElementInfo.Type == "Divider" then
-                ElementInfo.Holder.Visible = false
-                continue
-            elseif ElementInfo.SubButton then
-                --// Check if any of the Buttons Name matches with Search
-                local Visible = false
-
-                --// Check if Search matches Element's Name and if Element is Visible
-                if ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
-                    Visible = true
-                else
-                    ElementInfo.Base.Visible = false
+    if Library.GlobalSearch then
+        TabsToSearch = TabsToReset
+        if #TabsToSearch == 0 then
+            for _, Tab in pairs(Library.Tabs) do
+                if typeof(Tab) == "table" and not Tab.IsKeyTab then
+                    table.insert(TabsToSearch, Tab)
                 end
-                if ElementInfo.SubButton.Text:lower():match(Search) and ElementInfo.SubButton.Visible then
-                    Visible = true
-                else
-                    ElementInfo.SubButton.Base.Visible = false
-                end
-                ElementInfo.Holder.Visible = Visible
-                if Visible then
-                    VisibleElements += 1
-                end
-
-                continue
-            end
-
-            --// Check if Search matches Element's Name and if Element is Visible
-            if ElementInfo.Text and ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
-                ElementInfo.Holder.Visible = true
-                VisibleElements += 1
-            else
-                ElementInfo.Holder.Visible = false
             end
         end
-
-        for _, Depbox in pairs(Groupbox.DependencyBoxes) do
-            if not Depbox.Visible then
-                continue
-            end
-
-            VisibleElements += CheckDepbox(Depbox, Search)
-        end
-
-        --// Update Groupbox Size and Visibility if found any element
-        if VisibleElements > 0 then
-            Groupbox:Resize()
-        end
-        Groupbox.Holder.Visible = VisibleElements > 0
+    elseif Library.ActiveTab then
+        table.insert(TabsToSearch, Library.ActiveTab)
     end
 
-    for _, Tabbox in pairs(Library.ActiveTab.Tabboxes) do
-        local VisibleTabs = 0
-        local VisibleElements = {}
+    local function ApplySearchToTab(Tab)
+        if not Tab then
+            return
+        end
 
-        for _, Tab in pairs(Tabbox.Tabs) do
-            VisibleElements[Tab] = 0
+        local HasVisible = false
 
-            for _, ElementInfo in pairs(Tab.Elements) do
+        --// Loop through Groupboxes to get Elements Info
+        for _, Groupbox in pairs(Tab.Groupboxes) do
+            local VisibleElements = 0
+
+            for _, ElementInfo in pairs(Groupbox.Elements) do
                 if ElementInfo.Type == "Divider" then
                     ElementInfo.Holder.Visible = false
                     continue
@@ -786,7 +804,7 @@ function Library:UpdateSearch(SearchText)
                     end
                     ElementInfo.Holder.Visible = Visible
                     if Visible then
-                        VisibleElements[Tab] += 1
+                        VisibleElements += 1
                     end
 
                     continue
@@ -795,98 +813,194 @@ function Library:UpdateSearch(SearchText)
                 --// Check if Search matches Element's Name and if Element is Visible
                 if ElementInfo.Text and ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
                     ElementInfo.Holder.Visible = true
-                    VisibleElements[Tab] += 1
+                    VisibleElements += 1
                 else
                     ElementInfo.Holder.Visible = false
                 end
             end
 
-            for _, Depbox in pairs(Tab.DependencyBoxes) do
+            for _, Depbox in pairs(Groupbox.DependencyBoxes) do
                 if not Depbox.Visible then
                     continue
                 end
 
-                VisibleElements[Tab] += CheckDepbox(Depbox, Search)
+                VisibleElements += CheckDepbox(Depbox, Search)
             end
+
+            --// Update Groupbox Size and Visibility if found any element
+            if VisibleElements > 0 then
+                Groupbox:Resize()
+                HasVisible = true
+            end
+            Groupbox.Holder.Visible = VisibleElements > 0
         end
 
-        for Tab, Visible in pairs(VisibleElements) do
-            Tab.ButtonHolder.Visible = Visible > 0
-            if Visible > 0 then
-                VisibleTabs += 1
+        for _, Tabbox in pairs(Tab.Tabboxes) do
+            local VisibleTabs = 0
+            local VisibleElements = {}
 
-                if Tabbox.ActiveTab == Tab then
-                    Tab:Resize()
-                elseif VisibleElements[Tabbox.ActiveTab] == 0 then
-                    Tab:Show()
+            for _, SubTab in pairs(Tabbox.Tabs) do
+                VisibleElements[SubTab] = 0
+
+                for _, ElementInfo in pairs(SubTab.Elements) do
+                    if ElementInfo.Type == "Divider" then
+                        ElementInfo.Holder.Visible = false
+                        continue
+                    elseif ElementInfo.SubButton then
+                        --// Check if any of the Buttons Name matches with Search
+                        local Visible = false
+
+                        --// Check if Search matches Element's Name and if Element is Visible
+                        if ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
+                            Visible = true
+                        else
+                            ElementInfo.Base.Visible = false
+                        end
+                        if ElementInfo.SubButton.Text:lower():match(Search) and ElementInfo.SubButton.Visible then
+                            Visible = true
+                        else
+                            ElementInfo.SubButton.Base.Visible = false
+                        end
+                        ElementInfo.Holder.Visible = Visible
+                        if Visible then
+                            VisibleElements[SubTab] += 1
+                        end
+
+                        continue
+                    end
+
+                    --// Check if Search matches Element's Name and if Element is Visible
+                    if ElementInfo.Text and ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
+                        ElementInfo.Holder.Visible = true
+                        VisibleElements[SubTab] += 1
+                    else
+                        ElementInfo.Holder.Visible = false
+                    end
+                end
+
+                for _, Depbox in pairs(SubTab.DependencyBoxes) do
+                    if not Depbox.Visible then
+                        continue
+                    end
+
+                    VisibleElements[SubTab] += CheckDepbox(Depbox, Search)
                 end
             end
+
+            for SubTab, Visible in pairs(VisibleElements) do
+                SubTab.ButtonHolder.Visible = Visible > 0
+                if Visible > 0 then
+                    VisibleTabs += 1
+                    HasVisible = true
+
+                    if Tabbox.ActiveTab == SubTab then
+                        SubTab:Resize()
+                    elseif Tabbox.ActiveTab and VisibleElements[Tabbox.ActiveTab] == 0 then
+                        SubTab:Show()
+                    end
+                end
+            end
+
+            --// Update Tabbox Visibility if any visible
+            Tabbox.Holder.Visible = VisibleTabs > 0
         end
 
-        --// Update Tabbox Visibility if any visible
-        Tabbox.Holder.Visible = VisibleTabs > 0
-    end
-
-    for _, DepGroupbox in pairs(Library.ActiveTab.DependencyGroupboxes) do
-        if not DepGroupbox.Visible then
-            continue
-        end
-
-        local VisibleElements = 0
-
-        for _, ElementInfo in pairs(DepGroupbox.Elements) do
-            if ElementInfo.Type == "Divider" then
-                ElementInfo.Holder.Visible = false
+        for _, DepGroupbox in pairs(Tab.DependencyGroupboxes) do
+            if not DepGroupbox.Visible then
                 continue
-            elseif ElementInfo.SubButton then
-                --// Check if any of the Buttons Name matches with Search
-                local Visible = false
+            end
+
+            local VisibleElements = 0
+
+            for _, ElementInfo in pairs(DepGroupbox.Elements) do
+                if ElementInfo.Type == "Divider" then
+                    ElementInfo.Holder.Visible = false
+                    continue
+                elseif ElementInfo.SubButton then
+                    --// Check if any of the Buttons Name matches with Search
+                    local Visible = false
+
+                    --// Check if Search matches Element's Name and if Element is Visible
+                    if ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
+                        Visible = true
+                    else
+                        ElementInfo.Base.Visible = false
+                    end
+                    if ElementInfo.SubButton.Text:lower():match(Search) and ElementInfo.SubButton.Visible then
+                        Visible = true
+                    else
+                        ElementInfo.SubButton.Base.Visible = false
+                    end
+                    ElementInfo.Holder.Visible = Visible
+                    if Visible then
+                        VisibleElements += 1
+                    end
+
+                    continue
+                end
 
                 --// Check if Search matches Element's Name and if Element is Visible
-                if ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
-                    Visible = true
-                else
-                    ElementInfo.Base.Visible = false
-                end
-                if ElementInfo.SubButton.Text:lower():match(Search) and ElementInfo.SubButton.Visible then
-                    Visible = true
-                else
-                    ElementInfo.SubButton.Base.Visible = false
-                end
-                ElementInfo.Holder.Visible = Visible
-                if Visible then
+                if ElementInfo.Text and ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
+                    ElementInfo.Holder.Visible = true
                     VisibleElements += 1
+                else
+                    ElementInfo.Holder.Visible = false
+                end
+            end
+
+            for _, Depbox in pairs(DepGroupbox.DependencyBoxes) do
+                if not Depbox.Visible then
+                    continue
                 end
 
-                continue
+                VisibleElements += CheckDepbox(Depbox, Search)
             end
 
-            --// Check if Search matches Element's Name and if Element is Visible
-            if ElementInfo.Text and ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
-                ElementInfo.Holder.Visible = true
-                VisibleElements += 1
-            else
-                ElementInfo.Holder.Visible = false
+            --// Update Groupbox Size and Visibility if found any element
+            if VisibleElements > 0 then
+                DepGroupbox:Resize()
+                HasVisible = true
             end
+            DepGroupbox.Holder.Visible = VisibleElements > 0
         end
 
-        for _, Depbox in pairs(DepGroupbox.DependencyBoxes) do
-            if not Depbox.Visible then
-                continue
-            end
-
-            VisibleElements += CheckDepbox(Depbox, Search)
-        end
-
-        --// Update Groupbox Size and Visibility if found any element
-        if VisibleElements > 0 then
-            DepGroupbox:Resize()
-        end
-        DepGroupbox.Holder.Visible = VisibleElements > 0
+        return HasVisible
     end
 
-    --// Set Last Tab to Current One
-    Library.LastSearchTab = Library.ActiveTab
+    local FirstVisibleTab = nil
+    local ActiveHasVisible = false
+
+    for _, Tab in ipairs(TabsToSearch) do
+        local HasVisible = ApplySearchToTab(Tab)
+        if HasVisible then
+            if not FirstVisibleTab then
+                FirstVisibleTab = Tab
+            end
+            if Tab == Library.ActiveTab then
+                ActiveHasVisible = true
+            end
+        end
+    end
+
+    if Library.GlobalSearch then
+        if ActiveHasVisible and Library.ActiveTab then
+            Library.ActiveTab:RefreshSides()
+        elseif FirstVisibleTab then
+            local SearchMarker = SearchText
+            task.defer(function()
+                if Library.SearchText ~= SearchMarker then
+                    return
+                end
+
+                if Library.ActiveTab ~= FirstVisibleTab then
+                    FirstVisibleTab:Show()
+                end
+            end)
+        end
+        Library.LastSearchTab = nil
+    else
+        Library.LastSearchTab = Library.ActiveTab
+    end
 end
 
 function Library:AddToRegistry(Instance, Properties)
@@ -2559,7 +2673,7 @@ do
         })
 
         local HolderTransparency = New("ImageLabel", {
-            Image = ObsidianImageManager.GetAsset("TransparencyTexture"),
+            Image = CustomImageManager.GetAsset("TransparencyTexture"),
             ImageTransparency = (1 - ColorPicker.Transparency),
             ScaleType = Enum.ScaleType.Tile,
             Size = UDim2.fromScale(1, 1),
@@ -2612,7 +2726,7 @@ do
         --// Sat Map
         local SatVipMap = New("ImageButton", {
             BackgroundColor3 = ColorPicker.Value,
-            Image = ObsidianImageManager.GetAsset("SaturationMap"),
+            Image = CustomImageManager.GetAsset("SaturationMap"),
             Size = UDim2.fromOffset(200, 200),
             Parent = ColorHolder,
         })
@@ -2658,7 +2772,7 @@ do
         local TransparencySelector, TransparencyColor, TransparencyCursor
         if Info.Transparency then
             TransparencySelector = New("ImageButton", {
-                Image = ObsidianImageManager.GetAsset("TransparencyTexture"),
+                Image = CustomImageManager.GetAsset("TransparencyTexture"),
                 ScaleType = Enum.ScaleType.Tile,
                 Size = UDim2.fromOffset(16, 200),
                 TileSize = UDim2.fromOffset(8, 8),
@@ -4946,6 +5060,7 @@ do
             Height = Info.Height,
             ScaleType = Info.ScaleType,
             Transparency = Info.Transparency,
+            BackgroundTransparency = Info.BackgroundTransparency,
 
             Visible = Info.Visible,
             Type = "Image",
@@ -4963,6 +5078,7 @@ do
             BackgroundColor3 = "MainColor",
             BorderColor3 = "OutlineColor",
             BorderSizePixel = 1,
+            BackgroundTransparency = Image.BackgroundTransparency,
             Position = UDim2.fromScale(0, 1),
             Size = UDim2.fromScale(1, 1),
             Parent = Holder,
@@ -5328,11 +5444,21 @@ do
             Depbox.Visible = true
             DepboxContainer.Visible = true
             if not Library.Searching then
-                Depbox:Resize()
+                task.defer(function()
+                    Depbox:Resize()
+                end)
             elseif not CancelSearch then
                 Library:UpdateSearch(Library.SearchText)
             end
         end
+
+        DepboxList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            if not Depbox.Visible then
+                return
+            end
+
+            Depbox:Resize()
+        end)
 
         function Depbox:SetupDependencies(Dependencies)
             for _, Dependency in pairs(Dependencies) do
@@ -5657,6 +5783,11 @@ function Library:Notify(...)
 
     function Data:Destroy()
         Data.Destroyed = true
+
+        if typeof(Data.Time) == "Instance" then
+            pcall(Data.Time.Destroy, Data.Time)
+        end
+        
         if DeleteConnection then
             DeleteConnection:Disconnect()
         end
@@ -5666,6 +5797,7 @@ function Library:Notify(...)
                 Position = Library.NotifySide:lower() == "left" and UDim2.new(-1, -6, 0, -2) or UDim2.new(1, 6, 0, -2),
             })
             :Play()
+        
         task.delay(Library.NotifyTweenInfo.Time, function()
             Library.Notifications[FakeBackground] = nil
             FakeBackground:Destroy()
@@ -5769,6 +5901,7 @@ function Library:CreateWindow(WindowInfo)
     Library.ShowCustomCursor = WindowInfo.ShowCustomCursor
     Library.Scheme.Font = WindowInfo.Font
     Library.ToggleKeybind = WindowInfo.ToggleKeybind
+    Library.GlobalSearch = WindowInfo.GlobalSearch
 
     local IsDefaultSearchbarSize = WindowInfo.SearchbarSize == UDim2.fromScale(1, 1)
     local MainFrame
@@ -5780,6 +5913,7 @@ function Library:CreateWindow(WindowInfo)
     local Tabs
     local Container
     local Window
+    local WindowTitle
 
     local SidebarHighlightCallback = WindowInfo.SidebarHighlightCallback
 
@@ -6092,7 +6226,7 @@ function Library:CreateWindow(WindowInfo)
         WindowIcon.Visible = WindowInfo.Icon ~= nil or LayoutState.IsCompact
         LayoutRefs.WindowIcon = WindowIcon
 
-        local WindowTitle = New("TextButton", {
+        WindowTitle = New("TextButton", {
             BackgroundTransparency = 1,
             Text = WindowInfo.Title,
             TextSize = 20,
@@ -6467,6 +6601,13 @@ function Library:CreateWindow(WindowInfo)
 
     function Window:ApplyLayout()
         ApplySidebarLayout()
+    end
+
+    function Window:ChangeTitle(title)
+        assert(typeof(title) == "string", "Expected string for title got: " .. typeof(title))
+        
+        WindowTitle.Text = title
+        WindowInfo.Title = title
     end
 
     function Window:AddTab(...)
@@ -7195,13 +7336,31 @@ function Library:CreateWindow(WindowInfo)
         return Tab
     end
 
-    function Window:AddKeyTab(Name)
+    function Window:AddKeyTab(...)
+        local Name = nil
+        local Icon = nil
+        local Description = nil
+
+        if select("#", ...) == 1 and typeof(...) == "table" then
+            local Info = select(1, ...)
+            Name = Info.Name or "Tab"
+            Icon = Info.Icon
+            Description = Info.Description
+        else
+            Name = select(1, ...) or "Tab"
+            Icon = select(2, ...)
+            Description = select(3, ...)
+        end
+
+        Icon = Icon or "key"
+
         local TabButton: TextButton
         local TabLabel
         local TabIcon
 
         local TabContainer
 
+        Icon = Library:GetCustomIcon(Icon)
         do
             TabButton = New("TextButton", {
                 BackgroundColor3 = "MainColor",
@@ -7232,12 +7391,12 @@ function Library:CreateWindow(WindowInfo)
             })
             table.insert(LayoutRefs.TabLabels, TabLabel)
 
-            if KeyIcon then
+            if Icon then
                 TabIcon = New("ImageLabel", {
-                    Image = KeyIcon.Url,
-                    ImageColor3 = "AccentColor",
-                    ImageRectOffset = KeyIcon.ImageRectOffset,
-                    ImageRectSize = KeyIcon.ImageRectSize,
+                    Image = Icon.Url,
+                    ImageColor3 = Icon.Custom and "White" or "AccentColor",
+                    ImageRectOffset = Icon.ImageRectOffset,
+                    ImageRectSize = Icon.ImageRectSize,
                     ImageTransparency = 0.5,
                     Size = UDim2.fromScale(1, 1),
                     SizeConstraint = Enum.SizeConstraint.RelativeYY,
@@ -7366,7 +7525,24 @@ function Library:CreateWindow(WindowInfo)
             end
             TabContainer.Visible = true
 
+            if Description then
+                CurrentTabInfo.Visible = true
+
+                if IsDefaultSearchbarSize then
+                    SearchBox.Size = UDim2.fromScale(0.5, 1)
+                end
+
+                CurrentTabLabel.Text = Name
+                CurrentTabDescription.Text = Description
+            end
+
+            Tab:RefreshSides()
+
             Library.ActiveTab = Tab
+
+            if Library.Searching then
+                Library:UpdateSearch(Library.SearchText)
+            end
         end
 
         function Tab:Hide()
@@ -7382,6 +7558,12 @@ function Library:CreateWindow(WindowInfo)
                 }):Play()
             end
             TabContainer.Visible = false
+
+            if IsDefaultSearchbarSize then
+                SearchBox.Size = UDim2.fromScale(1, 1)
+            end
+
+            CurrentTabInfo.Visible = false
 
             Library.ActiveTab = nil
         end

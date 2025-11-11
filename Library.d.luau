@@ -680,7 +680,12 @@ export type Window = {
         Icon: string?,
         Description: string?
     ) -> Tab,
-    AddKeyTab: (self: Window, Name: string) -> KeyTab,
+    AddKeyTab: (
+        self: Window,
+        Info: { Name: string, Icon: string?, Description: string? } | string,
+        Icon: string?,
+        Description: string?
+    ) -> KeyTab,
 }
 
 --// Main Library Type
@@ -693,6 +698,7 @@ export type Library = {
     ScreenGui: ScreenGui?,
     SearchText: string,
     Searching: boolean,
+    GlobalSearch: boolean,
     LastSearchTab: Tab?,
     ActiveTab: Tab?,
     Tabs: { [string]: Tab | KeyTab },
@@ -726,6 +732,11 @@ export type Library = {
     Registry: { [GuiObject]: { [string]: string | () -> Color3 } },
     DPIRegistry: { [GuiObject]: { [string]: any } },
     CopiedColor: { Color3 | number }?,
+    ImageManager: {
+        AddAsset: (AssetName: string, RobloxAssetId: number, URL: string, ForceRedownload: boolean?) -> nil,
+        GetAsset: (AssetName: string) -> string?,
+        DownloadAsset: (AssetName: string, ForceRedownload: boolean?) -> nil
+    },
 
     -- Methods
     UpdateKeybindFrame: (self: Library) -> (),
@@ -801,6 +812,7 @@ export type Library = {
             Resizable: boolean?,
             DisableSearch: boolean?,
             SearchbarSize: UDim2?,
+            GlobalSearch: boolean?,
             CornerRadius: number?,
             NotifySide: "Left" | "Right"?,
             ShowCustomCursor: boolean?,
