@@ -83,7 +83,7 @@ local SaveManager = {} do
             end,
             Load = function(idx, data)
                 if SaveManager.Library.Options[idx] then
-                    SaveManager.Library.Options[idx]:SetValueRGB(Color3.fromHex(data.value), data.transparency)
+                    SaveManager.Library.Options[idx]:SetValueRGB(Color3.fromHex(data.value), data.transparency, true)
                 end
             end,
         },
