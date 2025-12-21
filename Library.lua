@@ -290,12 +290,6 @@ local Templates = {
         ToggleKeybind = Enum.KeyCode.RightControl,
         MobileButtonsSide = "Left",
         UnlockMouseWhileOpen = true,
-        Compact = false,
-        EnableSidebarResize = false,
-        SidebarMinWidth = 180,
-        SidebarCompactWidth = 54,
-        SidebarCollapseThreshold = 0.5,
-        SidebarHighlightCallback = nil,
     },
     Toggle = {
         Text = "Toggle",
@@ -6034,6 +6028,7 @@ function Library:CreateWindow(WindowInfo)
 
     local IsDefaultSearchbarSize = WindowInfo.SearchbarSize == UDim2.fromScale(1, 1)
     local MainFrame
+    local WindowTitle
     local SearchBox
     local CurrentTabInfo
     local CurrentTabLabel
@@ -6041,206 +6036,6 @@ function Library:CreateWindow(WindowInfo)
     local ResizeButton
     local Tabs
     local Container
-    local Window
-    local WindowTitle
-
-    local SidebarHighlightCallback = WindowInfo.SidebarHighlightCallback
-
-    local LayoutState = {
-        IsCompact = WindowInfo.Compact,
-        MinWidth = WindowInfo.SidebarMinWidth,
-        CompactWidth = WindowInfo.SidebarCompactWidth,
-        MinContentWidth = WindowInfo.MinContentWidth or 260,
-        CollapseThreshold = WindowInfo.SidebarCollapseThreshold,
-        CurrentWidth = nil,
-        LastExpandedWidth = nil,
-        MaxWidth = nil,
-        GrabberHighlighted = false,
-    }
-
-    if LayoutState.MinWidth <= LayoutState.CompactWidth then
-        LayoutState.MinWidth = LayoutState.CompactWidth + 32
-    end
-
-    if LayoutState.CollapseThreshold <= 0 then
-        LayoutState.CollapseThreshold = 0.5
-    elseif LayoutState.CollapseThreshold >= 1 then
-        LayoutState.CollapseThreshold = 0.9
-    end
-
-    local InitialFrameWidth = math.max(WindowInfo.Size.X.Offset, LayoutState.MinWidth + LayoutState.MinContentWidth)
-    local InitialExpandedWidth = WindowInfo.InitialSidebarWidth
-        or math.floor(InitialFrameWidth * (WindowInfo.InitialSidebarScale or 0.3))
-    LayoutState.CurrentWidth = math.max(LayoutState.MinWidth, InitialExpandedWidth)
-    LayoutState.LastExpandedWidth = LayoutState.CurrentWidth
-
-    local LayoutRefs = {
-        DividerLine = nil,
-        TitleHolder = nil,
-        WindowIcon = nil,
-        WindowTitle = nil,
-        RightWrapper = nil,
-        TabsFrame = nil,
-        ContainerFrame = nil,
-        SidebarGrabber = nil,
-        TabPadding = {},
-        TabLabels = {},
-    }
-
-    local MoveReservedWidth = (MoveIcon and 28 + 12) or 0
-
-    local SidebarDrag = {
-        Active = false,
-        StartWidth = 0,
-        StartX = 0,
-        TouchId = nil,
-    }
-
-    local function GetSidebarWidth()
-        return LayoutState.IsCompact and LayoutState.CompactWidth or LayoutState.CurrentWidth
-    end
-
-    local function EnsureSidebarBounds()
-        local Width = MainFrame and MainFrame.AbsoluteSize.X or WindowInfo.Size.X.Offset
-        if Width <= 0 then
-            return
-        end
-
-        local MaxSidebar = Width - LayoutState.MinContentWidth
-        LayoutState.MaxWidth = math.max(LayoutState.MinWidth, MaxSidebar)
-
-        LayoutState.CurrentWidth = math.clamp(LayoutState.CurrentWidth, LayoutState.MinWidth, LayoutState.MaxWidth)
-        LayoutState.LastExpandedWidth = math.clamp(
-            LayoutState.LastExpandedWidth or LayoutState.CurrentWidth,
-            LayoutState.MinWidth,
-            LayoutState.MaxWidth
-        )
-    end
-
-    local function SetSidebarHighlight(IsActive)
-        local DividerLine = LayoutRefs.DividerLine
-        if not DividerLine then
-            return
-        end
-
-        LayoutState.GrabberHighlighted = IsActive == true
-
-        if typeof(SidebarHighlightCallback) == "function" then
-            Library:SafeCallback(SidebarHighlightCallback, DividerLine, LayoutState.GrabberHighlighted)
-        else
-            local TargetColor = LayoutState.GrabberHighlighted and GetLighterColor(Library.Scheme.OutlineColor)
-                or Library.Scheme.OutlineColor
-
-            TweenService:Create(DividerLine, Library.TweenInfo, {
-                BackgroundColor3 = TargetColor,
-            }):Play()
-        end
-    end
-
-    local function ApplySidebarLayout()
-        EnsureSidebarBounds()
-
-        local SidebarWidth = GetSidebarWidth()
-        local IsCompact = LayoutState.IsCompact
-
-        if LayoutRefs.DividerLine then
-            LayoutRefs.DividerLine.Position = UDim2.new(0, SidebarWidth, 0, 0)
-        end
-
-        if LayoutRefs.TabsFrame then
-            LayoutRefs.TabsFrame.Size = UDim2.new(0, SidebarWidth, 1, -70)
-        end
-
-        if LayoutRefs.ContainerFrame then
-            LayoutRefs.ContainerFrame.Position = UDim2.fromOffset(SidebarWidth, 49)
-            LayoutRefs.ContainerFrame.Size = UDim2.new(1, -SidebarWidth, 1, -70)
-        end
-
-        if LayoutRefs.SidebarGrabber then
-            LayoutRefs.SidebarGrabber.Position =
-                UDim2.fromOffset(SidebarWidth - LayoutRefs.SidebarGrabber.Size.X.Offset / 2, 49)
-        end
-
-        if LayoutRefs.TitleHolder then
-            LayoutRefs.TitleHolder.Size = UDim2.new(0, math.max(LayoutState.CompactWidth, SidebarWidth), 1, 0)
-        end
-
-        if LayoutRefs.WindowIcon then
-            if WindowInfo.Icon then
-                LayoutRefs.WindowIcon.Visible = true
-            else
-                LayoutRefs.WindowIcon.Visible = IsCompact or not LayoutRefs.WindowTitle
-            end
-        end
-
-        if LayoutRefs.WindowTitle then
-            LayoutRefs.WindowTitle.Visible = not IsCompact
-            if not IsCompact then
-                local MaxTextWidth =
-                    math.max(0, SidebarWidth - (WindowInfo.Icon and WindowInfo.IconSize.X.Offset + 12 or 12))
-                local TextWidth =
-                    Library:GetTextBounds(LayoutRefs.WindowTitle.Text, Library.Scheme.Font, 20, MaxTextWidth)
-                LayoutRefs.WindowTitle.Size = UDim2.new(0, TextWidth, 1, 0)
-            else
-                LayoutRefs.WindowTitle.Size = UDim2.new(0, 0, 1, 0)
-            end
-        end
-
-        if LayoutRefs.RightWrapper then
-            local PositionX = SidebarWidth + 8
-            LayoutRefs.RightWrapper.Position = UDim2.new(0, PositionX, 0.5, 0)
-            LayoutRefs.RightWrapper.Size = UDim2.new(1, -PositionX - 8 - MoveReservedWidth, 1, -16)
-        end
-
-        for _, Padding in ipairs(LayoutRefs.TabPadding) do
-            Padding.PaddingLeft = UDim.new(0, IsCompact and 14 or 12)
-            Padding.PaddingRight = UDim.new(0, IsCompact and 14 or 12)
-            Padding.PaddingTop = UDim.new(0, IsCompact and 7 or 11)
-            Padding.PaddingBottom = UDim.new(0, IsCompact and 7 or 11)
-        end
-
-        for _, LabelObject in ipairs(LayoutRefs.TabLabels) do
-            LabelObject.Visible = not IsCompact
-        end
-
-        SetSidebarHighlight(LayoutState.GrabberHighlighted)
-
-        WindowInfo.Compact = LayoutState.IsCompact
-
-        for _, TabObject in pairs(Library.Tabs) do
-            if TabObject.RefreshSides then
-                TabObject:RefreshSides()
-            end
-        end
-    end
-
-    local function SetSidebarWidth(Width)
-        EnsureSidebarBounds()
-
-        Width = Width or LayoutState.CurrentWidth
-
-        local Threshold = LayoutState.MinWidth * LayoutState.CollapseThreshold
-        local WasCompact = LayoutState.IsCompact
-
-        if Width <= Threshold then
-            if not WasCompact then
-                LayoutState.LastExpandedWidth = LayoutState.CurrentWidth
-            end
-            LayoutState.IsCompact = true
-        else
-            local TargetWidth = Width
-            if WasCompact then
-                TargetWidth = math.max(Width, LayoutState.MinWidth)
-            end
-
-            LayoutState.CurrentWidth = math.clamp(TargetWidth, LayoutState.MinWidth, LayoutState.MaxWidth)
-            LayoutState.LastExpandedWidth = LayoutState.CurrentWidth
-            LayoutState.IsCompact = false
-        end
-
-        ApplySidebarLayout()
-    end
-
     do
         Library.KeybindFrame, Library.KeybindContainer = Library:AddDraggableMenu("Keybinds")
         Library.KeybindFrame.AnchorPoint = Vector2.new(0, 0.5)
@@ -6268,17 +6063,15 @@ function Library:CreateWindow(WindowInfo)
         })
         Library:AddOutline(MainFrame)
 
-        local InitialSidebarWidth = GetSidebarWidth()
-        LayoutRefs.DividerLine = Library:MakeLine(MainFrame, {
-            Position = UDim2.new(0, InitialSidebarWidth, 0, 0),
-            Size = UDim2.new(0, 1, 1, -21),
-            ZIndex = 2,
-        })
 
         local Lines = {
             {
                 Position = UDim2.fromOffset(0, 48),
                 Size = UDim2.new(1, 0, 0, 1),
+            },
+            {
+                Position = UDim2.fromScale(0.3, 0),
+                Size = UDim2.new(0, 1, 1, -21),
             },
             {
                 AnchorPoint = Vector2.new(0, 1),
@@ -6318,7 +6111,7 @@ function Library:CreateWindow(WindowInfo)
         --// Title
         local TitleHolder = New("Frame", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(0, math.max(LayoutState.CompactWidth, InitialSidebarWidth), 1, 0),
+            Size = UDim2.fromScale(0.3, 1),
             Parent = TopBar,
         })
         New("UIListLayout", {
@@ -6328,57 +6121,39 @@ function Library:CreateWindow(WindowInfo)
             Padding = UDim.new(0, 6),
             Parent = TitleHolder,
         })
-        LayoutRefs.TitleHolder = TitleHolder
 
-        local WindowIcon
         if WindowInfo.Icon then
-            WindowIcon = New("ImageButton", {
+            New("ImageLabel", {
                 Image = if tonumber(WindowInfo.Icon)
                     then string.format("rbxassetid://%d", WindowInfo.Icon)
                     else WindowInfo.Icon,
                 Size = WindowInfo.IconSize,
-                BackgroundTransparency = 1,
-                Parent = TitleHolder,
-            })
-        else
-            WindowIcon = New("TextButton", {
-                Text = WindowInfo.Title:sub(1, 1),
-                TextScaled = true,
-                Size = WindowInfo.IconSize,
-                BackgroundTransparency = 1,
                 Parent = TitleHolder,
             })
         end
-        WindowIcon.Visible = WindowInfo.Icon ~= nil or LayoutState.IsCompact
-        LayoutRefs.WindowIcon = WindowIcon
 
-        WindowTitle = New("TextButton", {
+        local X = Library:GetTextBounds(
+            WindowInfo.Title,
+            Library.Scheme.Font,
+            20,
+            TitleHolder.AbsoluteSize.X - (WindowInfo.Icon and WindowInfo.IconSize.X.Offset + 6 or 0) - 12
+        )
+        WindowTitle = New("TextLabel", {
             BackgroundTransparency = 1,
+            Size = UDim2.new(0, X, 1, 0),
             Text = WindowInfo.Title,
             TextSize = 20,
-            Visible = not LayoutState.IsCompact,
             Parent = TitleHolder,
         })
-        if not LayoutState.IsCompact then
-            local MaxTextWidth =
-                math.max(0, InitialSidebarWidth - (WindowInfo.Icon and WindowInfo.IconSize.X.Offset + 12 or 12))
-            local TextWidth = Library:GetTextBounds(WindowTitle.Text, Library.Scheme.Font, 20, MaxTextWidth)
-            WindowTitle.Size = UDim2.new(0, TextWidth, 1, 0)
-        else
-            WindowTitle.Size = UDim2.new(0, 0, 1, 0)
-        end
-
-        LayoutRefs.WindowTitle = WindowTitle
 
         --// Top Right Bar
         local RightWrapper = New("Frame", {
             BackgroundTransparency = 1,
             AnchorPoint = Vector2.new(0, 0.5),
-            Position = UDim2.new(0, InitialSidebarWidth + 8, 0.5, 0),
-            Size = UDim2.new(1, -(InitialSidebarWidth + 16 + MoveReservedWidth), 1, -16),
+            Position = UDim2.new(0.3, 8, 0.5, 0),
+            Size = UDim2.new(0.7, -57, 1, -16),
             Parent = TopBar,
         })
-        LayoutRefs.RightWrapper = RightWrapper
 
         New("UIListLayout", {
             FillDirection = Enum.FillDirection.Horizontal,
@@ -6409,7 +6184,7 @@ function Library:CreateWindow(WindowInfo)
 
         New("UIPadding", {
             PaddingBottom = UDim.new(0, 8),
-            PaddingLeft = UDim.new(0, 2),
+            PaddingLeft = UDim.new(0, 8),
             PaddingRight = UDim.new(0, 8),
             PaddingTop = UDim.new(0, 8),
             Parent = CurrentTabInfo,
@@ -6539,7 +6314,6 @@ function Library:CreateWindow(WindowInfo)
             })
 
             Library:MakeResizable(MainFrame, ResizeButton, function()
-                ApplySidebarLayout()
                 for _, Tab in pairs(Library.Tabs) do
                     Tab:Resize(true)
                 end
@@ -6564,23 +6338,22 @@ function Library:CreateWindow(WindowInfo)
             CanvasSize = UDim2.fromScale(0, 0),
             Position = UDim2.fromOffset(0, 49),
             ScrollBarThickness = 0,
-            Size = UDim2.new(0, InitialSidebarWidth, 1, -70),
+            Size = UDim2.new(0.3, 0, 1, -70),
             Parent = MainFrame,
         })
         New("UIListLayout", {
             Parent = Tabs,
         })
-        LayoutRefs.TabsFrame = Tabs
 
         --// Container \\--
         Container = New("Frame", {
-            AnchorPoint = Vector2.new(0, 0),
+            AnchorPoint = Vector2.new(1, 0),
             BackgroundColor3 = function()
                 return Library:GetBetterColor(Library.Scheme.BackgroundColor, 1)
             end,
             Name = "Container",
-            Position = UDim2.fromOffset(InitialSidebarWidth, 49),
-            Size = UDim2.new(1, -InitialSidebarWidth, 1, -70),
+            Position = UDim2.new(1, 0, 0, 49),
+            Size = UDim2.new(0.7, -1, 1, -70),
             Parent = MainFrame,
         })
         New("UIPadding", {
@@ -6590,145 +6363,10 @@ function Library:CreateWindow(WindowInfo)
             PaddingTop = UDim.new(0, 0),
             Parent = Container,
         })
-
-        LayoutRefs.ContainerFrame = Container
-
-        if WindowInfo.EnableSidebarResize then
-            local SidebarGrabber = New("TextButton", {
-                AutoButtonColor = false,
-                BackgroundTransparency = 1,
-                Text = "",
-                Size = UDim2.new(0, 12, 1, -70),
-                Position = UDim2.fromOffset(InitialSidebarWidth - 6, 49),
-                ZIndex = 5,
-                Parent = MainFrame,
-            })
-            LayoutRefs.SidebarGrabber = SidebarGrabber
-
-            SidebarGrabber.MouseEnter:Connect(function()
-                if Library.Toggled then
-                    SetSidebarHighlight(true)
-                end
-            end)
-            SidebarGrabber.MouseLeave:Connect(function()
-                if not SidebarDrag.Active then
-                    SetSidebarHighlight(false)
-                end
-            end)
-
-            Library:GiveSignal(SidebarGrabber.InputBegan:Connect(function(input)
-                if not Library.Toggled then
-                    return
-                end
-
-                if
-                    input.UserInputType ~= Enum.UserInputType.MouseButton1
-                    and input.UserInputType ~= Enum.UserInputType.Touch
-                then
-                    return
-                end
-
-                SidebarDrag.Active = true
-                SidebarDrag.StartWidth = GetSidebarWidth()
-                SidebarDrag.StartX = input.Position.X
-                SidebarDrag.TouchId = input.UserInputType == Enum.UserInputType.Touch and input or nil
-
-                SetSidebarHighlight(true)
-
-                local Connection
-                Connection = Library:GiveSignal(input.Changed:Connect(function()
-                    if input.UserInputState == Enum.UserInputState.End then
-                        SidebarDrag.Active = false
-                        SidebarDrag.TouchId = nil
-
-                        local IsOver = Library:MouseIsOverFrame(SidebarGrabber, Vector2.new(Mouse.X, Mouse.Y))
-                        SetSidebarHighlight(IsOver and Library.Toggled)
-
-                        if Connection then
-                            Connection:Disconnect()
-                        end
-                    end
-                end))
-            end))
-
-            Library:GiveSignal(UserInputService.InputChanged:Connect(function(input)
-                if Library.Unloaded then
-                    return
-                end
-
-                if not SidebarDrag.Active then
-                    return
-                end
-
-                if not Library.Toggled then
-                    SidebarDrag.Active = false
-                    SidebarDrag.TouchId = nil
-                    SetSidebarHighlight(false)
-                    return
-                end
-
-                if input.UserInputType == Enum.UserInputType.MouseMovement or input == SidebarDrag.TouchId then
-                    local Delta = input.Position.X - SidebarDrag.StartX
-                    SetSidebarWidth(SidebarDrag.StartWidth + Delta)
-                end
-            end))
-
-            Library:GiveSignal(UserInputService.InputEnded:Connect(function(input)
-                if Library.Unloaded then
-                    return
-                end
-
-                if not SidebarDrag.Active then
-                    return
-                end
-
-                if
-                    input.UserInputType == Enum.UserInputType.MouseButton1
-                    or input.UserInputType == Enum.UserInputType.Touch
-                    or input == SidebarDrag.TouchId
-                then
-                    SidebarDrag.Active = false
-                    SidebarDrag.TouchId = nil
-                    local IsOver = Library:MouseIsOverFrame(SidebarGrabber, Vector2.new(Mouse.X, Mouse.Y))
-                    SetSidebarHighlight(IsOver and Library.Toggled)
-                end
-            end))
-
-            SetSidebarHighlight(false)
-        end
-
-        task.defer(ApplySidebarLayout)
     end
 
     --// Window Table \\--
-    Window = {}
-
-    function Window:GetSidebarWidth()
-        return GetSidebarWidth()
-    end
-
-    function Window:IsSidebarCompacted()
-        return LayoutState.IsCompact
-    end
-
-    function Window:SetSidebarWidth(Width)
-        SetSidebarWidth(Width)
-    end
-
-    function Window:SetCompact(State)
-        assert(typeof(State) == "boolean", "State must be a boolean")
-
-        local Threshold = LayoutState.MinWidth * LayoutState.CollapseThreshold
-        if State then
-            SetSidebarWidth(Threshold * 0.5)
-        else
-            SetSidebarWidth(LayoutState.LastExpandedWidth or LayoutState.CurrentWidth or LayoutState.MinWidth)
-        end
-    end
-
-    function Window:ApplyLayout()
-        ApplySidebarLayout()
-    end
+    local Window = {}
 
     function Window:ChangeTitle(title)
         assert(typeof(title) == "string", "Expected string for title got: " .. typeof(title))
@@ -6770,15 +6408,13 @@ function Library:CreateWindow(WindowInfo)
                 Text = "",
                 Parent = Tabs,
             })
-
-            local ButtonPadding = New("UIPadding", {
-                PaddingBottom = UDim.new(0, LayoutState.IsCompact and 7 or 11),
-                PaddingLeft = UDim.new(0, LayoutState.IsCompact and 14 or 12),
-                PaddingRight = UDim.new(0, LayoutState.IsCompact and 14 or 12),
-                PaddingTop = UDim.new(0, LayoutState.IsCompact and 7 or 11),
+            New("UIPadding", {
+                PaddingBottom = UDim.new(0, 11),
+                PaddingLeft = UDim.new(0, 12),
+                PaddingRight = UDim.new(0, 12),
+                PaddingTop = UDim.new(0, 11),
                 Parent = TabButton,
             })
-            table.insert(LayoutRefs.TabPadding, ButtonPadding)
 
             TabLabel = New("TextLabel", {
                 BackgroundTransparency = 1,
@@ -6788,10 +6424,8 @@ function Library:CreateWindow(WindowInfo)
                 TextSize = 16,
                 TextTransparency = 0.5,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                Visible = not LayoutState.IsCompact,
                 Parent = TabButton,
             })
-            table.insert(LayoutRefs.TabLabels, TabLabel)
 
             if Icon then
                 TabIcon = New("ImageLabel", {
@@ -7506,14 +7140,13 @@ function Library:CreateWindow(WindowInfo)
                 Text = "",
                 Parent = Tabs,
             })
-            local KeyTabPadding = New("UIPadding", {
-                PaddingBottom = UDim.new(0, LayoutState.IsCompact and 7 or 11),
-                PaddingLeft = UDim.new(0, LayoutState.IsCompact and 14 or 12),
-                PaddingRight = UDim.new(0, LayoutState.IsCompact and 14 or 12),
-                PaddingTop = UDim.new(0, LayoutState.IsCompact and 7 or 11),
+            New("UIPadding", {
+                PaddingBottom = UDim.new(0, 11),
+                PaddingLeft = UDim.new(0, 12),
+                PaddingRight = UDim.new(0, 12),
+                PaddingTop = UDim.new(0, 11),
                 Parent = TabButton,
             })
-            table.insert(LayoutRefs.TabPadding, KeyTabPadding)
 
             TabLabel = New("TextLabel", {
                 BackgroundTransparency = 1,
@@ -7523,10 +7156,8 @@ function Library:CreateWindow(WindowInfo)
                 TextSize = 16,
                 TextTransparency = 0.5,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                Visible = not LayoutState.IsCompact,
                 Parent = TabButton,
             })
-            table.insert(LayoutRefs.TabLabels, TabLabel)
 
             if Icon then
                 TabIcon = New("ImageLabel", {
@@ -7752,7 +7383,6 @@ function Library:CreateWindow(WindowInfo)
             end)
 
         elseif not Library.Toggled then
-            SetSidebarHighlight(false)
             TooltipLabel.Visible = false
 
             for _, Option in pairs(Library.Options) do
