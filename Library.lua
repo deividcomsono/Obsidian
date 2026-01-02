@@ -1021,24 +1021,37 @@ function Library:Validate(Table: { [string]: any }, Template: { [string]: any })
 end
 
 --// Creator Functions \\--
+local SchemeAlias = {
+    RedColor = "Red",
+    WhiteColor = "White",
+    DarkColor = "Dark",
+}
+
 local function FillInstance(Table: { [string]: any }, Instance: GuiObject)
-	local ThemeProperties = Library.Registry[Instance] or {}
+    local ThemeProperties = Library.Registry[Instance] or {}
 
-	for k, v in Table do
-		if ThemeProperties[k] then
-			ThemeProperties[k] = nil
-		elseif k ~= "Text" and (Library.Scheme[v] or typeof(v) == "function") then
-			ThemeProperties[k] = v
-			v = Library.Scheme[v] or v()
-		end
+    for k, v in Table do
+        if Library.Scheme[SchemeAlias[v]] ~= nil then
+        if typeof(v) == "string" and Library.Scheme[SchemeAlias[v]] ~= nil then
+            Library.Scheme[v] = Library.Scheme[SchemeAlias[v]]
+            Library.Scheme[SchemeAlias[v]] = nil
+        end
 
-		Instance[k] = v
-	end
+        if ThemeProperties[k] then
+            ThemeProperties[k] = nil
+        elseif k ~= "Text" and (Library.Scheme[v] or typeof(v) == "function") then
+            ThemeProperties[k] = v
+            v = Library.Scheme[v] or v()
+        end
 
-	if GetTableSize(ThemeProperties) > 0 then
-		Library.Registry[Instance] = ThemeProperties
-	end
+        Instance[k] = v
+    end
+
+    if GetTableSize(ThemeProperties) > 0 then
+        Library.Registry[Instance] = ThemeProperties
+    end
 end
+
 
 local function New(ClassName: string, Properties: { [string]: any }): any
 	local Instance = Instance.new(ClassName)
