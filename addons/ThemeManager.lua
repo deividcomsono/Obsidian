@@ -9,8 +9,6 @@ local HttpService: HttpService = cloneref(game:GetService("HttpService"))
 local isfolder, isfile, listfiles = isfolder, isfile, listfiles
 
 if typeof(clonefunction) == "function" then
-    -- Fix is_____ functions for shitsploits, those functions should never error, only return a boolean.
-
     local
         isfolder_copy,
         isfile_copy,
@@ -42,14 +40,13 @@ local ThemeManager = {}
 do
     local ThemeFields = { "FontColor", "MainColor", "AccentColor", "BackgroundColor", "OutlineColor" }
     ThemeManager.Folder = "ObsidianLibSettings"
-    -- if not isfolder(ThemeManager.Folder) then makefolder(ThemeManager.Folder) end
 
     ThemeManager.Library = nil
     ThemeManager.AppliedToTab = false
     ThemeManager.BuiltInThemes = {
         ["Default"] = {
             1,
-            { FontColor = "ffffff", MainColor = "191919", AccentColor = "7d55ff", BackgroundColor = "0f0f0f", OutlineColor = "282828" },
+            { FontColor = "ffffff", MainColor = "191919", AccentColor = "ffffff", BackgroundColor = "0f0f0f", OutlineColor = "58646c" },
         },
         ["BBot"] = {
             2,
@@ -125,7 +122,6 @@ do
         self.Library = library
     end
 
-    --// Folders \\--
     function ThemeManager:GetPaths()
         local paths = {}
 
@@ -165,7 +161,6 @@ do
         self:BuildFolderTree()
     end
 
-    --// Apply, Update theme \\--
     function ThemeManager:ApplyTheme(theme)
         local customThemeData = self:GetCustomTheme(theme)
         local data = customThemeData or self.BuiltInThemes[theme]
@@ -206,7 +201,6 @@ do
         self.Library:UpdateColorsUsingRegistry()
     end
 
-    --// Get, Load, Save, Delete, Refresh \\--
     function ThemeManager:GetCustomTheme(file)
         local path = self.Folder .. "/themes/" .. file .. ".json"
         if not isfile(path) then
@@ -334,8 +328,6 @@ do
         for i = 1, #list do
             local file = list[i]
             if file:sub(-5) == ".json" then
-                -- i hate this but it has to be done ...
-
                 local pos = file:find(".json", 1, true)
                 local start = pos
 
@@ -354,7 +346,6 @@ do
         return out
     end
 
-    --// GUI \\--
     function ThemeManager:CreateThemeManager(groupbox)
         groupbox
             :AddLabel("Background color")
