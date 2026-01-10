@@ -687,8 +687,8 @@ MenuGroup:AddToggle("ShowCustomCursor", {
 	end,
 })
 MenuGroup:AddDropdown("NotificationSide", {
-	Values = { "Left", "Right" },
-	Default = "Right",
+	Values = { "left", "right" },
+	Default = "right",
 
 	Text = "Notification Side",
 
