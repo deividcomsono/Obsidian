@@ -6200,12 +6200,6 @@ function Library:CreateWindow(WindowInfo)
             TextTransparency = 0.5,
             Parent = BottomBar,
         })
-        
-        function Library:SetFooter(footer)
-            assert(typeof(footer) == "string", "Expected string for footer got: " .. typeof(footer))
-
-            WindowInfo.Footer = footer
-        end
 
         --// Resize Button
         if WindowInfo.Resizable then
@@ -6279,6 +6273,12 @@ function Library:CreateWindow(WindowInfo)
 
         WindowTitle.Text = title
         WindowInfo.Title = title
+    end
+
+    function Window:SetFooter(footer)
+        assert(typeof(footer) == "string", "Expected string for footer got: " .. typeof(footer))
+
+        WindowInfo.Footer = footer
     end
 
     local function ApplyCompact()
