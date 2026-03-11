@@ -6315,7 +6315,7 @@ function Library:CreateWindow(WindowInfo)
         })
 
         --// Footer
-        New("TextLabel", {
+        local FooterLabel = New("TextLabel", {
             BackgroundTransparency = 1,
             Size = UDim2.fromScale(1, 1),
             Text = WindowInfo.Footer,
@@ -6410,6 +6410,7 @@ function Library:CreateWindow(WindowInfo)
     function Window:SetFooter(footer)
         assert(typeof(footer) == "string", "Expected string for footer got: " .. typeof(footer))
 
+        FooterLabel.Text = footer
         WindowInfo.Footer = footer
     end
 
