@@ -167,6 +167,7 @@ local Library = {
 
     Notifications = {},
     Dialogues = {},
+    Corners = {},
     ActiveDialog = nil,
 
     ToggleKeybind = Enum.KeyCode.RightControl,
@@ -1508,10 +1509,11 @@ function Library:AddDraggableLabel(Text: string)
         ZIndex = 10,
         Parent = ScreenGui,
     })
-    New("UICorner", {
+    local corner = New("UICorner", {
         CornerRadius = UDim.new(0, Library.CornerRadius),
         Parent = Label,
     })
+    table.insert(Library.Corners, corner)
     New("UIPadding", {
         PaddingBottom = UDim.new(0, 6),
         PaddingLeft = UDim.new(0, 12),
@@ -1552,10 +1554,11 @@ function Library:AddDraggableButton(Text: string, Func, ExcludeScaling: boolean?
         ZIndex = 10,
         Parent = ScreenGui,
     })
-    New("UICorner", {
+    local corner = New("UICorner", {
         CornerRadius = UDim.new(0, Library.CornerRadius),
         Parent = Button,
     })
+    table.insert(Library.Corners, corner)
     if not ExcludeScaling then
         table.insert(
             Library.Scales,
@@ -1593,10 +1596,11 @@ function Library:AddDraggableMenu(Name: string)
         ZIndex = 10,
         Parent = ScreenGui,
     })
-    New("UICorner", {
+    local corner = New("UICorner", {
         CornerRadius = UDim.new(0, Library.CornerRadius),
         Parent = Holder,
     })
+    table.insert(Library.Corners, corner)
     table.insert(
         Library.Scales,
         New("UIScale", {
@@ -2197,10 +2201,11 @@ do
                 SizeConstraint = Enum.SizeConstraint.RelativeYY,
                 Parent = Holder,
             })
-            New("UICorner", {
+            local corner = New("UICorner", {
                 CornerRadius = UDim.new(0, Library.CornerRadius / 2),
                 Parent = Checkbox,
             })
+            table.insert(Library.Corners, corner)
             New("UIStroke", {
                 Color = "OutlineColor",
                 Parent = Checkbox,
@@ -3599,10 +3604,11 @@ do
             SizeConstraint = Enum.SizeConstraint.RelativeYY,
             Parent = Button,
         })
-        New("UICorner", {
+        local corner = New("UICorner", {
             CornerRadius = UDim.new(0, Library.CornerRadius / 2),
             Parent = Checkbox,
         })
+        table.insert(Library.Corners, corner)
 
         local CheckboxStroke = New("UIStroke", {
             Color = "OutlineColor",
@@ -5554,10 +5560,11 @@ do
                 Visible = false,
                 Parent = BoxHolder,
             })
-            New("UICorner", {
+            local corner = New("UICorner", {
                 CornerRadius = UDim.new(0, Library.CornerRadius),
                 Parent = DepGroupboxContainer,
             })
+            table.insert(Library.Corners, corner)
             Library:AddOutline(DepGroupboxContainer)
 
             DepGroupboxList = New("UIListLayout", {
@@ -5721,10 +5728,11 @@ function Library:Notify(...)
         ZIndex = 5,
         Parent = FakeBackground,
     })
-    New("UICorner", {
+    local corner = New("UICorner", {
         CornerRadius = UDim.new(0, Library.CornerRadius),
         Parent = Holder,
     })
+    table.insert(Library.Corners, corner)
     New("UIListLayout", {
         Padding = UDim.new(0, 4),
         Parent = Holder,
@@ -6042,6 +6050,7 @@ function Library:CreateWindow(WindowInfo)
     local Tabs
     local Container
     local BackgroundImage
+    local BottomBackground
 
     local InitialLeftWidth = math.ceil(WindowInfo.Size.X.Offset * 0.3)
     local IsCompact = WindowInfo.SidebarCompacted
@@ -6064,10 +6073,11 @@ function Library:CreateWindow(WindowInfo)
             Visible = false,
             Parent = ScreenGui,
         })
-        New("UICorner", {
+        local corner = New("UICorner", {
             CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
             Parent = MainFrame,
         })
+        table.insert(Library.Corners, corner)
         table.insert(
             Library.Scales,
             New("UIScale", {
@@ -6099,10 +6109,11 @@ function Library:CreateWindow(WindowInfo)
                 Parent = MainFrame,
             })
 
-            New("UICorner", {
+            local corner = New("UICorner", {
                 CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
                 Parent = BackgroundImage,
             })
+            table.insert(Library.Corners, corner)
         end
 
         if WindowInfo.Center then
@@ -6242,10 +6253,11 @@ function Library:CreateWindow(WindowInfo)
             FlexMode = Enum.UIFlexMode.Shrink,
             Parent = SearchBox,
         })
-        New("UICorner", {
+        local corner = New("UICorner", {
             CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
             Parent = SearchBox,
         })
+        table.insert(Library.Corners, corner)
         New("UIPadding", {
             PaddingBottom = UDim.new(0, 8),
             PaddingLeft = UDim.new(0, 8),
@@ -6287,7 +6299,7 @@ function Library:CreateWindow(WindowInfo)
         end
 
         --// Bottom Bar \\--
-        local BottomBackground = New("Frame", {
+        BottomBackground = New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
             BackgroundColor3 = function()
                 return Library:GetBetterColor(Library.Scheme.BackgroundColor, 4)
@@ -6309,10 +6321,11 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.new(1, 0, 0, 20),
             Parent = MainFrame,
         })
-        New("UICorner", {
+        local corner = New("UICorner", {
             CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
             Parent = BottomBackground,
         })
+        table.insert(Library.Corners, corner)
 
         --// Footer
         New("TextLabel", {
@@ -6411,6 +6424,25 @@ function Library:CreateWindow(WindowInfo)
         assert(typeof(footer) == "string", "Expected string for footer got: " .. typeof(footer))
 
         WindowInfo.Footer = footer
+    end
+    
+    function Window:SetCornerRadius(Radius: number)
+        assert(typeof(Radius) == "number", `Expected number for Radius got {typeof(Radius)}`)
+        Radius = math.min(Radius, 20)
+
+        for _,v in Library.Corners do
+            if v.CornerRadius.Offset == Library.CornerRadius/2 then
+                v.CornerRadius = UDim.new(0, Radius/2)
+            else
+                v.CornerRadius = UDim.new(0, Radius)
+            end
+        end
+
+        Library.CornerRadius = Radius
+        WindowInfo.CornerRadius = Radius
+
+        ResizeButton.Position = UDim2.new(1, -Radius / 4, 0, 0)
+        BottomBackground.Size = UDim2.new(1, 0, 0, Radius * 2)
     end
 
     local function ApplyCompact()
@@ -6658,10 +6690,11 @@ function Library:CreateWindow(WindowInfo)
                 Size = UDim2.new(1, -5, 0, 0),
                 Parent = WarningBoxHolder,
             })
-            New("UICorner", {
+            local corner = New("UICorner", {
                 CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
                 Parent = WarningBox,
             })
+            table.insert(Library.Corners, corner)
             WarningBoxOutline, WarningBoxShadowOutline = Library:AddOutline(WarningBox)
 
             WarningBoxScrollingFrame = New("ScrollingFrame", {
@@ -6870,10 +6903,11 @@ function Library:CreateWindow(WindowInfo)
                     Size = UDim2.fromScale(1, 0),
                     Parent = BoxHolder,
                 })
-                New("UICorner", {
+                local corner = New("UICorner", {
                     CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
                     Parent = GroupboxHolder,
                 })
+                table.insert(Library.Corners, corner)
                 Library:AddOutline(GroupboxHolder)
 
                 Library:MakeLine(GroupboxHolder, {
@@ -6985,10 +7019,11 @@ function Library:CreateWindow(WindowInfo)
                     Size = UDim2.fromScale(1, 0),
                     Parent = BoxHolder,
                 })
-                New("UICorner", {
+                local corner = New("UICorner", {
                     CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
                     Parent = TabboxHolder,
                 })
+                table.insert(Library.Corners, corner)
                 Library:AddOutline(TabboxHolder)
 
                 TabboxButtons = New("Frame", {
@@ -7522,10 +7557,11 @@ function Library:CreateWindow(WindowInfo)
             ZIndex = 9001,
             Parent = DialogOverlay,
         })
-        New("UICorner", {
+        local corner = New("UICorner", {
             CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
             Parent = DialogFrame,
         })
+        table.insert(Library.Corners, corner)
         Library:AddOutline(DialogFrame)
 
         local InnerContainer = New("Frame", {
@@ -7822,7 +7858,8 @@ function Library:CreateWindow(WindowInfo)
                 Parent = ButtonContainer,
             })
             Library:AddOutline(TextBtn)
-            New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = TextBtn })
+            local corner = New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = TextBtn })
+            table.insert(Library.Corners, corner)
 
             local _BtnPadding = New("UIPadding", {
                 PaddingLeft = UDim.new(0, 15),
@@ -7862,7 +7899,8 @@ function Library:CreateWindow(WindowInfo)
                     ZIndex = 2,
                     Parent = TextBtn,
                 })
-                New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = ProgressBar })
+                local corner = New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = ProgressBar })
+                table.insert(Library.Corners, corner)
             end
 
             local IsActive = WaitTime <= 0
