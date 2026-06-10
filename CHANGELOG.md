@@ -1,3 +1,60 @@
+## 21.04.2026
+
+```diff
+[features]
++ SaveManager:SetLoadingOrder(enabled: boolean, order: { })
+```
+
+## 05.04.2026
+
+```diff
+[features]
++ Library.Scheme.DestructiveColor
++ Library:CreateLoading(LoadingInfo)
+~ Read documentation at http://docs.mspaint.cc/obsidian/core/library/loading
+```
+
+## 03.04.2026
+
+```diff
+[features]
++ Tab:SetVisible()
+```
+
+## 28.03.2026
+
+```diff
+[features]
++ Dropdown.FormatListValue(Value)
+  - Randomized formatting will not be preserved as the function is called every time the context menu is rebuilt
+```
+
+## 24.03.2026
+
+```diff
+[features]
++ Input.VerifyValue(NewValue: string): boolean
++ Input.ClearTextOnBlur
++ KeyPicker.Blacklisted, KeyPicker.BlacklistedModifiers
++ KeyPicker.Whitelisted, KeyPicker.WhitelistedModifiers
+
+[changes]
++ CornerRadius now applies to more elements
++ Height of the slider increased by 1px
+```
+
+## 17.03.2026
+
+```diff
+[features]
++ Window:SetCornerRadius(Radius: number)
+
+[fixes]
++ Fixed Window:SetFooter not changing the label text
++ Fixed footer background not properly resizing
++ Fixed Tab buttons not respecting corner radius
+```
+
 ## 16.01.2026
 
 ```diff

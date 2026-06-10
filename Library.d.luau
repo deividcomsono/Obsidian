@@ -10,6 +10,7 @@ export type Scheme = {
     FontColor: Color3,
     Font: Font,
     RedColor: Color3,
+    DestructiveColor: Color3,
     DarkColor: Color3,
     WhiteColor: Color3,
 }
@@ -48,6 +49,9 @@ export type Notification = {
     SoundId: string | number?,
     Steps: number?,
     Persist: boolean?,
+    Icon: string?,
+    BigIcon: string?,
+    IconColor: Color3 | string?,
     Destroyed: boolean,
 
     Resize: (self: Notification) -> (),
@@ -218,6 +222,23 @@ export type ColorPickerInfo = {
     Title: string?,
     Callback: ((Color3) -> ())?,
     Changed: ((Color3) -> ())?,
+}
+
+export type LoadingInfo = {
+    Title: string?,
+    Icon: string | number?,
+    IconSize: UDim2?,
+    LoadingIcon: string | number?,
+    LoadingIconColor: Color3?,
+    LoadingIconTweenTime: number?,
+    CurrentStep: number?,
+    TotalSteps: number?,
+    ShowSidebar: boolean?,
+    AutoResizeHeight: boolean?,
+    WindowWidth: number?,
+    WindowHeight: number?,
+    ContentWidth: number?,
+    SidebarWidth: number?,
 }
 
 --// Addon Types
@@ -558,7 +579,7 @@ export type Option =
 
 --// Container Types
 export type BaseGroupbox = {
-    AddDivider: (self: Groupbox) -> (),
+    AddDivider: (self: Groupbox, MarginTop: number?, MarginBottom: number?) -> (),
     AddLabel: (
         self: Groupbox,
         Info: { Text: string, DoesWrap: boolean?, Size: number?, Visible: boolean?, Idx: string? } | string,
@@ -636,7 +657,7 @@ export type Tabbox = {
     Holder: Frame,
     Tabs: { [string]: SubTab },
 
-    AddTab: (self: Tabbox, Name: string) -> SubTab,
+    AddTab: (self: Tabbox, Name: string, IconName: string?) -> SubTab,
 }
 
 export type Tab = {
@@ -660,6 +681,7 @@ export type Tab = {
     Hover: (self: Tab, Hovering: boolean) -> (),
     Show: (self: Tab) -> (),
     Hide: (self: Tab) -> (),
+    SetVisible: (self: Tab, Visible: boolean) -> (),
 }
 
 export type KeyTab = BaseGroupbox & {
@@ -672,6 +694,85 @@ export type KeyTab = BaseGroupbox & {
     Hover: (self: KeyTab, Hovering: boolean) -> (),
     Show: (self: KeyTab) -> (),
     Hide: (self: KeyTab) -> (),
+    SetVisible: (self: KeyTab, Visible: boolean) -> (),
+}
+
+export type LoadingErrorButtonInfo = {
+    Title: string?,
+    Variant: "Primary" | "Secondary" | "Destructive" | "Ghost"?,
+    Callback: ((Loading) -> ())?,
+}
+
+export type LoadingSidebar = BaseGroupbox & {
+    Elements: { [number]: Element },
+    DependencyBoxes: { [number]: DependencyBox },
+    Tabboxes: { [string]: Tabbox },
+    BoxHolder: ScrollingFrame,
+    Container: ScrollingFrame,
+    Tab: {
+        Elements: { [number]: Element },
+        DependencyBoxes: { [number]: DependencyBox },
+        DependencyGroupboxes: { [number]: DependencyGroupbox },
+        Tabboxes: { [string]: Tabbox },
+    },
+
+    Resize: (self: LoadingSidebar) -> (),
+}
+
+export type Loading = {
+    CurrentStep: number,
+    TotalSteps: number,
+    ShowSidebar: boolean,
+    AutoResizeHeight: boolean,
+    IsError: boolean,
+    Destroyed: boolean,
+    WindowWidth: number,
+    WindowHeight: number,
+    BaseWindowHeight: number,
+    WindowErrorHeight: number,
+    ContentWidth: number,
+    SidebarWidth: number,
+    ScreenGui: ScreenGui,
+    Sidebar: LoadingSidebar,
+
+    UpdateLayout: (self: Loading) -> (),
+    RecalculateLoadingHeight: (self: Loading) -> (),
+    SetMessage: (self: Loading, Text: string) -> (),
+    SetDescription: (self: Loading, Text: string) -> (),
+    SetLoadingIcon: (self: Loading, Icon: string | number) -> (),
+    SetLoadingIconTweenTime: (self: Loading, TweenTime: number) -> (),
+    SetLoadingIconColor: (self: Loading, Color: Color3) -> (),
+    SetCurrentStep: (self: Loading, Step: number) -> (),
+    SetTotalSteps: (self: Loading, Steps: number) -> (),
+    SetWindowHeight: (self: Loading, Height: number) -> (),
+    SetWindowWidth: (self: Loading, Width: number) -> (),
+    SetContentWidth: (self: Loading, Width: number) -> (),
+    SetSidebarWidth: (self: Loading, Width: number) -> (),
+    ShowSidebarPage: (self: Loading, Bool: boolean) -> (),
+    ShowErrorPage: (self: Loading, Enabled: boolean) -> (),
+    RecalculateErrorHeight: (self: Loading) -> (),
+    SetErrorMessage: (self: Loading, Text: string) -> (),
+    SetErrorButtons: (self: Loading, Buttons: { [string]: LoadingErrorButtonInfo }) -> (),
+    Destroy: (self: Loading) -> (),
+    Continue: (self: Loading) -> (),
+}
+
+export type DialogButtonInfo = {
+    Title: string,
+    Variant: "Primary" | "Secondary" | "Destructive" | "Ghost"?,
+    WaitTime: number?,
+    Order: number?,
+    Callback: (() -> ())?
+}
+
+export type Dialog = {
+    SetTitle: (self: Dialog, Title: string) -> (),
+    SetDescription: (self: Dialog, Description: string) -> (),
+    AddFooterButton: (self: Dialog, ButtonIdx: string, ButtonInfo: DialogButtonInfo) -> (),
+    RemoveFooterButton: (self: Dialog, ButtonIdx: string) -> (),
+    SetButtonDisabled: (self: Dialog, ButtonIdx: string, Disabled: boolean) -> (),
+    SetButtonOrder: (self: Dialog, ButtonIdx: string, Order: number) -> (),
+    Dismiss: (self: Dialog) -> (),
 }
 
 export type Window = {
@@ -690,6 +791,22 @@ export type Window = {
         Icon: string?,
         Description: string?
     ) -> KeyTab,
+    AddDialog: (
+        self: Window,
+        Info: {
+            Title: string,
+            Description: string?,
+            Icon: string?,
+            TitleColor: Color3?,
+            DescriptionColor: Color3?,
+            AutoDismiss: boolean?,
+            OutsideClickDismiss: boolean?,
+            FooterButtons: { [string]: DialogButtonInfo }?
+        }
+    ) -> Dialog,
+    ChangeTitle: (self: Window, Title: string) -> (),
+    ChangeBackgroundImage: (self: Window, Image: string) -> (),
+    ChangeFooter: (self: Window, Footer: string) -> (),
 }
 
 --// Main Library Type
@@ -705,6 +822,7 @@ export type Library = {
     GlobalSearch: boolean,
     LastSearchTab: Tab?,
     ActiveTab: Tab?,
+    ActiveLoading: Loading?,
     Tabs: { [string]: Tab | KeyTab },
     DependencyBoxes: { [number]: DependencyBox | DependencyGroupbox },
     KeybindFrame: Frame?,
@@ -801,6 +919,7 @@ export type Library = {
         Time: number?,
         SoundId: string | number?
     ) -> Notification,
+    CreateLoading: (self: Library, LoadingInfo: LoadingInfo) -> Loading,
     CreateWindow: (
         self: Library,
         WindowInfo: {

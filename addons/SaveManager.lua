@@ -43,6 +43,8 @@ local SaveManager = {} do
     SaveManager.SubFolder = ""
     SaveManager.Ignore = {}
     SaveManager.Library = nil
+    SaveManager.UseLoadingOrder = false
+    SaveManager.LoadingOrder = {}
     SaveManager.Parser = {
         Toggle = {
             Save = function(idx, object)
@@ -112,6 +114,14 @@ local SaveManager = {} do
 
     function SaveManager:SetLibrary(library)
         self.Library = library
+    end
+
+    function SaveManager:SetLoadingOrder(enabled, order)
+        self.UseLoadingOrder = enabled
+
+        if typeof(order) == "table" then
+            self.LoadingOrder = order
+        end
     end
 
     function SaveManager:IgnoreThemeSettings()
@@ -250,7 +260,15 @@ local SaveManager = {} do
         local success, decoded = pcall(HttpService.JSONDecode, HttpService, readfile(file))
         if not success then return false, "decode error" end
 
-        for _, option in pairs(decoded.objects) do
+        if self.UseLoadingOrder == true and typeof(self.LoadingOrder) == "table" then
+            table.sort(decoded.objects, function(a, b)
+                local aIndex = table.find(self.LoadingOrder, a.type) or math.huge
+                local bIndex = table.find(self.LoadingOrder, b.type) or math.huge
+                return aIndex < bIndex
+            end)
+        end
+
+        for _, option in decoded.objects do
             if not option.type then continue end
             if not self.Parser[option.type] then continue end
             if self.Ignore[option.idx] then continue end
