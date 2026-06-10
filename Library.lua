@@ -2380,6 +2380,12 @@ do
                 Parent = Checkbox,
             })
 
+			function KeyPicker:SetNoUI(Value)
+	            Info.NoUI = Value
+				Holder.Visible = not Value
+                KeyPicker:Update()
+	        end				
+
             function KeybindsToggle:Display(State)
                 Label.TextTransparency = State and 0 or 0.5
                 CheckImage.ImageTransparency = State and 0 or 1
