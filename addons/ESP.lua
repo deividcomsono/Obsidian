@@ -16,6 +16,7 @@ local ESP = {
     OutlineColor = Color3.new(1, 1, 1),
     FillTransparency = 0.5,
     OutlineTransparency = 0,
+    MaxTargetDistance = math.huge,
     Highlights = {},
     Connections = {},
 }
@@ -81,6 +82,43 @@ function ESP:SetColors(FillColor: Color3, OutlineColor: Color3?)
         self.OutlineColor = OutlineColor
     end
     self:Refresh()
+end
+
+function ESP:SetMaxTargetDistance(Distance: number)
+    assert(Distance > 0, "Distance must be greater than 0")
+    self.MaxTargetDistance = Distance
+end
+
+-- Returns the living player closest to the screen center. This is a read-only
+-- selector: it never moves the camera or sends input on the user's behalf.
+function ESP:GetNearestTarget(FOVRadius: number?): Player?
+    local Camera = workspace.CurrentCamera
+    local LocalPlayer = Players.LocalPlayer
+    if not Camera or not LocalPlayer then return nil end
+
+    local Viewport = Camera.ViewportSize
+    local Center = Vector2.new(Viewport.X / 2, Viewport.Y / 2)
+    local BestPlayer, BestDistance = nil, FOVRadius or math.huge
+
+    for _, Player in Players:GetPlayers() do
+        if IsValidPlayer(Player) then
+            local Character = Player.Character
+            local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+            local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+            if Root and Humanoid and Humanoid.Health > 0 then
+                local Point, OnScreen = Camera:WorldToViewportPoint(Root.Position)
+                if OnScreen then
+                    local Distance = (Vector2.new(Point.X, Point.Y) - Center).Magnitude
+                    local WorldDistance = (Root.Position - Camera.CFrame.Position).Magnitude
+                    if Distance <= BestDistance and WorldDistance <= self.MaxTargetDistance then
+                        BestPlayer, BestDistance = Player, Distance
+                    end
+                end
+            end
+        end
+    end
+
+    return BestPlayer
 end
 
 function ESP:Enable()

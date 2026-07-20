@@ -23,6 +23,12 @@ local ESP = Cyan.ESP
 
 ESP:SetTeamCheck(true)
 ESP:Enable()
+
+-- Read-only target selection for UI indicators
+local Target = ESP:GetNearestTarget(150)
+if Target then
+    print("Nearest target:", Target.Name)
+end
 ```
 
 For the complete API documentation, see <https://docs.mspaint.cc/obsidian>.
