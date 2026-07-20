@@ -28,12 +28,12 @@ local Toggles = {}
 local Options = {}
 local Tooltips = {}
 
-local BaseURL = "https://raw.githubusercontent.com/EhabYT/cyan/refs/heads/main/"
+local BaseURL = "https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/"
 local CustomImageManager = {}
 local CustomImageManagerAssets = {
     TransparencyTexture = {
         RobloxId = 139785960036434,
-        Path = "Cyan/assets/TransparencyTexture.png",
+        Path = "Obsidian/assets/TransparencyTexture.png",
         URL = BaseURL .. "assets/TransparencyTexture.png",
 
         Id = nil,
@@ -41,7 +41,7 @@ local CustomImageManagerAssets = {
 
     SaturationMap = {
         RobloxId = 4155801252,
-        Path = "Cyan/assets/SaturationMap.png",
+        Path = "Obsidian/assets/SaturationMap.png",
         URL = BaseURL .. "assets/SaturationMap.png",
 
         Id = nil,
@@ -49,7 +49,7 @@ local CustomImageManagerAssets = {
 
     LoadingIcon = {
         RobloxId = 97544096941083,
-        Path = "Cyan/assets/LoadingIcon.png",
+        Path = "Obsidian/assets/LoadingIcon.png",
         URL = BaseURL .. "assets/LoadingIcon.png",
 
         Id = nil,
@@ -57,7 +57,7 @@ local CustomImageManagerAssets = {
 
     CheckIcon = {
         RobloxId = 97682394690683,
-        Path = "Cyan/assets/CheckIcon.png",
+        Path = "Obsidian/assets/CheckIcon.png",
         URL = BaseURL .. "assets/CheckIcon.png",
 
         Id = nil,
@@ -101,7 +101,7 @@ do
 
         CustomImageManagerAssets[AssetName] = {
             RobloxId = RobloxAssetId,
-            Path = string.format("Cyan/custom_assets/%s", AssetName),
+            Path = string.format("Obsidian/custom_assets/%s", AssetName),
             URL = URL,
 
             Id = nil,
@@ -167,7 +167,7 @@ local Library = {
     DevicePlatform = nil,
     IsMobile = false,
 
-    --// Cyan Windows \\--
+    --// Obsidian Windows \\--
     ScreenGui = nil,
     Window = nil,
     WindowContainer = nil,
@@ -1295,7 +1295,7 @@ local function ParentUI(UI: Instance, SkipHiddenUI: boolean?)
 end
 
 local ScreenGui = New("ScreenGui", {
-    Name = "Cyan",
+    Name = "Obsidian",
     DisplayOrder = 998,
     ResetOnSpawn = false,
 })
@@ -1873,7 +1873,7 @@ end
 
 --// Deprecated \\--
 function Library:MakeOutline(Frame: GuiObject, Corner: number?, ZIndex: number?)
-    warn("Cyan:MakeOutline is deprecated, please use Cyan:AddOutline instead.")
+    warn("Obsidian:MakeOutline is deprecated, please use Obsidian:AddOutline instead.")
     local Holder = New("Frame", {
         BackgroundColor3 = "DarkColor",
         Position = UDim2.fromOffset(-2, -2),
@@ -2691,23 +2691,6 @@ end
 
 Library:GiveSignal(UserInputService.InputBegan:Connect(function(Input: InputObject)
     if Library.Unloaded then
-        return
-    end
-
-    if Input.KeyCode == Enum.KeyCode.Escape then
-        -- Let the window-level handler release text focus first. This prevents
-        -- Escape from dismissing a dialog while the user is typing.
-        if UserInputService:GetFocusedTextBox() then
-            return
-        end
-
-        -- Escape is a predictable way to dismiss transient UI, especially on
-        -- keyboard-driven layouts where clicking outside is inconvenient.
-        if CurrentMenu then
-            CurrentMenu:Close()
-        elseif Library.ActiveDialog and Library.ActiveDialog.Dismiss then
-            Library.ActiveDialog:Dismiss()
-        end
         return
     end
 
@@ -8925,17 +8908,6 @@ function Library:CreateWindow(WindowInfo)
         WindowInfo.Footer = Footer
     end
 
-    function Window:ClearSearch()
-        SearchBox.Text = ""
-        SearchBox:ReleaseFocus()
-    end
-
-    function Window:FocusSearch()
-        if SearchBox.Visible then
-            SearchBox:CaptureFocus()
-        end
-    end
-
     function Window:SetCornerRadius(Radius: number)
         assert(typeof(Radius) == "number", "Expected number for Radius got: " .. typeof(Radius))
         Radius = math.min(Radius, 20)
@@ -11278,21 +11250,7 @@ function Library:CreateWindow(WindowInfo)
             return
         end
 
-        local FocusedTextBox = UserInputService:GetFocusedTextBox()
-        if FocusedTextBox then
-            -- Escape exits text input without triggering the window toggle.
-            if Input.KeyCode == Enum.KeyCode.Escape then
-                FocusedTextBox:ReleaseFocus()
-            end
-            return
-        end
-
-        local IsControlDown = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
-            or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
-
-        -- Familiar keyboard navigation shortcut: Ctrl+K focuses the window search.
-        if IsControlDown and Input.KeyCode == Enum.KeyCode.K then
-            Window:FocusSearch()
+        if UserInputService:GetFocusedTextBox() then
             return
         end
 
@@ -11340,7 +11298,7 @@ function Library:CreateLoading(LoadingInfo)
 
     --// ScreenGui \\--
     local ScreenGui = New("ScreenGui", {
-        Name = "CyanLoading",
+        Name = "ObsidianLoading",
         DisplayOrder = 999,
         ResetOnSpawn = false
     })
