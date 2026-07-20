@@ -11,7 +11,7 @@ Install the package with [Wally](https://github.com/UpliftGames/wally):
 Obsidian = "deividcomsono/obsidian@25.12.2"
 ```
 
-The package exports the library, type definitions, and the optional Save Manager and Theme Manager addons:
+The package exports the library and the optional Save Manager and Theme Manager addons. Type definitions are available in `Library.d.luau` for Luau tooling:
 
 ```lua
 local Obsidian = require(path.to.Obsidian)
