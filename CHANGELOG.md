@@ -1,9 +1,12 @@
 ## 20.07.2026
 
 ```diff
+[features]
++ Pressing Escape now dismisses open menus and dialogs for improved keyboard navigation
+
 [fixes]
 + Fixed the Wally package entrypoint requiring files from a non-existent `obsidian/` directory
-```
+````
 
 ## 11.07.2026
 

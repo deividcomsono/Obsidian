@@ -2694,6 +2694,17 @@ Library:GiveSignal(UserInputService.InputBegan:Connect(function(Input: InputObje
         return
     end
 
+    if Input.KeyCode == Enum.KeyCode.Escape then
+        -- Escape is a predictable way to dismiss transient UI, especially on
+        -- keyboard-driven layouts where clicking outside is inconvenient.
+        if CurrentMenu then
+            CurrentMenu:Close()
+        elseif Library.ActiveDialog and Library.ActiveDialog.Dismiss then
+            Library.ActiveDialog:Dismiss()
+        end
+        return
+    end
+
     if IsClickInput(Input, true) then
         local Location = Input.Position
 
