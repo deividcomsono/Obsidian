@@ -8930,6 +8930,12 @@ function Library:CreateWindow(WindowInfo)
         SearchBox:ReleaseFocus()
     end
 
+    function Window:FocusSearch()
+        if SearchBox.Visible then
+            SearchBox:CaptureFocus()
+        end
+    end
+
     function Window:SetCornerRadius(Radius: number)
         assert(typeof(Radius) == "number", "Expected number for Radius got: " .. typeof(Radius))
         Radius = math.min(Radius, 20)
@@ -11285,8 +11291,8 @@ function Library:CreateWindow(WindowInfo)
             or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
 
         -- Familiar keyboard navigation shortcut: Ctrl+K focuses the window search.
-        if IsControlDown and Input.KeyCode == Enum.KeyCode.K and SearchBox.Visible then
-            SearchBox:CaptureFocus()
+        if IsControlDown and Input.KeyCode == Enum.KeyCode.K then
+            Window:FocusSearch()
             return
         end
 
