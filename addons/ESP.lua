@@ -20,6 +20,7 @@ local ESP = {
     OutlineTransparency = 0,
     MaxTargetDistance = math.huge,
     TargetHotkey = Enum.KeyCode.Q,
+    UpdateInterval = 0,
     Highlights = {},
     Connections = {},
 }
@@ -151,6 +152,11 @@ function ESP:GetNearestTarget(FOVRadius: number?): Player?
     return BestPlayer
 end
 
+function ESP:SetPerformanceMode(Value: boolean)
+    -- Throttle overlay calculations when many players are present.
+    self.UpdateInterval = Value and (1 / 15) or 0
+end
+
 function ESP:SetOverlayVisible(Value: boolean)
     FOVCircle.Visible = Value
     TargetLabel.Visible = Value
@@ -165,8 +171,12 @@ function ESP:SetTargetHotkey(Key: Enum.KeyCode)
     self.TargetHotkey = Key
 end
 
-local OverlayConnection = RunService.RenderStepped:Connect(function()
+local UpdateAccumulator = 0
+local OverlayConnection = RunService.RenderStepped:Connect(function(DeltaTime)
     if not ESP.Enabled then return end
+    UpdateAccumulator += DeltaTime
+    if UpdateAccumulator < ESP.UpdateInterval then return end
+    UpdateAccumulator = 0
     local Camera = workspace.CurrentCamera
     if not Camera then return end
     local Viewport = Camera.ViewportSize
