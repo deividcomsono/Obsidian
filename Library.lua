@@ -1295,7 +1295,7 @@ local function ParentUI(UI: Instance, SkipHiddenUI: boolean?)
 end
 
 local ScreenGui = New("ScreenGui", {
-    Name = "Cyan",
+    Name = "deividcomsono",
     DisplayOrder = 998,
     ResetOnSpawn = false,
 })

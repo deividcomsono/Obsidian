@@ -42,7 +42,7 @@ local SchemeIndexes = { "FontColor", "MainColor", "AccentColor", "BackgroundColo
 local ThemeManager = {
     Library = nil,
 
-    Folder = "CyanLibSettings",
+    Folder = "deividcomsonoLibSettings",
 
     AppliedToTab = false,
     DefaultThemeName = nil,
@@ -902,5 +902,5 @@ function ThemeManager:ApplyToGroupbox(Groupbox: any)
     return ThemeManager:CreateThemeManager(Groupbox)
 end
 
-getgenv().CyanThemeManager = ThemeManager
+getgenv().deividcomsonoThemeManager = ThemeManager
 return ThemeManager
