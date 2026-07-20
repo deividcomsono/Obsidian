@@ -19,6 +19,10 @@ local Cyan = require(path.to.Cyan)
 local Library = Cyan.Library
 local SaveManager = Cyan.SaveManager
 local ThemeManager = Cyan.ThemeManager
+local ESP = Cyan.ESP
+
+ESP:SetTeamCheck(true)
+ESP:Enable()
 ```
 
 For the complete API documentation, see <https://docs.mspaint.cc/obsidian>.
