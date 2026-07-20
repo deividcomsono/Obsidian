@@ -1,6 +1,6 @@
 --!strict
 -- Last updated: 2026-07-05
--- Luau type definitions for the Obsidian UI Library
+-- Luau type definitions for the Cyan UI Library
 
 --// Helper & Configuration Types
 export type Scheme = {
@@ -876,6 +876,8 @@ export type Window = {
     ChangeTitle: (self: Window, Title: string) -> (),
     SetBackgroundImage: (self: Window, Image: string) -> (),
     SetFooter: (self: Window, Footer: string) -> (),
+    ClearSearch: (self: Window) -> (),
+    FocusSearch: (self: Window) -> (),
     SetCornerRadius: (self: Window, Radius: number) -> (),
     SetAnimations: (
         self: Window,

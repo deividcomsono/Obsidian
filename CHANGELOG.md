@@ -1,3 +1,21 @@
+## 20.07.2026
+
+```diff
+[changes]
++ Renamed the library branding from Obsidian to Cyan
+
+[features]
++ Added an optional player ESP addon with Highlight rendering, FOV overlay, target name/distance/health readout, team filtering, distance filtering, hotkey selection, performance mode, color customization, read-only target selection, and cleanup APIs
++ Window:ClearSearch() clears the active search query and releases search focus
++ Window:FocusSearch() focuses the search field when search is enabled
++ Pressing Escape now dismisses open menus and dialogs for improved keyboard navigation
++ Ctrl+K focuses the window search field for faster keyboard navigation
++ Escape now releases focus from text inputs without toggling the window
+
+[fixes]
++ Fixed the Wally package entrypoint requiring files from a non-existent `obsidian/` directory
+```
+
 ## 11.07.2026
 
 ```diff
