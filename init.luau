@@ -1,7 +1,7 @@
-type ObsidianTypes = require("./Library.d")
+type CyanTypes = require("./Library.d")
 
 return {
-    Library = (require("./Library") :: any) :: ObsidianTypes.Library,
+    Library = (require("./Library") :: any) :: CyanTypes.Library,
     SaveManager = require("./addons/SaveManager"),
     ThemeManager = require("./addons/ThemeManager")
 }

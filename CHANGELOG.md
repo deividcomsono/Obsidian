@@ -1,6 +1,10 @@
 ## 20.07.2026
 
 ```diff
+[changes]
++ Renamed the library branding from Obsidian to Cyan
+
+[features]
 [features]
 + Pressing Escape now dismisses open menus and dialogs for improved keyboard navigation
 + Ctrl+K focuses the window search field for faster keyboard navigation

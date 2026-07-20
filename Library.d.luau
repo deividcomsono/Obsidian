@@ -1,6 +1,6 @@
 --!strict
 -- Last updated: 2026-07-05
--- Luau type definitions for the Obsidian UI Library
+-- Luau type definitions for the Cyan UI Library
 
 --// Helper & Configuration Types
 export type Scheme = {
