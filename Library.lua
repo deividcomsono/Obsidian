@@ -8925,6 +8925,11 @@ function Library:CreateWindow(WindowInfo)
         WindowInfo.Footer = Footer
     end
 
+    function Window:ClearSearch()
+        SearchBox.Text = ""
+        SearchBox:ReleaseFocus()
+    end
+
     function Window:SetCornerRadius(Radius: number)
         assert(typeof(Radius) == "number", "Expected number for Radius got: " .. typeof(Radius))
         Radius = math.min(Radius, 20)

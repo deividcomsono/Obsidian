@@ -5,6 +5,7 @@
 + Renamed the library branding from Obsidian to Cyan
 
 [features]
++ Window:ClearSearch() clears the active search query and releases search focus
 + Pressing Escape now dismisses open menus and dialogs for improved keyboard navigation
 + Ctrl+K focuses the window search field for faster keyboard navigation
 + Escape now releases focus from text inputs without toggling the window

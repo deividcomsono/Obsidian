@@ -876,6 +876,7 @@ export type Window = {
     ChangeTitle: (self: Window, Title: string) -> (),
     SetBackgroundImage: (self: Window, Image: string) -> (),
     SetFooter: (self: Window, Footer: string) -> (),
+    ClearSearch: (self: Window) -> (),
     SetCornerRadius: (self: Window, Radius: number) -> (),
     SetAnimations: (
         self: Window,
