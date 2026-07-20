@@ -11265,6 +11265,15 @@ function Library:CreateWindow(WindowInfo)
             return
         end
 
+        local IsControlDown = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
+            or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
+
+        -- Familiar keyboard navigation shortcut: Ctrl+K focuses the window search.
+        if IsControlDown and Input.KeyCode == Enum.KeyCode.K and SearchBox.Visible then
+            SearchBox:CaptureFocus()
+            return
+        end
+
         if Input.KeyCode == Library.ToggleKeybind then
             Library:Toggle()
         end

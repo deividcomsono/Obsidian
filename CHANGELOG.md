@@ -3,6 +3,7 @@
 ```diff
 [features]
 + Pressing Escape now dismisses open menus and dialogs for improved keyboard navigation
++ Ctrl+K focuses the window search field for faster keyboard navigation
 
 [fixes]
 + Fixed the Wally package entrypoint requiring files from a non-existent `obsidian/` directory
