@@ -41,7 +41,7 @@ end
 local SaveManager = {
     Library = nil,
 
-    Folder = "CyanLibSettings",
+    Folder = "ObsidianLibSettings",
     SubFolder = "",
 
     Ignore = {},
