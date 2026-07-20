@@ -8,7 +8,7 @@ Install the package with [Wally](https://github.com/UpliftGames/wally):
 
 ```toml
 [dependencies]
-Cyan = "deividcomsono/cyan@25.12.2"
+Cyan = "EhabYT/cyan@25.12.2"
 ```
 
 The package exports the library and the optional Save Manager and Theme Manager addons. Type definitions are available in `Library.d.luau` for Luau tooling:

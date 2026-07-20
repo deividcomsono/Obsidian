@@ -28,7 +28,7 @@ local Toggles = {}
 local Options = {}
 local Tooltips = {}
 
-local BaseURL = "https://raw.githubusercontent.com/deividcomsono/cyan/refs/heads/main/"
+local BaseURL = "https://raw.githubusercontent.com/EhabYT/cyan/refs/heads/main/"
 local CustomImageManager = {}
 local CustomImageManagerAssets = {
     TransparencyTexture = {
