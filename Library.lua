@@ -2695,6 +2695,12 @@ Library:GiveSignal(UserInputService.InputBegan:Connect(function(Input: InputObje
     end
 
     if Input.KeyCode == Enum.KeyCode.Escape then
+        -- Let the window-level handler release text focus first. This prevents
+        -- Escape from dismissing a dialog while the user is typing.
+        if UserInputService:GetFocusedTextBox() then
+            return
+        end
+
         -- Escape is a predictable way to dismiss transient UI, especially on
         -- keyboard-driven layouts where clicking outside is inconvenient.
         if CurrentMenu then
