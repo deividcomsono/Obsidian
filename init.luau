@@ -1,8 +1,8 @@
-local ObsidianTypes = require("./obsidian/Library.d")
+local ObsidianTypes = require("./Library.d")
 
 return {
-    Library = (require("./obsidian/Library") :: any) :: ObsidianTypes.Library,
-    Types = require("./obsidian/Library.d"),
-    SaveManager = require("./obsidian/addons/SaveManager"),
-    ThemeManager = require("./obsidian/addons/ThemeManager")
+    Library = (require("./Library") :: any) :: ObsidianTypes.Library,
+    Types = require("./Library.d"),
+    SaveManager = require("./addons/SaveManager"),
+    ThemeManager = require("./addons/ThemeManager")
 }

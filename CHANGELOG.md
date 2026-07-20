@@ -1,3 +1,10 @@
+## 20.07.2026
+
+```diff
+[fixes]
++ Fixed the Wally package entrypoint requiring files from a non-existent `obsidian/` directory
+```
+
 ## 11.07.2026
 
 ```diff
