@@ -4,6 +4,8 @@
 
 local Players: Players = game:GetService("Players")
 local CoreGui: CoreGui = game:GetService("CoreGui")
+local RunService: RunService = game:GetService("RunService")
+local UserInputService: UserInputService = game:GetService("UserInputService")
 
 local gethui = gethui or function()
     return CoreGui
@@ -17,6 +19,7 @@ local ESP = {
     FillTransparency = 0.5,
     OutlineTransparency = 0,
     MaxTargetDistance = math.huge,
+    TargetHotkey = Enum.KeyCode.Q,
     Highlights = {},
     Connections = {},
 }
@@ -24,6 +27,33 @@ local ESP = {
 local Container = Instance.new("Folder")
 Container.Name = "CyanESP"
 Container.Parent = gethui()
+
+local Overlay = Instance.new("ScreenGui")
+Overlay.Name = "CyanESPOverlay"
+Overlay.ResetOnSpawn = false
+Overlay.IgnoreGuiInset = true
+Overlay.Parent = gethui()
+
+local FOVCircle = Instance.new("Frame")
+FOVCircle.Name = "FOV"
+FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+FOVCircle.BackgroundTransparency = 1
+FOVCircle.Visible = false
+FOVCircle.Parent = Overlay
+local FOVCorner = Instance.new("UICorner")
+FOVCorner.CornerRadius = UDim.new(1, 0)
+FOVCorner.Parent = FOVCircle
+local FOVStroke = Instance.new("UIStroke")
+FOVStroke.Thickness = 1
+FOVStroke.Color = ESP.OutlineColor
+FOVStroke.Parent = FOVCircle
+
+local TargetLabel = Instance.new("TextLabel")
+TargetLabel.BackgroundTransparency = 1
+TargetLabel.TextColor3 = Color3.new(1, 1, 1)
+TargetLabel.TextSize = 14
+TargetLabel.Visible = false
+TargetLabel.Parent = Overlay
 
 local function IsValidPlayer(Player: Player): boolean
     local LocalPlayer = Players.LocalPlayer
@@ -121,6 +151,49 @@ function ESP:GetNearestTarget(FOVRadius: number?): Player?
     return BestPlayer
 end
 
+function ESP:SetOverlayVisible(Value: boolean)
+    FOVCircle.Visible = Value
+    TargetLabel.Visible = Value
+end
+
+function ESP:SetFOVRadius(Radius: number)
+    assert(Radius > 0, "FOV radius must be greater than 0")
+    FOVCircle.Size = UDim2.fromOffset(Radius * 2, Radius * 2)
+end
+
+function ESP:SetTargetHotkey(Key: Enum.KeyCode)
+    self.TargetHotkey = Key
+end
+
+local OverlayConnection = RunService.RenderStepped:Connect(function()
+    if not ESP.Enabled then return end
+    local Camera = workspace.CurrentCamera
+    if not Camera then return end
+    local Viewport = Camera.ViewportSize
+    FOVCircle.Position = UDim2.fromOffset(Viewport.X / 2, Viewport.Y / 2)
+    FOVStroke.Color = ESP.OutlineColor
+    local Target = ESP:GetNearestTarget(FOVCircle.AbsoluteSize.X / 2)
+    if Target and Target.Character then
+        local Root = Target.Character:FindFirstChild("HumanoidRootPart")
+        local Humanoid = Target.Character:FindFirstChildOfClass("Humanoid")
+        if Root and Humanoid then
+            local Point = Camera:WorldToViewportPoint(Root.Position)
+            TargetLabel.Position = UDim2.fromOffset(Point.X + 10, Point.Y)
+            TargetLabel.Text = string.format("%s | %.0f studs | HP %.0f", Target.Name, (Root.Position - Camera.CFrame.Position).Magnitude, Humanoid.Health)
+            TargetLabel.Visible = FOVCircle.Visible
+            return
+        end
+    end
+    TargetLabel.Visible = false
+end)
+table.insert(ESP.Connections, OverlayConnection)
+
+table.insert(ESP.Connections, UserInputService.InputBegan:Connect(function(Input, Processed)
+    if not Processed and ESP.Enabled and Input.KeyCode == ESP.TargetHotkey then
+        ESP.SelectedTarget = ESP:GetNearestTarget(FOVCircle.AbsoluteSize.X / 2)
+    end
+end))
+
 function ESP:Enable()
     if self.Enabled then return end
     self.Enabled = true
@@ -141,6 +214,7 @@ function ESP:Destroy()
     end
     table.clear(self.Connections)
     Container:Destroy()
+    Overlay:Destroy()
 end
 
 table.insert(ESP.Connections, Players.PlayerAdded:Connect(function(Player)
