@@ -28,12 +28,12 @@ local Toggles = {}
 local Options = {}
 local Tooltips = {}
 
-local BaseURL = "https://raw.githubusercontent.com/deividcomsono/deividcomsono/refs/heads/main/"
+local BaseURL = "https://raw.githubusercontent.com/deividcomsono/cyan/refs/heads/main/"
 local CustomImageManager = {}
 local CustomImageManagerAssets = {
     TransparencyTexture = {
         RobloxId = 139785960036434,
-        Path = "deividcomsono/assets/TransparencyTexture.png",
+        Path = "Cyan/assets/TransparencyTexture.png",
         URL = BaseURL .. "assets/TransparencyTexture.png",
 
         Id = nil,
@@ -41,7 +41,7 @@ local CustomImageManagerAssets = {
 
     SaturationMap = {
         RobloxId = 4155801252,
-        Path = "deividcomsono/assets/SaturationMap.png",
+        Path = "Cyan/assets/SaturationMap.png",
         URL = BaseURL .. "assets/SaturationMap.png",
 
         Id = nil,
@@ -49,7 +49,7 @@ local CustomImageManagerAssets = {
 
     LoadingIcon = {
         RobloxId = 97544096941083,
-        Path = "deividcomsono/assets/LoadingIcon.png",
+        Path = "Cyan/assets/LoadingIcon.png",
         URL = BaseURL .. "assets/LoadingIcon.png",
 
         Id = nil,
@@ -57,7 +57,7 @@ local CustomImageManagerAssets = {
 
     CheckIcon = {
         RobloxId = 97682394690683,
-        Path = "deividcomsono/assets/CheckIcon.png",
+        Path = "Cyan/assets/CheckIcon.png",
         URL = BaseURL .. "assets/CheckIcon.png",
 
         Id = nil,
@@ -101,7 +101,7 @@ do
 
         CustomImageManagerAssets[AssetName] = {
             RobloxId = RobloxAssetId,
-            Path = string.format("deividcomsono/custom_assets/%s", AssetName),
+            Path = string.format("Cyan/custom_assets/%s", AssetName),
             URL = URL,
 
             Id = nil,
@@ -167,7 +167,7 @@ local Library = {
     DevicePlatform = nil,
     IsMobile = false,
 
-    --// deividcomsono Windows \\--
+    --// Cyan Windows \\--
     ScreenGui = nil,
     Window = nil,
     WindowContainer = nil,
@@ -1295,7 +1295,7 @@ local function ParentUI(UI: Instance, SkipHiddenUI: boolean?)
 end
 
 local ScreenGui = New("ScreenGui", {
-    Name = "deividcomsono",
+    Name = "Cyan",
     DisplayOrder = 998,
     ResetOnSpawn = false,
 })
@@ -1873,7 +1873,7 @@ end
 
 --// Deprecated \\--
 function Library:MakeOutline(Frame: GuiObject, Corner: number?, ZIndex: number?)
-    warn("deividcomsono:MakeOutline is deprecated, please use deividcomsono:AddOutline instead.")
+    warn("Cyan:MakeOutline is deprecated, please use Cyan:AddOutline instead.")
     local Holder = New("Frame", {
         BackgroundColor3 = "DarkColor",
         Position = UDim2.fromOffset(-2, -2),
@@ -11318,7 +11318,7 @@ function Library:CreateLoading(LoadingInfo)
 
     --// ScreenGui \\--
     local ScreenGui = New("ScreenGui", {
-        Name = "deividcomsonoLoading",
+        Name = "CyanLoading",
         DisplayOrder = 999,
         ResetOnSpawn = false
     })

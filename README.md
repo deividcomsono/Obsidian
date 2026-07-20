@@ -1,6 +1,6 @@
-# deividcomsono
+# Cyan
 
-deividcomsono is a feature-rich UI library for Roblox, written in Luau.
+Cyan is a feature-rich UI library for Roblox, written in Luau.
 
 ## Installation
 
@@ -8,17 +8,17 @@ Install the package with [Wally](https://github.com/UpliftGames/wally):
 
 ```toml
 [dependencies]
-deividcomsono = "deividcomsono/deividcomsono@25.12.2"
+Cyan = "deividcomsono/cyan@25.12.2"
 ```
 
 The package exports the library and the optional Save Manager and Theme Manager addons. Type definitions are available in `Library.d.luau` for Luau tooling:
 
 ```lua
-local deividcomsono = require(path.to.deividcomsono)
+local Cyan = require(path.to.Cyan)
 
-local Library = deividcomsono.Library
-local SaveManager = deividcomsono.SaveManager
-local ThemeManager = deividcomsono.ThemeManager
+local Library = Cyan.Library
+local SaveManager = Cyan.SaveManager
+local ThemeManager = Cyan.ThemeManager
 ```
 
 For the complete API documentation, see <https://docs.mspaint.cc/obsidian>.
@@ -29,4 +29,4 @@ The repository uses [Rokit](https://github.com/rojo-rbx/rokit) to manage tools. 
 
 ## License
 
-deividcomsono is available under the MIT license. See [LICENSE](LICENSE).
+Cyan is available under the MIT license. See [LICENSE](LICENSE).

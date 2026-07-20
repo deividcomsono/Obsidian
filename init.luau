@@ -1,7 +1,7 @@
-type deividcomsonoTypes = require("./Library.d")
+type CyanTypes = require("./Library.d")
 
 return {
-    Library = (require("./Library") :: any) :: deividcomsonoTypes.Library,
+    Library = (require("./Library") :: any) :: CyanTypes.Library,
     SaveManager = require("./addons/SaveManager"),
     ThemeManager = require("./addons/ThemeManager")
 }

@@ -41,7 +41,7 @@ end
 local SaveManager = {
     Library = nil,
 
-    Folder = "deividcomsonoLibSettings",
+    Folder = "CyanLibSettings",
     SubFolder = "",
 
     Ignore = {},
