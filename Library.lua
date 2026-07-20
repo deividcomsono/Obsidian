@@ -11261,7 +11261,12 @@ function Library:CreateWindow(WindowInfo)
             return
         end
 
-        if UserInputService:GetFocusedTextBox() then
+        local FocusedTextBox = UserInputService:GetFocusedTextBox()
+        if FocusedTextBox then
+            -- Escape exits text input without triggering the window toggle.
+            if Input.KeyCode == Enum.KeyCode.Escape then
+                FocusedTextBox:ReleaseFocus()
+            end
             return
         end
 

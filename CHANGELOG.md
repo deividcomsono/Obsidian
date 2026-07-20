@@ -7,6 +7,7 @@
 [features]
 + Pressing Escape now dismisses open menus and dialogs for improved keyboard navigation
 + Ctrl+K focuses the window search field for faster keyboard navigation
++ Escape now releases focus from text inputs without toggling the window
 
 [fixes]
 + Fixed the Wally package entrypoint requiring files from a non-existent `obsidian/` directory
