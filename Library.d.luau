@@ -745,6 +745,7 @@ export type Tab = {
     Show: (self: Tab) -> (),
     Hide: (self: Tab) -> (),
     SetVisible: (self: Tab, Visible: boolean) -> (),
+    SetOrder: (self: Tab, Order: number) -> (),
 }
 
 export type KeyTab = BaseGroupbox & {
@@ -849,9 +850,10 @@ export type Window = {
     HideTabInfo: (self: Window) -> (),
     AddTab: (
         self: Window,
-        Info: { Name: string, Icon: string?, Description: string? } | string,
+        Info: { Name: string, Icon: string?, Description: string?, Order: number? } | string,
         Icon: string?,
-        Description: string?
+        Description: string?,
+        Order: number?
     ) -> Tab,
     AddKeyTab: (
         self: Window,
