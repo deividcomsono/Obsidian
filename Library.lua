@@ -8557,9 +8557,9 @@ function Library:CreateWindow(WindowInfo)
         if WindowInfo.Icon then
             local Icon = Library:GetCustomIcon(WindowInfo.Icon)
             WindowIcon = New("ImageLabel", {
-                Image = Icon.Url,
-                ImageRectOffset = Icon.ImageRectOffset,
-                ImageRectSize = Icon.ImageRectSize,
+                Image = Icon and Icon.Url or "",
+                ImageRectOffset = Icon and Icon.ImageRectOffset or Vector2.zero,
+                ImageRectSize = Icon and Icon.ImageRectSize or Vector2.zero,
                 Size = WindowInfo.IconSize,
                 Parent = TitleHolder,
             })
@@ -11403,9 +11403,9 @@ function Library:CreateLoading(LoadingInfo)
     if LoadingInfo.Icon then
         local Icon = Library:GetCustomIcon(LoadingInfo.Icon)
         local _WindowIcon = New("ImageLabel", {
-            Image = Icon.Url,
-            ImageRectOffset = Icon.ImageRectOffset,
-            ImageRectSize = Icon.ImageRectSize,
+            Image = Icon and Icon.Url or "",
+            ImageRectOffset = Icon and Icon.ImageRectOffset or Vector2.zero,
+            ImageRectSize = Icon and Icon.ImageRectSize or Vector2.zero,
             Size = LoadingInfo.IconSize,
             Parent = TitleHolder,
         })
@@ -11470,9 +11470,9 @@ function Library:CreateLoading(LoadingInfo)
         BackgroundTransparency = 1,
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromScale(1, 1),
-        Image = LoaderIcon.Url,
-        ImageRectOffset = LoaderIcon.ImageRectOffset,
-        ImageRectSize = LoaderIcon.ImageRectSize,
+        Image = LoaderIcon and LoaderIcon.Url or "",
+        ImageRectOffset = LoaderIcon and LoaderIcon.ImageRectOffset or Vector2.zero,
+        ImageRectSize = LoaderIcon and LoaderIcon.ImageRectSize or Vector2.zero,
         ImageColor3 = LoadingInfo.LoadingIconColor or ((LoadingInfo.LoadingIcon == Templates.Loading.LoadingIcon) and "AccentColor" or "WhiteColor"),
         Parent = IconHolder,
     })
@@ -11720,6 +11720,8 @@ function Library:CreateLoading(LoadingInfo)
 
     function Loading:SetLoadingIcon(Icon)
         local IconData = Library:GetCustomIcon(Icon)
+        assert(Icon, "Image must be a valid Roblox asset or a valid URL or a valid lucide icon.")
+
         LoadingIcon.Image = IconData.Url
         LoadingIcon.ImageRectOffset = IconData.ImageRectOffset
         LoadingIcon.ImageRectSize = IconData.ImageRectSize
