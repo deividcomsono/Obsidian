@@ -11720,7 +11720,7 @@ function Library:CreateLoading(LoadingInfo)
 
     function Loading:SetLoadingIcon(Icon)
         local IconData = Library:GetCustomIcon(Icon)
-        assert(Icon, "Image must be a valid Roblox asset or a valid URL or a valid lucide icon.")
+        assert(IconData, "Image must be a valid Roblox asset or a valid URL or a valid lucide icon.")
 
         LoadingIcon.Image = IconData.Url
         LoadingIcon.ImageRectOffset = IconData.ImageRectOffset
