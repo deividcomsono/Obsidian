@@ -2855,6 +2855,7 @@ local ArrowIcon = Library:GetIcon("chevron-up")
 local ResizeIcon = Library:GetIcon("move-diagonal-2")
 local KeyIcon = Library:GetIcon("key")
 local MoveIcon = Library:GetIcon("move")
+local CloseIcon = Library:GetIcon("x")
 
 function Library:SetIconModule(module: IconModule)
     FetchIcons = true
@@ -2866,6 +2867,7 @@ function Library:SetIconModule(module: IconModule)
     ResizeIcon = Library:GetIcon("move-diagonal-2")
     KeyIcon = Library:GetIcon("key")
     MoveIcon = Library:GetIcon("move")
+    CloseIcon = Library:GetIcon("x")
 end
 
 local BaseAddons = {}
@@ -8059,6 +8061,12 @@ function Library:Notify(...)
         Data.Steps = Info.Steps
         Data.Persist = Info.Persist
 
+        Data.Callback = typeof(Info.Callback) == "function" and Info.Callback or nil
+        Data.Closable = Info.Closable == true or (Data.Persist == true and Data.Callback ~= nil)
+        Data.CallbackOnAutoDismiss = if Info.CallbackOnAutoDismiss ~= nil
+            then Info.CallbackOnAutoDismiss == true
+            else Data.Persist ~= true
+
         Data.Icon = Info.Icon
         Data.BigIcon = Info.BigIcon
         Data.IconColor = Info.IconColor
@@ -8107,24 +8115,62 @@ function Library:Notify(...)
             Parent = Holder,
         })
     )
+    Library:AddOutline(Holder)
+
+    local ContentHolder = New("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 0),
+        Parent = Holder,
+    })
     New("UIListLayout", {
         Padding = UDim.new(0, 4),
-        Parent = Holder,
+        Parent = ContentHolder,
     })
     New("UIPadding", {
         PaddingBottom = UDim.new(0, 8),
         PaddingLeft = UDim.new(0, 8),
         PaddingRight = UDim.new(0, 8),
         PaddingTop = UDim.new(0, 8),
-        Parent = Holder,
+        Parent = ContentHolder,
     })
-    Library:AddOutline(Holder)
+
+    local CloseButton
+    if Data.Closable then
+        CloseButton = New("ImageButton", {
+            AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, -8, 0, 8),
+            Size = UDim2.fromOffset(14, 14),
+            BackgroundTransparency = 1,
+            Image = CloseIcon and CloseIcon.Url or "",
+            ImageRectOffset = CloseIcon and CloseIcon.ImageRectOffset or Vector2.zero,
+            ImageRectSize = CloseIcon and CloseIcon.ImageRectSize or Vector2.zero,
+            ImageColor3 = "FontColor",
+            ImageTransparency = 0.5,
+            ZIndex = 6,
+            Parent = Holder,
+        })
+
+        CloseButton.MouseEnter:Connect(function()
+            TweenService:Create(CloseButton, Library.TweenInfo, {
+                ImageTransparency = 0,
+            }):Play()
+        end)
+        CloseButton.MouseLeave:Connect(function()
+            TweenService:Create(CloseButton, Library.TweenInfo, {
+                ImageTransparency = 0.5,
+            }):Play()
+        end)
+        CloseButton.MouseButton1Click:Connect(function()
+            Data:Destroy("manual")
+        end)
+    end
 
     local ContentContainer = New("Frame", {
         BackgroundTransparency = 1,
         AutomaticSize = Enum.AutomaticSize.XY,
         Size = UDim2.fromScale(1, 0),
-        Parent = Holder,
+        Parent = ContentHolder,
     })
     
     if Data.BigIcon then
@@ -8231,10 +8277,11 @@ function Library:Notify(...)
     function Data:Resize()
         local ExtraWidth = BigIconLabel and 32 or 0
         local IconWidth = IconLabel and 21 or 0
+        local CloseWidth = Data.Closable and 20 or 0
 
         if Title then
             local X, Y =
-                Library:GetTextBounds(Title.Text, Title.FontFace, Title.TextSize, (NotificationArea.AbsoluteSize.X / Library.DPIScale) - 24 - ExtraWidth - IconWidth)
+                Library:GetTextBounds(Title.Text, Title.FontFace, Title.TextSize, (NotificationArea.AbsoluteSize.X / Library.DPIScale) - 24 - ExtraWidth - IconWidth - CloseWidth)
             Title.Size = UDim2.fromOffset(X, Y)
             TitleX = X + IconWidth
             TitleContainer.Size = UDim2.fromOffset(TitleX, math.max(Y, IconLabel and 16 or 0))
@@ -8242,12 +8289,12 @@ function Library:Notify(...)
 
         if Desc then
             local X, Y =
-                Library:GetTextBounds(Desc.Text, Desc.FontFace, Desc.TextSize, (NotificationArea.AbsoluteSize.X / Library.DPIScale) - 24 - ExtraWidth)
+                Library:GetTextBounds(Desc.Text, Desc.FontFace, Desc.TextSize, (NotificationArea.AbsoluteSize.X / Library.DPIScale) - 24 - ExtraWidth - CloseWidth)
             Desc.Size = UDim2.fromOffset(X, Y)
             DescX = X
         end
 
-        FakeBackground.Size = UDim2.fromOffset(math.max(TitleX, DescX) + 24 + ExtraWidth, 0)
+        FakeBackground.Size = UDim2.fromOffset(math.max(TitleX, DescX) + 24 + ExtraWidth + CloseWidth, 0)
 
         if Library.Notifications[FakeBackground] then
             Library:UpdateNotificationPositions()
@@ -8277,8 +8324,21 @@ function Library:Notify(...)
         end
     end
 
-    function Data:Destroy()
+    function Data:Destroy(Reason: string?) -- Reason: "auto" | "manual" | "programmatic"
+        if Data.Destroyed then
+            return
+        end
         Data.Destroyed = true
+        Reason = Reason or "programmatic"
+
+        if Data.Callback then
+            local IsManual = Reason == "manual"
+
+            local ShouldFireCallback = IsManual ~= (Data.CallbackOnAutoDismiss == true)
+            if ShouldFireCallback then
+                Library:SafeCallback(Data.Callback, Data, Reason)
+            end
+        end
 
         if typeof(Data.Time) == "Instance" then
             pcall(Data.Time.Destroy, Data.Time)
@@ -8315,7 +8375,7 @@ function Library:Notify(...)
         BackgroundTransparency = 1,
         Size = UDim2.new(1, 0, 0, 7),
         Visible = (Data.Persist ~= true and typeof(Data.Time) ~= "Instance") or typeof(Data.Steps) == "number",
-        Parent = Holder,
+        Parent = ContentHolder,
     })
     local TimerBar = New("Frame", {
         BackgroundColor3 = "BackgroundColor",
@@ -8377,7 +8437,7 @@ function Library:Notify(...)
         end
 
         if not Data.Destroyed then
-            Data:Destroy()
+            Data:Destroy("auto")
         end
     end)
 
