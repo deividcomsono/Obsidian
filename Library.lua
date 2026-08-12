@@ -3966,16 +3966,90 @@ do
                 ColorPickerCorner.BottomRightRadius = Active and UDim.new(0, 0) or UDim.new(0, Library.CornerRadius / 2)
                 ColorPickerCorner.BottomLeftRadius = Active and UDim.new(0, 0) or UDim.new(0, Library.CornerRadius / 2)
             end, false, "no_top_left")
-        ColorMenu.List.Padding = UDim.new(0, 8)
+        ColorMenu.List.Padding = UDim.new(0, 0)
         ColorPicker.ColorMenu = ColorMenu
 
+        --// Content Holder \\--
+        -- Everything above the footer lives in here, so the footer below can
+        -- span the full width/edge of the menu (matching the main window footer).
+        local ContentHolder = New("Frame", {
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 0),
+            Parent = ColorMenu.Menu,
+        })
+        New("UIListLayout", {
+            Padding = UDim.new(0, 8),
+            Parent = ContentHolder,
+        })
         New("UIPadding", {
             PaddingBottom = UDim.new(0, 6),
             PaddingLeft = UDim.new(0, 6),
             PaddingRight = UDim.new(0, 6),
             PaddingTop = UDim.new(0, 6),
+            Parent = ContentHolder,
+        })
+
+        --// Footer \\--
+        -- Copied from the main window's footer: a tinted bar under a divider
+        -- line, showing the current hex/rgb and (if resizable) hosting the
+        -- resize grabber, so the grabber no longer overlaps the paste button.
+        local FooterHeight = Library.IsMobile and 30 or 22
+
+        local FooterBackground = New("Frame", {
+            BackgroundColor3 = function()
+                return Library:GetBetterColor(Library.Scheme.BackgroundColor, 4)
+            end,
+            Size = UDim2.new(1, 0, 0, FooterHeight),
             Parent = ColorMenu.Menu,
         })
+        table.insert(
+            Library.SpecificCorners,
+            New("UICorner", {
+                TopLeftRadius = UDim.new(0, 0),
+                TopRightRadius = UDim.new(0, 0),
+                BottomLeftRadius = UDim.new(0, Library.CornerRadius / 2),
+                BottomRightRadius = UDim.new(0, Library.CornerRadius / 2),
+                Parent = FooterBackground,
+            })
+        )
+        Library:MakeLine(FooterBackground, {
+            Position = UDim2.fromScale(0, 0),
+            Size = UDim2.new(1, 0, 0, 1),
+        })
+
+        local FooterBar = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Parent = FooterBackground,
+        })
+        New("UIPadding", {
+            PaddingLeft = UDim.new(0, 6),
+            PaddingRight = UDim.new(0, Info.Resizable and (FooterHeight + 4) or 6),
+            Parent = FooterBar,
+        })
+
+        local FooterInfoLabel = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
+            Text = "",
+            TextSize = 14,
+            TextTransparency = 0.5,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            TextXAlignment = Enum.TextXAlignment.Center,
+            Parent = FooterBar,
+        })
+
+        local function RefreshFooterInfo()
+            FooterInfoLabel.Text = string.format(
+                "#%s  ·  %d, %d, %d",
+                ColorPicker.Value:ToHex(),
+                math.floor(ColorPicker.Value.R * 255),
+                math.floor(ColorPicker.Value.G * 255),
+                math.floor(ColorPicker.Value.B * 255)
+            )
+        end
+        RefreshFooterInfo()
 
         if typeof(ColorPicker.Title) == "string" then
             New("TextLabel", {
@@ -3984,14 +4058,14 @@ do
                 Text = ColorPicker.Title,
                 TextSize = 14,
                 TextXAlignment = Enum.TextXAlignment.Left,
-                Parent = ColorMenu.Menu,
+                Parent = ContentHolder,
             })
         end
 
         local ColorHolder = New("Frame", {
             BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 0, 200),
-            Parent = ColorMenu.Menu,
+            Parent = ContentHolder,
         })
         New("UIListLayout", {
             FillDirection = Enum.FillDirection.Horizontal,
@@ -4153,41 +4227,32 @@ do
 
             local IconSize = 12
             local GrabberSize = Library.IsMobile and 28 or 16
-            local GrabberInset = 2
 
             ResizeGrabber = New("TextButton", {
                 AnchorPoint = Vector2.new(1, 1),
                 BackgroundTransparency = 1,
+                Position = UDim2.new(1, 0, 1, 0),
                 Size = UDim2.fromOffset(GrabberSize, GrabberSize),
                 Text = "",
-                Visible = false,
-                ZIndex = ColorMenu.Menu.ZIndex + 1,
-                Parent = ColorMenu.Menu.Parent,
+                -- Parented to FooterBackground (not FooterBar) so this Scale-based
+                -- position resolves against the footer's full bounds rather than
+                -- FooterBar's padded content area, which would otherwise pull it
+                -- inward by PaddingRight and land it near the text instead of the
+                -- true bottom-right corner.
+                Parent = FooterBackground,
             })
             New("ImageLabel", {
-                AnchorPoint = Vector2.new(1, 1),
+                AnchorPoint = Vector2.new(0.5, 0.5),
                 BackgroundTransparency = 1,
                 Image = ResizeIcon and ResizeIcon.Url or "",
                 ImageColor3 = "FontColor",
                 ImageRectOffset = ResizeIcon and ResizeIcon.ImageRectOffset or Vector2.zero,
                 ImageRectSize = ResizeIcon and ResizeIcon.ImageRectSize or Vector2.zero,
                 ImageTransparency = 0.35,
-                Position = UDim2.fromScale(1, 1),
+                Position = UDim2.fromScale(0.5, 0.5),
                 Size = UDim2.fromOffset(IconSize, IconSize),
                 Parent = ResizeGrabber,
             })
-
-            local function UpdateGrabberPosition()
-                ResizeGrabber.Position = UDim2.fromOffset(
-                    ColorMenu.Menu.AbsolutePosition.X + ColorMenu.Menu.AbsoluteSize.X - GrabberInset,
-                    ColorMenu.Menu.AbsolutePosition.Y + ColorMenu.Menu.AbsoluteSize.Y - GrabberInset
-                )
-                ResizeGrabber.Visible = ColorMenu.Menu.Visible
-            end
-
-            table.insert(ColorPicker.Connections, ColorMenu.Menu:GetPropertyChangedSignal("AbsolutePosition"):Connect(UpdateGrabberPosition))
-            table.insert(ColorPicker.Connections, ColorMenu.Menu:GetPropertyChangedSignal("AbsoluteSize"):Connect(UpdateGrabberPosition))
-            table.insert(ColorPicker.Connections, ColorMenu.Menu:GetPropertyChangedSignal("Visible"):Connect(UpdateGrabberPosition))
 
             table.insert(ColorPicker.Connections, ResizeGrabber.InputBegan:Connect(function(Input: InputObject)
                 Library.CantDragForced = true
@@ -4203,14 +4268,12 @@ do
 
                 Library.CantDragForced = false
             end))
-
-            UpdateGrabberPosition()
         end
 
         local InfoHolder = New("Frame", {
             BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 0, 20),
-            Parent = ColorMenu.Menu,
+            Parent = ContentHolder,
         })
         New("UIListLayout", {
             FillDirection = Enum.FillDirection.Horizontal,
@@ -4320,7 +4383,7 @@ do
         local ActionHolder = New("Frame", {
             BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 0, 20),
-            Parent = ColorMenu.Menu,
+            Parent = ContentHolder,
         })
         New("UIListLayout", {
             FillDirection = Enum.FillDirection.Horizontal,
@@ -4465,6 +4528,8 @@ do
                 math.floor(ColorPicker.Value.G * 255),
                 math.floor(ColorPicker.Value.B * 255),
             }, ", ")
+
+            RefreshFooterInfo()
         end
 
         function ColorPicker:RunChanged()
