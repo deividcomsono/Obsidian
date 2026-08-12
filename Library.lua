@@ -3970,8 +3970,6 @@ do
         ColorPicker.ColorMenu = ColorMenu
 
         --// Content Holder \\--
-        -- Everything above the footer lives in here, so the footer below can
-        -- span the full width/edge of the menu (matching the main window footer).
         local ContentHolder = New("Frame", {
             AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundTransparency = 1,
@@ -3991,9 +3989,6 @@ do
         })
 
         --// Footer \\--
-        -- Copied from the main window's footer: a tinted bar under a divider
-        -- line, showing the current hex/rgb and (if resizable) hosting the
-        -- resize grabber, so the grabber no longer overlaps the paste button.
         local FooterHeight = Library.IsMobile and 30 or 22
 
         local FooterBackground = New("Frame", {
@@ -4234,11 +4229,6 @@ do
                 Position = UDim2.new(1, 0, 1, 0),
                 Size = UDim2.fromOffset(GrabberSize, GrabberSize),
                 Text = "",
-                -- Parented to FooterBackground (not FooterBar) so this Scale-based
-                -- position resolves against the footer's full bounds rather than
-                -- FooterBar's padded content area, which would otherwise pull it
-                -- inward by PaddingRight and land it near the text instead of the
-                -- true bottom-right corner.
                 Parent = FooterBackground,
             })
             New("ImageLabel", {
