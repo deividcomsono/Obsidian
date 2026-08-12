@@ -6896,6 +6896,8 @@ do
                     Selected = Dropdown.Value == Entry.Value
                 end
 
+                Row.Selected = Selected and true or false
+
                 Container.BackgroundTransparency = Selected and 0 or 1
                 Button.TextTransparency = Entry.IsDisabled and 0.8 or Selected and 0 or 0.5
 
@@ -6939,7 +6941,7 @@ do
             end)
 
 			Button.MouseEnter:Connect(function()
-				if Selected then
+				if Row.Selected then
 					return
 				end
 
@@ -6958,7 +6960,7 @@ do
 			end)
 
 			Button.MouseLeave:Connect(function()
-				if Selected then
+				if Row.Selected then
 					return
 				end
 
