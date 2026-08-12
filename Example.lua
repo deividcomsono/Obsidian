@@ -434,6 +434,36 @@ Options.MyMultiDropdown:SetValue({
 	is = true,
 })
 
+--[[
+	Dictionary Values (key = identity, value = display label)
+
+	Use this when you need stable backend IDs in .Value and OnChanged while showing
+	human-readable labels in the UI. Multi dropdowns still store { [key] = true }.
+]]
+DropdownGroupBox:AddDropdown("MyDictionaryDropdown", {
+	Values = {
+		item01 = "Excalibur",
+		item05 = "Aegis Shield",
+		item06 = "Wooden Club",
+	},
+	Default = "item01", -- must be a key, not the label
+	Multi = true,
+
+	Text = "A dictionary dropdown",
+	Tooltip = "Keys are selected; values are labels only",
+
+	-- DisabledValues and ValueImages may use either the key or the label
+	DisabledValues = { "item05" },
+
+	Callback = function(Value)
+		print("[cb] Dictionary dropdown got changed:")
+		for Key in Value do
+			local Label = Options.MyDictionaryDropdown.Values[Key]
+			print(Key, "->", Label)
+		end
+	end
+})
+
 DropdownGroupBox:AddDropdown("MyDisabledDropdown", {
 	Values = { "This", "is", "a", "dropdown" },
 	Default = 1, -- number index of the value / string

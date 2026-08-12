@@ -670,6 +670,16 @@ local function GetTableSize(Table: { [any]: any })
 
     return Size
 end
+local function IsSequentialArray(Table: { [any]: any })
+    for Key in Table do
+        if typeof(Key) ~= "number" or Key < 1 or Key % 1 ~= 0 then
+            return false
+        end
+    end
+
+    return true
+end
+
 local function StopTween(Tween: TweenBase, Destroy: boolean?)
     if not Tween then
         return
@@ -683,6 +693,7 @@ local function StopTween(Tween: TweenBase, Destroy: boolean?)
         pcall(Tween.Destroy, Tween)
     end
 end
+
 local function Trim(Text: string)
     return Text:match("^%s*(.-)%s*$")
 end
@@ -744,12 +755,12 @@ local function CheckDepbox(Box, Search)
             local Visible = false
 
             --// Check if Search matches Element's Name and if Element is Visible
-            if ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
+            if ElementInfo.Text:lower():find(Search, 1, true) and ElementInfo.Visible then
                 Visible = true
             else
                 ElementInfo.Base.Visible = false
             end
-            if ElementInfo.SubButton.Text:lower():match(Search) and ElementInfo.SubButton.Visible then
+            if ElementInfo.SubButton.Text:lower():find(Search, 1, true) and ElementInfo.SubButton.Visible then
                 Visible = true
             else
                 ElementInfo.SubButton.Base.Visible = false
@@ -763,7 +774,7 @@ local function CheckDepbox(Box, Search)
         end
 
         --// Check if Search matches Element's Name and if Element is Visible
-        if ElementInfo.Text and ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
+        if ElementInfo.Text and ElementInfo.Text:lower():find(Search, 1, true) and ElementInfo.Visible then
             ElementInfo.Holder.Visible = true
             VisibleElements += 1
         else
@@ -827,12 +838,12 @@ local function ApplySearchToTab(Tab, Search)
                 local Visible = false
 
                 --// Check if Search matches Element's Name and if Element is Visible
-                if ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
+                if ElementInfo.Text:lower():find(Search, 1, true) and ElementInfo.Visible then
                     Visible = true
                 else
                     ElementInfo.Base.Visible = false
                 end
-                if ElementInfo.SubButton.Text:lower():match(Search) and ElementInfo.SubButton.Visible then
+                if ElementInfo.SubButton.Text:lower():find(Search, 1, true) and ElementInfo.SubButton.Visible then
                     Visible = true
                 else
                     ElementInfo.SubButton.Base.Visible = false
@@ -847,7 +858,7 @@ local function ApplySearchToTab(Tab, Search)
             end
 
             --// Check if Search matches Element's Name and if Element is Visible
-            if ElementInfo.Text and ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
+            if ElementInfo.Text and ElementInfo.Text:lower():find(Search, 1, true) and ElementInfo.Visible then
                 ElementInfo.Holder.Visible = true
                 VisibleElements += 1
             else
@@ -887,12 +898,12 @@ local function ApplySearchToTab(Tab, Search)
                     local Visible = false
 
                     --// Check if Search matches Element's Name and if Element is Visible
-                    if ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
+                    if ElementInfo.Text:lower():find(Search, 1, true) and ElementInfo.Visible then
                         Visible = true
                     else
                         ElementInfo.Base.Visible = false
                     end
-                    if ElementInfo.SubButton.Text:lower():match(Search) and ElementInfo.SubButton.Visible then
+                    if ElementInfo.SubButton.Text:lower():find(Search, 1, true) and ElementInfo.SubButton.Visible then
                         Visible = true
                     else
                         ElementInfo.SubButton.Base.Visible = false
@@ -906,7 +917,7 @@ local function ApplySearchToTab(Tab, Search)
                 end
 
                 --// Check if Search matches Element's Name and if Element is Visible
-                if ElementInfo.Text and ElementInfo.Text:lower():match(Search) and ElementInfo.Visible then
+                if ElementInfo.Text and ElementInfo.Text:lower():find(Search, 1, true) and ElementInfo.Visible then
                     ElementInfo.Holder.Visible = true
                     VisibleElements[SubTab] += 1
                 else
@@ -1114,6 +1125,7 @@ function Library:SetDPIScale(DPIScale: number)
     for _, Option in Options do
         if Option.Type == "Dropdown" then
             Option:RecalculateListSize()
+            Option:RefreshPool()
         end
     end
 
@@ -1138,7 +1150,7 @@ function IsValidCustomIcon(Icon: string)
 end
 
 local function IsCustomAssetIcon(Icon: string, IncludeAssetId: boolean)
-    return typeof(Icon) == "string" and (Icon:match("^content://") or Icon:match("^rbxasset://%x+/") or (IncludeAssetId == true and Icon:match("^rbxassetid://")))
+    return typeof(Icon) == "string" and (Icon:match("^content://") or (Icon:match("^rbxasset://%x+/") or Icon:match("^rbxasset://[^/]+/")) or (IncludeAssetId == true and Icon:match("^rbxassetid://")))
 end
 
 type Icon = {
@@ -1156,12 +1168,12 @@ type IconModule = {
 
 local FetchIcons, Icons = pcall(function()
     return (loadstring(
-        game:HttpGet("https://raw.githubusercontent.com/deividcomsono/lucide-roblox-direct/refs/heads/main/source.lua")
+        game:HttpGet("https://raw.githubusercontent.com/mstudio45/lucide-roblox-direct/refs/heads/main/source.lua")
     ) :: () -> IconModule)()
 end)
 
 function Library:GetIcon(IconName: string)
-    if not FetchIcons then
+    if not FetchIcons or not Icons then
         return
     end
 
@@ -2400,7 +2412,7 @@ function Library:AddContextMenu(
 
     if List then
         Menu = New("ScrollingFrame", {
-            AutomaticCanvasSize = List == 2 and Enum.AutomaticSize.Y or Enum.AutomaticSize.None,
+            AutomaticCanvasSize = Enum.AutomaticSize.None,
             AutomaticSize = List == 1 and Enum.AutomaticSize.Y or Enum.AutomaticSize.None,
             BackgroundColor3 = "BackgroundColor",
             BottomImage = "rbxasset://textures/ui/Scroll/scroll-middle.png",
@@ -2503,7 +2515,7 @@ function Library:AddContextMenu(
         end
     }
 
-    if List then
+    if List == 1 then
         Table.List = New("UIListLayout", {
             Parent = Menu,
         })
@@ -6376,19 +6388,31 @@ do
             })
         end
 
-        local GetValueImage = function(Value)
+        local GetValueImage = function(Value, RawValue)
             if not Value then
                 return nil
             end
 
             local ValueImage = nil
             if Dropdown.SpecialType == "Player" and Dropdown.EnablePlayerImages == true then
-                if typeof(Value) == "Instance" and Value:IsA("Player") then
-                    ValueImage = { Url = string.format("rbxthumb://type=AvatarHeadShot&id=%s&w=48&h=48", tostring(Value.UserId)) }
+                local PlayerValue = Value
+                if typeof(PlayerValue) ~= "Instance" and RawValue ~= nil then
+                    PlayerValue = RawValue
+                end
+
+                if typeof(PlayerValue) == "Instance" and PlayerValue:IsA("Player") then
+                    ValueImage = { Url = string.format("rbxthumb://type=AvatarHeadShot&id=%s&w=48&h=48", tostring(PlayerValue.UserId)) }
                 end
             else
-                if Info.ValueImages and Info.ValueImages[Value] then
-                    ValueImage = Library:GetCustomIcon(Info.ValueImages[Value])
+                if Info.ValueImages then
+                    local IconRef = Info.ValueImages[Value]
+                    if IconRef == nil and RawValue ~= nil then
+                        IconRef = Info.ValueImages[RawValue]
+                    end
+
+                    if IconRef then
+                        ValueImage = Library:GetCustomIcon(IconRef)
+                    end
                 end
             end
 
@@ -6424,8 +6448,16 @@ do
         )
         Dropdown.Menu = MenuTable
 
+        local ItemHeight = 21
+        local PoolSize = math.max(1, Info.MaxVisibleDropdownItems + 2)
+        local Pool = {}
+        local FilteredEntries = {}
+
         function Dropdown:RecalculateListSize(Count)
-            local Y = math.clamp((Count or GetTableSize(Dropdown.Values)) * 21, 0, Info.MaxVisibleDropdownItems * 21)
+            local ItemCount = Count or #FilteredEntries
+            local Y = math.clamp(ItemCount * ItemHeight, 0, Info.MaxVisibleDropdownItems * ItemHeight)
+
+            MenuTable.Menu.CanvasSize = UDim2.fromOffset(0, ItemCount * ItemHeight)
 
             MenuTable:SetSize(function()
                 return UDim2.fromOffset((DisplayContainer.AbsoluteSize.X / Library.DPIScale), Y)
@@ -6450,24 +6482,32 @@ do
 
             local Str = ""
             local ValueImage = nil
+            local IsDictionary = not IsSequentialArray(Dropdown.Values)
 
             if Info.Multi then
-                for _, Value in Dropdown.Values do
+                for Key, RawValue in Dropdown.Values do
+                    local Value = IsDictionary and Key or RawValue
+
                     if Dropdown.Value[Value] then
                         if not ValueImage then
-                            ValueImage = GetValueImage(Value)
+                            ValueImage = GetValueImage(Value, RawValue)
                         end
 
                         Str = Str
-                            .. (Info.FormatDisplayValue and tostring(Info.FormatDisplayValue(Value)) or tostring(Value))
+                            .. (Info.FormatDisplayValue and tostring(Info.FormatDisplayValue(RawValue)) or tostring(RawValue))
                             .. ", "
                     end
                 end
 
                 Str = Str:sub(1, #Str - 2)
             else
-                ValueImage = GetValueImage(Dropdown.Value)
-                Str = Dropdown.Value and tostring(Dropdown.Value) or ""
+                local DisplayValue = Dropdown.Value
+                if IsDictionary and Dropdown.Value ~= nil then
+                    DisplayValue = Dropdown.Values[Dropdown.Value]
+                end
+
+                ValueImage = GetValueImage(Dropdown.Value, DisplayValue)
+                Str = DisplayValue and tostring(DisplayValue) or ""
 
                 if Str ~= "" and Info.FormatDisplayValue then
                     Str = tostring(Info.FormatDisplayValue(Str))
@@ -6514,16 +6554,134 @@ do
             return ReturnCount == true and GetTableSize(Table) or Table
         end
 
-        local Buttons = {}
         local DragSelecting = false
         local DragStartIndex = nil
+        local DragPrevMin = nil
+        local DragPrevMax = nil
+        local DragLastIndex = nil
         local DragInitialValues = {}
         local DragInputEndedConn = nil
         local DragInputChangedConn = nil
 
+        local function RecomputeFilteredEntries()
+            local Values = Dropdown.Values
+            local DisabledValues = Dropdown.DisabledValues
+            local IsDictionary = not IsSequentialArray(Values)
+
+            local EnabledList, DisabledList = {}, {}
+            local Pending = {}
+
+            for Key, RawValue in Values do
+                local Value = IsDictionary and Key or RawValue
+
+                local FormattedValue = tostring(Info.FormatListValue and Info.FormatListValue(RawValue) or RawValue)
+                if SearchBox and not FormattedValue:lower():find(SearchBox.Text:lower(), 1, true) then
+                    continue
+                end
+
+                local IsDisabled = table.find(DisabledValues, Value) ~= nil
+                    or (RawValue ~= nil and RawValue ~= Value and table.find(DisabledValues, RawValue) ~= nil)
+
+                local Entry = {
+                    Value = Value,
+                    RawValue = RawValue,
+                    FormattedValue = FormattedValue,
+                    IsDisabled = IsDisabled,
+                    ValueImage = GetValueImage(Value, RawValue),
+                    SortKey = Key,
+                }
+
+                table.insert(Pending, Entry)
+            end
+
+            if not IsDictionary then
+                table.sort(Pending, function(A, B)
+                    return A.SortKey < B.SortKey
+                end)
+            end
+
+            for _, Entry in Pending do
+                if Entry.IsDisabled then
+                    table.insert(DisabledList, Entry)
+                else
+                    table.insert(EnabledList, Entry)
+                end
+            end
+
+            table.clear(FilteredEntries)
+            for _, Entry in EnabledList do
+                table.insert(FilteredEntries, Entry)
+            end
+            for _, Entry in DisabledList do
+                table.insert(FilteredEntries, Entry)
+            end
+        end
+
+        local function GetFirstVisibleIndex()
+            local Total = #FilteredEntries
+            if Total <= PoolSize then
+                return 1
+            end
+
+            local MaxFirst = Total - PoolSize + 1
+            local ScrollY = MenuTable.Menu.CanvasPosition.Y / Library.DPIScale
+            local Index = math.floor(ScrollY / ItemHeight) + 1
+            return math.clamp(Index, 1, MaxFirst)
+        end
+
+        function Dropdown:RefreshPool()
+            local Total = #FilteredEntries
+            local First = GetFirstVisibleIndex()
+
+            for SlotIndex, Row in Pool do
+                local DataIndex = First + SlotIndex - 1
+                local Entry = FilteredEntries[DataIndex]
+
+                Row.Entry = Entry
+                Row.Index = Entry and DataIndex or nil
+
+                if not Entry then
+                    Row.Container.Visible = false
+                    continue
+                end
+
+                Row.Container.Visible = true
+                Row.Container.Position = UDim2.fromOffset(0, (DataIndex - 1) * ItemHeight)
+
+                local IsLast = DataIndex == Total
+                Row.Corner.BottomRightRadius = IsLast and UDim.new(0, Library.CornerRadius / 2) or UDim.new(0, 0)
+                Row.Corner.BottomLeftRadius = IsLast and UDim.new(0, Library.CornerRadius / 2) or UDim.new(0, 0)
+
+                Row.Button.Text = Entry.FormattedValue
+
+                if Entry.ValueImage then
+                    Row.Image.Visible = true
+                    Row.Image.Image = Entry.ValueImage.Url
+                    Row.Image.ImageRectOffset = Entry.ValueImage.ImageRectOffset or Vector2.zero
+                    Row.Image.ImageRectSize = Entry.ValueImage.ImageRectSize or Vector2.zero
+                    Row.Button.Size = UDim2.new(1, -18, 0, ItemHeight)
+                    Row.Button.Position = UDim2.fromOffset(18, 0)
+                else
+                    Row.Image.Visible = false
+                    Row.Button.Size = UDim2.new(1, 0, 0, ItemHeight)
+                    Row.Button.Position = UDim2.fromOffset(0, 0)
+                end
+
+                Row:UpdateButton()
+            end
+        end
+
+        function Dropdown:RunChanged()
+            Library:SafeCallback(Dropdown.Callback, Dropdown.Value)
+            Library:SafeCallback(Dropdown.Changed, Dropdown.Value)
+        end      
+
         local function StopDragSelect()
             DragSelecting = false
             DragStartIndex = nil
+            DragPrevMin = nil
+            DragPrevMax = nil
+            DragLastIndex = nil
             table.clear(DragInitialValues)
 
             if DragInputEndedConn then
@@ -6537,215 +6695,273 @@ do
             end
         end
 
-        local function UpdateDrag(CurrentIndex)
-            local Min = math.min(DragStartIndex, CurrentIndex)
-            local Max = math.max(DragStartIndex, CurrentIndex)
+        local DragActiveCount = 0
 
-            for OtherButton, OtherTable in Buttons do
-                local InRange = OtherTable.Index >= Min and OtherTable.Index <= Max
-                local Try = DragInitialValues[OtherTable.Value]
-                if InRange then
-                    Try = not Try
-                end
-
-                if not (Dropdown:GetActiveValues(true) == 1 and not Try and not Info.AllowNull) then
-                    Dropdown.Value[OtherTable.Value] = Try and true or nil
-                end
-
-                OtherTable:UpdateButton()
+        local function ApplyDragIndex(Index, InRange)
+            local Entry = FilteredEntries[Index]
+            if not Entry or Entry.IsDisabled then
+                return
             end
 
-            Dropdown:Display()
+            local Try = DragInitialValues[Entry.Value]
+            if InRange then
+                Try = not Try
+            end
+
+            local WantActive = Try and true or false
+            local IsActive = Dropdown.Value[Entry.Value] and true or false
+            if WantActive == IsActive then
+                return
+            end
+
+            if not WantActive and DragActiveCount == 1 and not Info.AllowNull then
+                return
+            end
+
+            Dropdown.Value[Entry.Value] = WantActive and true or nil
+            DragActiveCount += WantActive and 1 or -1
         end
 
-        function Dropdown:BuildDropdownList()
-            local Values = Dropdown.Values
-            local DisabledValues = Dropdown.DisabledValues
-
-            StopDragSelect()
-
-            for Button, _ in Buttons do
-                if not (Button and Button.Parent) then
-                    continue
-                end
-
-                Button.Parent:Destroy()
+        local function ApplyDragRange(From, To, InRange)
+            for Index = From, To do
+                ApplyDragIndex(Index, InRange)
             end
-            table.clear(Buttons)
+        end
 
-            local Count = 0
-            local ProcessedCount = 0
-            local TotalLen = GetTableSize(Values) + GetTableSize(DisabledValues)
+        local function UpdateDrag(CurrentIndex)
+            if CurrentIndex == nil or CurrentIndex == DragLastIndex then
+                return
+            end
 
-            for _, Value in Values do
-                ProcessedCount += 1
+            DragLastIndex = CurrentIndex
 
-                local FormattedValue = tostring(Info.FormatListValue and Info.FormatListValue(Value) or Value)
-                if SearchBox and not FormattedValue:lower():match(SearchBox.Text:lower()) then
-                    continue
+            local Min = math.min(DragStartIndex, CurrentIndex)
+            local Max = math.max(DragStartIndex, CurrentIndex)
+            DragActiveCount = Dropdown:GetActiveValues(true)
+
+            if DragPrevMin == nil then
+                ApplyDragRange(Min, Max, true)
+            else
+                if DragPrevMin < Min then
+                    ApplyDragRange(DragPrevMin, Min - 1, false)
                 end
-
-                Count += 1
-
-                local IsDisabled = table.find(DisabledValues, Value)
-                local Table = {}
-                local ValueImage = GetValueImage(Value)
-
-                local Container = New("Frame", {
-                    BackgroundColor3 = "MainColor",
-                    BackgroundTransparency = 1,
-                    LayoutOrder = IsDisabled and 1 or 0,
-                    Size = UDim2.new(1, 0, 0, 21),
-                    Parent = MenuTable.Menu,
-                })
-
-                if ProcessedCount == TotalLen then
-                    local Corner = New("UICorner", {
-                        TopLeftRadius = UDim.new(0, 0),
-                        TopRightRadius = UDim.new(0, 0),
-                        BottomRightRadius = UDim.new(0, Library.CornerRadius / 2),
-                        BottomLeftRadius = UDim.new(0, Library.CornerRadius / 2),
-                        Parent = Container,
-                    }); table.insert(Library.SpecificCorners, Corner)
+                if DragPrevMax > Max then
+                    ApplyDragRange(Max + 1, DragPrevMax, false)
                 end
+                if Min < DragPrevMin then
+                    ApplyDragRange(Min, DragPrevMin - 1, true)
+                end
+                if Max > DragPrevMax then
+                    ApplyDragRange(DragPrevMax + 1, Max, true)
+                end
+            end
 
-                local Image = ValueImage and New("ImageLabel", {
-                    BackgroundTransparency = 1,
-                    Image = ValueImage.Url,
-                    ImageRectOffset = ValueImage.ImageRectOffset,
-                    ImageRectSize = ValueImage.ImageRectSize,
-                    ImageTransparency = 0.5,
-                    Size = UDim2.fromOffset(16, 16),
-                    Position = UDim2.fromOffset(4, 3),
-                    Parent = Container,
-                })
+            DragPrevMin = Min
+            DragPrevMax = Max
 
-                local Button = New("TextButton", {
-                    BackgroundTransparency = 1,
-                    Size = ValueImage and UDim2.new(1, -18, 0, 21) or UDim2.new(1, 0, 0, 21),
-                    Position = ValueImage and UDim2.fromOffset(18, 0) or UDim2.fromOffset(0, 0),
-                    Text = FormattedValue,
-                    TextSize = 14,
-                    TextTransparency = 0.5,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    Parent = Container,
-                })
-                New("UIPadding", {
-                    PaddingLeft = UDim.new(0, 7),
-                    PaddingRight = UDim.new(0, 7),
-                    Parent = Button,
-                })
+            for _, OtherRow in Pool do
+                OtherRow:UpdateButton()
+            end
+        end
+
+        local function CreatePoolRow()
+            local Row = {
+                Entry = nil,
+                Index = nil
+            }
+
+            local Container = New("Frame", {
+                BackgroundColor3 = "MainColor",
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, ItemHeight),
+                Visible = false,
+                Parent = MenuTable.Menu,
+            })
+
+            local Corner = New("UICorner", {
+                TopLeftRadius = UDim.new(0, 0),
+                TopRightRadius = UDim.new(0, 0),
+                BottomRightRadius = UDim.new(0, 0),
+                BottomLeftRadius = UDim.new(0, 0),
+                Parent = Container,
+            }); table.insert(Library.SpecificCorners, Corner)
+
+            local Image = New("ImageLabel", {
+                BackgroundTransparency = 1,
+                Image = "",
+                ImageTransparency = 0.5,
+                Size = UDim2.fromOffset(16, 16),
+                Position = UDim2.fromOffset(4, 3),
+                Visible = false,
+                Parent = Container,
+            })
+
+            local Button = New("TextButton", {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, ItemHeight),
+                Text = "",
+                TextSize = 14,
+                TextTransparency = 0.5,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Parent = Container,
+            })
+            New("UIPadding", {
+                PaddingLeft = UDim.new(0, 7),
+                PaddingRight = UDim.new(0, 7),
+                Parent = Button,
+            })
+
+            Row.Container = Container
+            Row.Corner = Corner
+            Row.Image = Image
+            Row.Button = Button
+
+            function Row:UpdateButton()
+                local Entry = Row.Entry
+                if not Entry then
+                    return
+                end
 
                 local Selected
                 if Info.Multi then
-                    Selected = Dropdown.Value[Value]
+                    Selected = Dropdown.Value[Entry.Value]
                 else
-                    Selected = Dropdown.Value == Value
+                    Selected = Dropdown.Value == Entry.Value
                 end
 
-                function Table:UpdateButton()
-                    if Info.Multi then
-                        Selected = Dropdown.Value[Value]
-                    else
-                        Selected = Dropdown.Value == Value
-                    end
+                Container.BackgroundTransparency = Selected and 0 or 1
+                Button.TextTransparency = Entry.IsDisabled and 0.8 or Selected and 0 or 0.5
 
-                    Container.BackgroundTransparency = Selected and 0 or 1
-                    Button.TextTransparency = IsDisabled and 0.8 or Selected and 0 or 0.5
-
-                    if Image then
-                        Image.ImageTransparency = IsDisabled and 0.8 or Selected and 0 or 0.5
-                    end
+                if Entry.ValueImage then
+                    Image.ImageTransparency = Entry.IsDisabled and 0.8 or Selected and 0 or 0.5
                 end
-
-                Table.Index = Count
-                Table.Value = Value
-
-                if not IsDisabled then
-                    Button.MouseButton1Click:Connect(function()
-                        if DragSelecting then return end
-
-                        local Try = not Selected
-                        if not (Dropdown:GetActiveValues(true) == 1 and not Try and not Info.AllowNull) then
-                            Selected = Try
-                            if Info.Multi then
-                                Dropdown.Value[Value] = Selected and true or nil
-                            else
-                                Dropdown.Value = Selected and Value or nil
-                            end
-
-                            for _, OtherButton in Buttons do
-                                OtherButton:UpdateButton()
-                            end
-                        end
-
-                        Table:UpdateButton()
-                        Dropdown:Display()
-
-                        Library:UpdateDependencyBoxes()
-                        Dropdown:RunChanged()
-                    end)
-
-                    if Info.Multi and Dropdown.DragSelect and not Library.IsMobile then
-                        Button.InputBegan:Connect(function(StartInput)
-                            if not IsMouseInput(StartInput) then return end
-
-                            DragSelecting = true
-                            DragStartIndex = Table.Index
-                            table.clear(DragInitialValues)
-
-                            for OtherButton, OtherTable in Buttons do
-                                DragInitialValues[OtherTable.Value] = Dropdown.Value[OtherTable.Value]
-                            end
-
-                            UpdateDrag(Table.Index)
-
-                            if DragInputEndedConn then DragInputEndedConn:Disconnect() end
-                            if DragInputChangedConn then DragInputChangedConn:Disconnect() end
-
-                            DragInputChangedConn = Library:GiveSignal(UserInputService.InputChanged:Connect(function(ChangeInput)
-                                if not IsMovementInput(ChangeInput) and ChangeInput ~= StartInput then
-                                    return
-                                end
-
-                                local Pos = ChangeInput.Position
-                                for OtherButton, OtherTable in Buttons do
-                                    if Library:MouseIsOverFrame(OtherButton, Pos) then
-                                        UpdateDrag(OtherTable.Index)
-                                        break
-                                    end
-                                end
-                            end))
-
-                            DragInputEndedConn = Library:GiveSignal(UserInputService.InputEnded:Connect(function(EndInput)
-                                if EndInput ~= StartInput and not (IsMouseInput(EndInput) and EndInput.UserInputType == StartInput.UserInputType) then
-                                    return
-                                end
-
-                                Library:UpdateDependencyBoxes()
-                                Dropdown:RunChanged()
-
-                                StopDragSelect()
-                            end))
-
-                            table.insert(Dropdown.Connections, DragInputEndedConn)
-                            table.insert(Dropdown.Connections, DragInputChangedConn)
-                        end)
-                    end
-                end
-
-                Table:UpdateButton()
-                Dropdown:Display()
-
-                Buttons[Button] = Table
             end
 
-            Dropdown:RecalculateListSize(Count)
+            Button.MouseButton1Click:Connect(function()
+                local Entry = Row.Entry
+                if not Entry or Entry.IsDisabled or DragSelecting then
+                    return
+                end
+
+                local Selected
+                if Info.Multi then
+                    Selected = Dropdown.Value[Entry.Value]
+                else
+                    Selected = Dropdown.Value == Entry.Value
+                end
+
+                local Try = not Selected
+                if not (Dropdown:GetActiveValues(true) == 1 and not Try and not Info.AllowNull) then
+                    Selected = Try
+                    if Info.Multi then
+                        Dropdown.Value[Entry.Value] = Selected and true or nil
+                    else
+                        Dropdown.Value = Selected and Entry.Value or nil
+                    end
+
+                    for _, OtherRow in Pool do
+                        OtherRow:UpdateButton()
+                    end
+                end
+
+                Row:UpdateButton()
+                Dropdown:Display()
+
+                Library:UpdateDependencyBoxes()
+                Dropdown:RunChanged()
+            end)
+
+            Button.InputBegan:Connect(function(StartInput)
+                if not (Info.Multi and Dropdown.DragSelect and not Library.IsMobile) then
+                    return
+                end
+
+                local Entry = Row.Entry
+                if not Entry or Entry.IsDisabled then
+                    return
+                end
+
+                if not IsMouseInput(StartInput) then
+                    return
+                end
+
+                DragSelecting = true
+                DragStartIndex = Row.Index
+                table.clear(DragInitialValues)
+
+                for _, FilteredEntry in FilteredEntries do
+                    DragInitialValues[FilteredEntry.Value] = Dropdown.Value[FilteredEntry.Value]
+                end
+
+                UpdateDrag(Row.Index)
+
+                if DragInputEndedConn then DragInputEndedConn:Disconnect() end
+                if DragInputChangedConn then DragInputChangedConn:Disconnect() end
+
+                DragInputChangedConn = Library:GiveSignal(UserInputService.InputChanged:Connect(function(ChangeInput)
+                    if not IsMovementInput(ChangeInput) and ChangeInput ~= StartInput then
+                        return
+                    end
+
+                    local Pos = ChangeInput.Position
+                    for _, OtherRow in Pool do
+                        if OtherRow.Entry and Library:MouseIsOverFrame(OtherRow.Button, Pos) then
+                            UpdateDrag(OtherRow.Index)
+                            break
+                        end
+                    end
+                end))
+
+                DragInputEndedConn = Library:GiveSignal(UserInputService.InputEnded:Connect(function(EndInput)
+                    if EndInput ~= StartInput and not (IsMouseInput(EndInput) and EndInput.UserInputType == StartInput.UserInputType) then
+                        return
+                    end
+
+                    Dropdown:Display()
+                    Library:UpdateDependencyBoxes()
+                    Dropdown:RunChanged()
+
+                    StopDragSelect()
+                end))
+
+                table.insert(Dropdown.Connections, DragInputEndedConn)
+                table.insert(Dropdown.Connections, DragInputChangedConn)
+            end)
+
+            return Row
         end
 
-        function Dropdown:RunChanged()
-            Library:SafeCallback(Dropdown.Callback, Dropdown.Value)
-            Library:SafeCallback(Dropdown.Changed, Dropdown.Value)
+        function Dropdown:BuildDropdownList()
+            StopDragSelect()
+
+            RecomputeFilteredEntries()
+
+            MenuTable.Menu.CanvasPosition = Vector2.new(0, 0)
+
+            Dropdown:RefreshPool()
+            Dropdown:RecalculateListSize(#FilteredEntries)
+        end
+
+        for _ = 1, PoolSize do
+            table.insert(Pool, CreatePoolRow())
+        end
+
+        table.insert(Dropdown.Connections, MenuTable.Menu:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+            Dropdown:RefreshPool()
+        end))
+
+        local function ValueExists(Val)
+            if IsSequentialArray(Dropdown.Values) then
+                for _, Existing in Dropdown.Values do
+                    if Existing == Val then
+                        return true
+                    end
+                end
+
+                return false
+            end
+
+            return Dropdown.Values[Val] ~= nil
         end
 
         function Dropdown:SetValue(Value)
@@ -6755,14 +6971,14 @@ do
                 for Val, Active in Value or {} do
                     if typeof(Active) ~= "boolean" then
                         Table[Active] = true
-                    elseif Active and table.find(Dropdown.Values, Val) then
+                    elseif Active and ValueExists(Val) then
                         Table[Val] = true
                     end
                 end
 
                 Dropdown.Value = Table
             else
-                if table.find(Dropdown.Values, Value) then
+                if ValueExists(Value) then
                     Dropdown.Value = Value
                 elseif not Value then
                     Dropdown.Value = nil
@@ -6770,8 +6986,8 @@ do
             end
 
             Dropdown:Display()
-            for _, Button in Buttons do
-                Button:UpdateButton()
+            for _, Row in Pool do
+                Row:UpdateButton()
             end
 
             if not Dropdown.Disabled then
@@ -6782,18 +6998,58 @@ do
 
         function Dropdown:SetValues(Values)
             Dropdown.Values = Values
+
+            local Changed = false
+            if Info.Multi then
+                for Val in Dropdown.Value do
+                    if not ValueExists(Val) then
+                        Dropdown.Value[Val] = nil
+                        Changed = true
+                    end
+                end
+
+            elseif Dropdown.Value ~= nil and not ValueExists(Dropdown.Value) then
+                Dropdown.Value = nil
+                Changed = true
+            end
+
             Dropdown:BuildDropdownList()
+            Dropdown:Display()
+
+            if Changed and not Dropdown.Disabled then
+                Library:UpdateDependencyBoxes()
+                Dropdown:RunChanged()
+            end
         end
 
         function Dropdown:AddValues(Values)
-            if typeof(Values) == "table" then
-                for _, val in Values do
-                    table.insert(Dropdown.Values, val)
-                end
-            elseif typeof(Values) == "string" then
-                table.insert(Dropdown.Values, Values)
-            else
+            if typeof(Values) ~= "table" and typeof(Values) ~= "string" then
                 return
+            end
+
+            local IsDictionary = not IsSequentialArray(Dropdown.Values)
+            if IsDictionary then
+                if typeof(Values) == "string" then
+                    Dropdown.Values[Values] = Values
+
+                elseif IsSequentialArray(Values) then
+                    for _, Val in Values do
+                        Dropdown.Values[Val] = Val
+                    end
+
+                else
+                    for Key, Val in Values do
+                        Dropdown.Values[Key] = Val
+                    end
+                end
+            else
+                if typeof(Values) == "table" then
+                    for _, Val in Values do
+                        table.insert(Dropdown.Values, Val)
+                    end
+                else
+                    table.insert(Dropdown.Values, Values)
+                end
             end
 
             Dropdown:BuildDropdownList()
@@ -6890,35 +7146,56 @@ do
             table.insert(Dropdown.Connections, SearchBox:GetPropertyChangedSignal("Text"):Connect(Dropdown.BuildDropdownList))
         end
 
-        local Defaults = {}
-        if typeof(Info.Default) == "string" then
-            local Index = table.find(Dropdown.Values, Info.Default)
-            if Index then
-                table.insert(Defaults, Index)
+        local Defaults = (function()
+            local Resolved = {}
+            local Default = Info.Default
+            if Default == nil then
+                return Resolved
             end
-        elseif typeof(Info.Default) == "table" then
-            for _, Value in next, Info.Default do
-                local Index = table.find(Dropdown.Values, Value)
-                if Index then
-                    table.insert(Defaults, Index)
-                end
-            end
-        elseif Dropdown.Values[Info.Default] ~= nil then
-            table.insert(Defaults, Info.Default)
-        end
 
-        if next(Defaults) then
-            for i = 1, #Defaults do
-                local Index = Defaults[i]
-                if Info.Multi then
-                    Dropdown.Value[Dropdown.Values[Index]] = true
-                else
-                    Dropdown.Value = Dropdown.Values[Index]
+            local IsDictionary = not IsSequentialArray(Dropdown.Values)
+            local function ResolveOne(Candidate)
+                if IsDictionary then
+                    return Dropdown.Values[Candidate] ~= nil and Candidate or nil
                 end
 
-                if not Info.Multi then
-                    break
+                for _, Existing in Dropdown.Values do
+                    if Existing == Candidate then
+                        return Existing
+                    end
                 end
+
+                return nil
+            end
+
+            local DefaultType = typeof(Default)
+            if DefaultType == "string" then
+                local Value = ResolveOne(Default)
+                if Value ~= nil then
+                    table.insert(Resolved, Value)
+                end
+
+            elseif DefaultType == "table" then
+                for _, Candidate in Default do
+                    local Value = ResolveOne(Candidate)
+                    if Value ~= nil then
+                        table.insert(Resolved, Value)
+                    end
+                end
+
+            elseif Dropdown.Values[Default] ~= nil then
+                table.insert(Resolved, IsDictionary and Default or Dropdown.Values[Default])
+            end
+
+            return Resolved
+        end)()
+
+        for _, SelectValue in Defaults do
+            if Info.Multi then
+                Dropdown.Value[SelectValue] = true
+            else
+                Dropdown.Value = SelectValue
+                break
             end
         end
 
@@ -8638,9 +8915,9 @@ function Library:CreateWindow(WindowInfo)
         if WindowInfo.Icon then
             local Icon = Library:GetCustomIcon(WindowInfo.Icon)
             WindowIcon = New("ImageLabel", {
-                Image = Icon.Url,
-                ImageRectOffset = Icon.ImageRectOffset,
-                ImageRectSize = Icon.ImageRectSize,
+                Image = Icon and Icon.Url or "",
+                ImageRectOffset = Icon and Icon.ImageRectOffset or Vector2.zero,
+                ImageRectSize = Icon and Icon.ImageRectSize or Vector2.zero,
                 Size = WindowInfo.IconSize,
                 Parent = TitleHolder,
             })
@@ -9160,16 +9437,19 @@ function Library:CreateWindow(WindowInfo)
         local Name = nil
         local Icon = nil
         local Description = nil
+        local Order = nil
 
         if select("#", ...) == 1 and typeof(...) == "table" then
             local Info = select(1, ...)
             Name = Info.Name or "Tab"
             Icon = Info.Icon
             Description = Info.Description
+            Order = Info.Order
         else
             Name = select(1, ...)
             Icon = select(2, ...)
             Description = select(3, ...)
+            Order = select(4, ...)
         end
 
         local TabButton: TextButton
@@ -9188,6 +9468,7 @@ function Library:CreateWindow(WindowInfo)
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 40),
                 Text = "",
+                LayoutOrder = Order,
                 Parent = Tabs,
             })
             local ButtonPadding = New("UIPadding", {
@@ -10228,6 +10509,10 @@ function Library:CreateWindow(WindowInfo)
             end
         end
 
+        function Tab:SetOrder(Order: number)
+            TabButton.LayoutOrder = Order
+        end
+
         function Tab:Destroy()
             Tab.Destroyed = true
 
@@ -10717,20 +11002,17 @@ function Library:CreateWindow(WindowInfo)
         if Info.Icon then
             local ParsedIcon = Library:GetCustomIcon(Info.Icon)
             if ParsedIcon then
-                local IconImg = New("ImageLabel", {
+                local _IconImg = New("ImageLabel", {
                     BackgroundTransparency = 1,
                     Size = UDim2.fromOffset(16, 16),
                     Image = ParsedIcon.Url,
-                    ImageColor3 = "FontColor",
+                    ImageColor3 = Info.TitleColor or "FontColor",
                     ImageRectOffset = ParsedIcon.ImageRectOffset,
                     ImageRectSize = ParsedIcon.ImageRectSize,
                     LayoutOrder = 1,
                     ZIndex = 9002,
                     Parent = TitleRow,
                 })
-                if Info.TitleColor then
-                    IconImg.ImageColor3 = Info.TitleColor
-                end
             end
         end
 
@@ -10740,14 +11022,12 @@ function Library:CreateWindow(WindowInfo)
             AutomaticSize = Enum.AutomaticSize.Y,
             Text = Info.Title,
             TextSize = 18,
+            TextColor3 = Info.TitleColor or "FontColor",
             TextXAlignment = Enum.TextXAlignment.Left,
             LayoutOrder = 2,
             ZIndex = 9002,
             Parent = TitleRow,
         })
-        if Info.TitleColor then
-            TitleLabel.TextColor3 = Info.TitleColor
-        end
 
         local DescriptionLabel = New("TextLabel", {
             BackgroundTransparency = 1,
@@ -10757,14 +11037,12 @@ function Library:CreateWindow(WindowInfo)
             TextSize = 14,
             TextTransparency = Info.DescriptionColor and 0 or 0.2,
             TextXAlignment = Enum.TextXAlignment.Left,
+            TextColor3 = Info.DescriptionColor or "FontColor",
             TextWrapped = true,
             LayoutOrder = 2,
             ZIndex = 9002,
             Parent = HeaderContainer,
         })
-        if Info.DescriptionColor then
-            DescriptionLabel.TextColor3 = Info.DescriptionColor
-        end
 
         DialogContainer = New("Frame", {
             BackgroundTransparency = 1,
@@ -11499,9 +11777,9 @@ function Library:CreateLoading(LoadingInfo)
     if LoadingInfo.Icon then
         local Icon = Library:GetCustomIcon(LoadingInfo.Icon)
         local _WindowIcon = New("ImageLabel", {
-            Image = Icon.Url,
-            ImageRectOffset = Icon.ImageRectOffset,
-            ImageRectSize = Icon.ImageRectSize,
+            Image = Icon and Icon.Url or "",
+            ImageRectOffset = Icon and Icon.ImageRectOffset or Vector2.zero,
+            ImageRectSize = Icon and Icon.ImageRectSize or Vector2.zero,
             Size = LoadingInfo.IconSize,
             Parent = TitleHolder,
         })
@@ -11566,9 +11844,9 @@ function Library:CreateLoading(LoadingInfo)
         BackgroundTransparency = 1,
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromScale(1, 1),
-        Image = LoaderIcon.Url,
-        ImageRectOffset = LoaderIcon.ImageRectOffset,
-        ImageRectSize = LoaderIcon.ImageRectSize,
+        Image = LoaderIcon and LoaderIcon.Url or "",
+        ImageRectOffset = LoaderIcon and LoaderIcon.ImageRectOffset or Vector2.zero,
+        ImageRectSize = LoaderIcon and LoaderIcon.ImageRectSize or Vector2.zero,
         ImageColor3 = LoadingInfo.LoadingIconColor or ((LoadingInfo.LoadingIcon == Templates.Loading.LoadingIcon) and "AccentColor" or "WhiteColor"),
         Parent = IconHolder,
     })
@@ -11816,6 +12094,8 @@ function Library:CreateLoading(LoadingInfo)
 
     function Loading:SetLoadingIcon(Icon)
         local IconData = Library:GetCustomIcon(Icon)
+        assert(IconData, "Image must be a valid Roblox asset or a valid URL or a valid lucide icon.")
+
         LoadingIcon.Image = IconData.Url
         LoadingIcon.ImageRectOffset = IconData.ImageRectOffset
         LoadingIcon.ImageRectSize = IconData.ImageRectSize
