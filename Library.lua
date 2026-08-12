@@ -1121,6 +1121,7 @@ function Library:SetDPIScale(DPIScale: number)
     for _, Option in Options do
         if Option.Type == "Dropdown" then
             Option:RecalculateListSize()
+            Option:RefreshPool()
         end
     end
 
@@ -6619,7 +6620,8 @@ do
             end
 
             local MaxFirst = Total - PoolSize + 1
-            local Index = math.floor(MenuTable.Menu.CanvasPosition.Y / ItemHeight) + 1
+            local ScrollY = MenuTable.Menu.CanvasPosition.Y / Library.DPIScale
+            local Index = math.floor(ScrollY / ItemHeight) + 1
             return math.clamp(Index, 1, MaxFirst)
         end
 
