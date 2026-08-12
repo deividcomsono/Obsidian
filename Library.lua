@@ -6561,8 +6561,7 @@ do
             end
         end
 
-        local UpdateDrag
-        UpdateDrag = function(CurrentIndex)
+        local UpdateDrag; UpdateDrag = function(CurrentIndex)
             local Min = math.min(DragStartIndex, CurrentIndex)
             local Max = math.max(DragStartIndex, CurrentIndex)
 
