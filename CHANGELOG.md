@@ -1,3 +1,21 @@
+## 12.08.2026
+
+```diff
+[features]
++ Large dropdown lists are now virtualized for faster opens and lower instance count
++ Dropdowns no longer crash the game with over 10,000 values
++ Dictionary Values support: key = selection identity, value = display label
++ Dropdown:SetValues now prunes stale selections that are no longer in Values
+
+[changes]
++ Dropdown.DisabledValues and Dropdown.ValueImages now accept dictionary keys or labels
++ Dropdown:AddValues on dictionary Values merges maps (or key=label for arrays)
++ Sparse numeric tables are treated as arrays (value identity), not dictionaries
+
+[fixes]
++ Multi-dropdown dictionary keys no longer stripped to display labels (Issue #109)
+```
+
 ## 11.07.2026
 
 ```diff

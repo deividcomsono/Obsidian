@@ -1,5 +1,5 @@
 --!strict
--- Last updated: 2026-07-05
+-- Last updated: 12.08.2026
 -- Luau type definitions for the Obsidian UI Library
 
 --// Helper & Configuration Types
@@ -164,16 +164,20 @@ export type SliderInfo = {
 
 export type DropdownInfo = {
     Text: string?,
-    Values: { any },
+    Values: { [any]: any },
     Default: any,
     DisabledValues: { any }?,
+    ValueImages: { [any]: string }?,
     Multi: boolean?,
+    DragSelect: boolean?,
     MaxVisibleDropdownItems: number?,
     SpecialType: "Player" | "Team"?,
     ExcludeLocalPlayer: boolean?,
+    EnablePlayerImages: boolean?,
     AllowNull: boolean?,
     Searchable: boolean?,
     FormatDisplayValue: ((any) -> string)?,
+    FormatListValue: ((any) -> string)?,
     Tooltip: string?,
     DisabledTooltip: string?,
     Callback: ((any) -> ())?,
@@ -468,13 +472,19 @@ export type Slider = {
 }
 
 export type Dropdown = {
+    Connections: { RBXScriptConnection },
+    Destroyed: boolean,
+
     Text: string?,
     Value: { [any]: boolean } | any,
-    Values: { any },
+    Values: { [any]: any },
     DisabledValues: { any },
+    ValueImages: { [any]: string }?,
     Multi: boolean,
+    DragSelect: boolean,
     SpecialType: "Player" | "Team"?,
     ExcludeLocalPlayer: boolean?,
+    EnablePlayerImages: boolean?,
     Tooltip: string?,
     DisabledTooltip: string?,
     TooltipTable: Tooltip?,
@@ -485,21 +495,28 @@ export type Dropdown = {
     Type: "Dropdown",
     Menu: ContextMenu,
     Holder: Frame,
+    Default: { any },
+    DefaultValues: { [any]: any },
 
     RecalculateListSize: (self: Dropdown, Count: number?) -> (),
     UpdateColors: (self: Dropdown) -> (),
     Display: (self: Dropdown) -> (),
     OnChanged: (self: Dropdown, Func: (Value: any) -> ()) -> (),
-    GetActiveValues: (self: Dropdown) -> { any } | number,
+    GetActiveValues: (self: Dropdown, ReturnCount: boolean?) -> { any } | number,
+    RefreshPool: (self: Dropdown) -> (),
     BuildDropdownList: (self: Dropdown) -> (),
+    RunChanged: (self: Dropdown) -> (),
     SetValue: (self: Dropdown, Value: any) -> (),
-    SetValues: (self: Dropdown, Values: { any }) -> (),
-    AddValues: (self: Dropdown, Values: { any } | string) -> (),
+    SetValues: (self: Dropdown, Values: { [any]: any }) -> (),
+    AddValues: (self: Dropdown, Values: { [any]: any } | string) -> (),
     SetDisabledValues: (self: Dropdown, DisabledValues: { any }) -> (),
     AddDisabledValues: (self: Dropdown, DisabledValues: { any } | string) -> (),
+    SetValueImages: (self: Dropdown, ValueImages: { [any]: string }) -> (),
+    AddValueImages: (self: Dropdown, ValueImages: { [any]: string }) -> (),
     SetDisabled: (self: Dropdown, Disabled: boolean) -> (),
     SetVisible: (self: Dropdown, Visible: boolean) -> (),
     SetText: (self: Dropdown, Text: string) -> (),
+    SetDragSelect: (self: Dropdown, Value: boolean) -> (),
     Destroy: (self: Dropdown) -> (),
 }
 
