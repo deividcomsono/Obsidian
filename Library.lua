@@ -4373,7 +4373,10 @@ do
             ColorPicker:Update()
         end))
 
-        for _, BoxPair in ipairs({ { HueBox, HueBoxStroke }, { RgbBox, RgbBoxStroke } }) do
+        for _, BoxPair in { 
+            { HueBox, HueBoxStroke }, 
+            { RgbBox, RgbBoxStroke } 
+        } do
             local TextBoxInstance, Stroke = BoxPair[1], BoxPair[2]
 
             table.insert(ColorPicker.Connections, TextBoxInstance.Focused:Connect(function()
