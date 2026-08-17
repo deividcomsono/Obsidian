@@ -1,6 +1,9 @@
 ## 17.08.2026
 
 ```diff
+[features]
++ ColorPicker.Resizable
+
 [changes]
 + TextBox focus now tweens the border between OutlineColor and AccentColor
 + Added Hover highlights on Dropdown items, KeyPicker mode-select buttons, and ColorPicker context menu items

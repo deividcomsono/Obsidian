@@ -1,5 +1,5 @@
 --!strict
--- Last updated: 12.08.2026
+-- Last updated: 17.08.2026
 -- Luau type definitions for the Obsidian UI Library
 
 --// Helper & Configuration Types
@@ -58,6 +58,7 @@ export type Notification = {
     TitleColor: Color3?,
     DescriptionColor: Color3?,
     Destroyed: boolean,
+    PositionInitialized: boolean?,
 
     Resize: (self: Notification) -> (),
     ChangeTitle: (self: Notification, Text: string) -> (),
@@ -240,6 +241,7 @@ export type ColorPickerInfo = {
     Default: Color3?,
     Transparency: number?,
     Title: string?,
+    Resizable: boolean?,
     Callback: ((Color3) -> ())?,
     Changed: ((Color3) -> ())?,
 }
@@ -1061,6 +1063,7 @@ export type Library = {
     SetIconModule: (self: Library, module: any) -> (),
     SetFont: (self: Library, FontFace: Font | Enum.Font) -> (),
     SetNotifySide: (self: Library, Side: "Left" | "Right") -> (),
+    UpdateNotificationPositions: (self: Library, Snap: boolean?) -> (),
     Notify: (
         self: Library,
         Info: {
