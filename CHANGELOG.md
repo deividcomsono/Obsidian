@@ -3,6 +3,7 @@
 ```diff
 [features]
 + ColorPicker.Resizable
++ Window.AlwaysOnTop, Window:SetAlwaysOnTop, Loading.AlwaysOnTop
 
 [changes]
 + TextBox focus now tweens the border between OutlineColor and AccentColor

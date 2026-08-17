@@ -19,6 +19,7 @@ local Window = Library:CreateWindow({
 	-- Set Resizable to true if you want to have in-game resizable Window
 	-- Set MobileButtonsSide to "Left" or "Right" if you want the ui toggle & lock buttons to be on the left or right side of the window
 	-- Set ShowCustomCursor to false if you don't want to use the Linoria cursor
+	-- Set AlwaysOnTop to true if you want the menu to render above Roblox core blur (executor only)
 	-- NotifySide = Changes the side of the notifications (Left, Right) (Default value = Left)
 	-- Position and Size are also valid options here
 	-- but you do not need to define them unless you are changing them :)
@@ -718,6 +719,13 @@ MenuGroup:AddToggle("ShowCustomCursor", {
 	Default = Library.ShowCustomCursor,
 	Callback = function(Value)
 		Library.ShowCustomCursor = Value
+	end,
+})
+MenuGroup:AddToggle("AlwaysOnTop", {
+	Text = "Always On Top",
+	Default = Window.AlwaysOnTop,
+	Callback = function(Value)
+		Window:SetAlwaysOnTop(Value)
 	end,
 })
 MenuGroup:AddDropdown("NotificationSide", {

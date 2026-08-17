@@ -257,6 +257,7 @@ export type LoadingInfo = {
     TotalSteps: number?,
     ShowSidebar: boolean?,
     AutoResizeHeight: boolean?,
+    AlwaysOnTop: boolean?,
     WindowWidth: number?,
     WindowHeight: number?,
     ContentWidth: number?,
@@ -808,6 +809,7 @@ export type Loading = {
     TotalSteps: number,
     ShowSidebar: boolean,
     AutoResizeHeight: boolean,
+    AlwaysOnTop: boolean,
     IsError: boolean,
     Destroyed: boolean,
     WindowWidth: number,
@@ -861,6 +863,7 @@ export type Dialog = {
 
 
 export type Window = {
+    AlwaysOnTop: boolean,
     IsSidebarCompacted: (self: Window) -> boolean,
     GetSidebarWidth: (self: Window) -> number,
     SetSidebarWidth: (self: Window, Width: number) -> (),
@@ -897,6 +900,7 @@ export type Window = {
     ChangeTitle: (self: Window, Title: string) -> (),
     SetBackgroundImage: (self: Window, Image: string) -> (),
     SetFooter: (self: Window, Footer: string) -> (),
+    SetAlwaysOnTop: (self: Window, Enabled: boolean) -> (),
     SetCornerRadius: (self: Window, Radius: number) -> (),
     SetAnimations: (
         self: Window,
@@ -1103,6 +1107,7 @@ export type Library = {
             CornerRadius: number?,
             NotifySide: "Left" | "Right"?,
             ShowCustomCursor: boolean?,
+            AlwaysOnTop: boolean?,
             Font: Font | Enum.Font?,
             ToggleKeybind: Enum.KeyCode?,
             ShowMobileButtons: boolean?,

@@ -9,6 +9,9 @@ declare syn: {
 	protect_gui: (gui: ScreenGui) -> nil
 }
 
+declare function sethiddenproperty(object: Instance, property: string, value: any): boolean
+declare function setscriptable(object: Instance, property: string, scriptable: boolean): boolean
+
 declare function setclipboard(text: string): ()
 
 declare function clonefunction(func: (...any) -> ...any): (...any) -> ...any

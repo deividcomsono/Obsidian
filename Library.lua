@@ -364,6 +364,7 @@ local Templates = {
         AutoShow = true,
         Center = true,
         Resizable = true,
+        AlwaysOnTop = false,
 
         SearchbarSize = UDim2.fromScale(1, 1),
         GlobalSearch = false,
@@ -431,6 +432,7 @@ local Templates = {
 
         ShowSidebar = false,
         AutoResizeHeight = false,
+        AlwaysOnTop = true,
 
         WindowWidth = 450,
         WindowHeight = 275,
@@ -1131,7 +1133,7 @@ function Library:SetDPIScale(DPIScale: number)
         Notification:Resize()
     end
 
-    Library:UpdateNotificationPositions(true)
+    (Library :: any):UpdateNotificationPositions(true)
 end
 
 function Library:GiveSignal(Connection: RBXScriptConnection | RBXScriptSignal)
@@ -1306,6 +1308,22 @@ local function ParentUI(UI: Instance, SkipHiddenUI: boolean?)
 
     pcall(protectgui, UI)
     SafeParentUI(UI, gethui)
+end
+
+local function SetAlwaysOnTop(Gui: ScreenGui, Enabled: boolean)
+    if not Gui then
+        return
+    end
+
+    pcall(function()
+        if sethiddenproperty then
+            sethiddenproperty(Gui, "OnTopOfCoreBlur", Enabled)
+        elseif setscriptable then
+            setscriptable(Gui, "OnTopOfCoreBlur", true)
+            Gui.OnTopOfCoreBlur = Enabled
+            setscriptable(Gui, "OnTopOfCoreBlur", false)
+        end
+    end)
 end
 
 local ScreenGui = New("ScreenGui", {
@@ -8744,7 +8762,9 @@ function Library:SetNotifySide(Side: string)
         FakeBackground.AnchorPoint = if IsLeft then Vector2.new(0, 0) else Vector2.new(1, 0)
     end
 
-    Library:UpdateNotificationPositions(true)
+    if Library.UpdateNotificationPositions then
+        Library:UpdateNotificationPositions(true)
+    end
 end
 
 function Library:Notify(...)
@@ -9610,6 +9630,11 @@ function Library:CreateWindow(WindowInfo)
 
         FooterLabel.Text = Footer
         WindowInfo.Footer = Footer
+    end
+
+    function Window:SetAlwaysOnTop(Enabled: boolean)
+        WindowInfo.AlwaysOnTop = Enabled == true
+        SetAlwaysOnTop(Library.ScreenGui, WindowInfo.AlwaysOnTop)
     end
 
     function Window:SetCornerRadius(Radius: number)
@@ -11908,6 +11933,8 @@ function Library:CreateWindow(WindowInfo)
             end
         end))
     end
+
+    Window:SetAlwaysOnTop(WindowInfo.AlwaysOnTop)
     if WindowInfo.EnableCompacting and WindowInfo.SidebarCompacted then
         Window:SetSidebarWidth(WindowInfo.SidebarCompactWidth)
     end
@@ -11989,6 +12016,8 @@ function Library:CreateLoading(LoadingInfo)
 
         ShowSidebar = LoadingInfo.ShowSidebar,
         AutoResizeHeight = LoadingInfo.AutoResizeHeight,
+        AlwaysOnTop = LoadingInfo.AlwaysOnTop,
+
         IsError = false,
         Destroyed = false,
 
@@ -12009,6 +12038,7 @@ function Library:CreateLoading(LoadingInfo)
     })
     ParentUI(ScreenGui)
     Loading.ScreenGui = ScreenGui
+    SetAlwaysOnTop(ScreenGui, LoadingInfo.AlwaysOnTop)
 
     ScreenGui.DescendantRemoving:Connect(function(Instance)
         Library:RemoveFromRegistry(Instance)
