@@ -4037,7 +4037,7 @@ do
 
         local function RefreshFooterInfo()
             FooterInfoLabel.Text = string.format(
-                "#%s  ·  %d, %d, %d",
+                "#%s • %d, %d, %d",
                 ColorPicker.Value:ToHex(),
                 math.floor(ColorPicker.Value.R * 255),
                 math.floor(ColorPicker.Value.G * 255),
@@ -4152,21 +4152,21 @@ do
         --// Resizing \\--
         local ResizeGrabber
         if Info.Resizable then
-            local BaseSquareSize = 200
+            local BaseMapSize = 200
             local BaseBarWidth = 16
             local BasePadding = 6
-            local MinSquareSize = 140
-            local MaxSquareSize = 320
+            local MinMapSize = 140
 
-            ColorPicker.SquareSize = BaseSquareSize
+            ColorPicker.MapWidth = BaseMapSize
+            ColorPicker.MapHeight = BaseMapSize
 
-            local function GetBarWidth(SquareSize)
-                return math.clamp(math.floor((SquareSize / BaseSquareSize) * BaseBarWidth + 0.5), 12, 24)
+            local function GetBarWidth(MapWidth)
+                return math.clamp(math.floor((MapWidth / BaseMapSize) * BaseBarWidth + 0.5), 12, 24)
             end
 
-            local function GetContentWidth(SquareSize)
-                local BarWidth = GetBarWidth(SquareSize)
-                local Width = SquareSize + BarWidth + BasePadding
+            local function GetContentWidth(MapWidth)
+                local BarWidth = GetBarWidth(MapWidth)
+                local Width = MapWidth + BarWidth + BasePadding
                 if Info.Transparency then
                     Width += (BarWidth + BasePadding)
                 end
@@ -4174,12 +4174,15 @@ do
                 return Width + 12
             end
 
-            local FixedVerticalOverhead = 90
+            local FixedVerticalOverhead = 6 + 6 + 8 + 20 + 8 + 20 + FooterHeight
+            if typeof(ColorPicker.Title) == "string" then
+                FixedVerticalOverhead += 8 + 8
+            end
 
-            local function ClampToViewport(NewSquareSize)
+            local function ClampToViewport(NewWidth, NewHeight)
                 local Camera = workspace.CurrentCamera
                 if not Camera then
-                    return NewSquareSize
+                    return NewWidth, NewHeight
                 end
 
                 local ViewportSize = Camera.ViewportSize
@@ -4188,70 +4191,72 @@ do
                 local MaxWidth = ViewportSize.X - ColorMenu.Menu.AbsolutePosition.X - ScreenMargin
                 local MaxHeight = ViewportSize.Y - ColorMenu.Menu.AbsolutePosition.Y - ScreenMargin - FixedVerticalOverhead
 
-                while NewSquareSize > MinSquareSize
-                    and (GetContentWidth(NewSquareSize) > MaxWidth or NewSquareSize > MaxHeight) do
-                    NewSquareSize -= 4
+                while NewWidth > MinMapSize and GetContentWidth(NewWidth) > MaxWidth do
+                    NewWidth -= 4
                 end
 
-                return NewSquareSize
+                if NewHeight > MaxHeight then
+                    NewHeight = math.max(MinMapSize, math.floor(MaxHeight))
+                end
+
+                return NewWidth, NewHeight
             end
 
-            local function UpdateColorMenuSize(NewSquareSize)
-                NewSquareSize = math.clamp(math.floor(NewSquareSize + 0.5), MinSquareSize, MaxSquareSize)
-                NewSquareSize = ClampToViewport(NewSquareSize)
+            local function UpdateColorMenuSize(NewWidth, NewHeight)
+                NewWidth = math.max(MinMapSize, math.floor(NewWidth + 0.5))
+                NewHeight = math.max(MinMapSize, math.floor(NewHeight + 0.5))
+                NewWidth, NewHeight = ClampToViewport(NewWidth, NewHeight)
 
-                if NewSquareSize == ColorPicker.SquareSize then
+                if NewWidth == ColorPicker.MapWidth and NewHeight == ColorPicker.MapHeight then
                     return
                 end
 
-                local BarWidth = GetBarWidth(NewSquareSize)
-                local CursorSize = math.clamp(math.floor((NewSquareSize / BaseSquareSize) * 6 + 0.5), 4, 10)
+                local BarWidth = GetBarWidth(NewWidth)
+                local CursorSize = math.clamp(math.floor((math.min(NewWidth, NewHeight) / BaseMapSize) * 6 + 0.5), 4, 10)
 
-                ColorHolder.Size = UDim2.new(1, 0, 0, NewSquareSize)
-                SatVipMap.Size = UDim2.fromOffset(NewSquareSize, NewSquareSize)
+                ColorHolder.Size = UDim2.new(1, 0, 0, NewHeight)
+                SatVipMap.Size = UDim2.fromOffset(NewWidth, NewHeight)
                 SatVibCursor.Size = UDim2.fromOffset(CursorSize, CursorSize)
-                HueSelector.Size = UDim2.new(0, BarWidth, 0, NewSquareSize)
+                HueSelector.Size = UDim2.new(0, BarWidth, 0, NewHeight)
 
                 if TransparencySelector then
-                    TransparencySelector.Size = UDim2.new(0, BarWidth, 0, NewSquareSize)
+                    TransparencySelector.Size = UDim2.new(0, BarWidth, 0, NewHeight)
                 end
 
-                ColorPicker.SquareSize = NewSquareSize
-                ColorMenu:SetSize(UDim2.new(0, GetContentWidth(NewSquareSize), 0, 0))
+                ColorPicker.MapWidth = NewWidth
+                ColorPicker.MapHeight = NewHeight
+                ColorMenu:SetSize(UDim2.new(0, GetContentWidth(NewWidth), 0, 0))
             end
 
-            local IconSize = 12
-            local GrabberSize = Library.IsMobile and 28 or 16
-
             ResizeGrabber = New("TextButton", {
-                AnchorPoint = Vector2.new(1, 1),
+                AnchorPoint = Vector2.new(1, 0),
                 BackgroundTransparency = 1,
-                Position = UDim2.new(1, 0, 1, 0),
-                Size = UDim2.fromOffset(GrabberSize, GrabberSize),
+                Position = UDim2.new(1, -Library.CornerRadius / 4, 0, 0),
+                Size = UDim2.fromScale(1, 1),
+                SizeConstraint = Enum.SizeConstraint.RelativeYY,
                 Text = "",
                 Parent = FooterBackground,
             })
             New("ImageLabel", {
-                AnchorPoint = Vector2.new(0.5, 0.5),
-                BackgroundTransparency = 1,
                 Image = ResizeIcon and ResizeIcon.Url or "",
                 ImageColor3 = "FontColor",
                 ImageRectOffset = ResizeIcon and ResizeIcon.ImageRectOffset or Vector2.zero,
                 ImageRectSize = ResizeIcon and ResizeIcon.ImageRectSize or Vector2.zero,
-                ImageTransparency = 0.35,
-                Position = UDim2.fromScale(0.5, 0.5),
-                Size = UDim2.fromOffset(IconSize, IconSize),
+                ImageTransparency = 0.5,
+                Position = UDim2.fromOffset(2, 2),
+                Size = UDim2.new(1, -4, 1, -4),
                 Parent = ResizeGrabber,
             })
 
             table.insert(ColorPicker.Connections, ResizeGrabber.InputBegan:Connect(function(Input: InputObject)
                 Library.CantDragForced = true
                 local StartMouse = Vector2.new(Mouse.X, Mouse.Y)
-                local StartSquareSize = ColorPicker.SquareSize
+                local StartWidth = ColorPicker.MapWidth
+                local StartHeight = ColorPicker.MapHeight
 
                 while IsDragInput(Input) and not ColorPicker.Destroyed do
                     local Delta = Vector2.new(Mouse.X, Mouse.Y) - StartMouse
-                    UpdateColorMenuSize(StartSquareSize + math.max(Delta.X, Delta.Y))
+                    UpdateColorMenuSize(StartWidth + Delta.X, StartHeight + Delta.Y)
 
                     RunService.RenderStepped:Wait()
                 end
