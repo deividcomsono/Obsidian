@@ -7274,43 +7274,53 @@ do
                 Dropdown:RunChanged()
             end)
 
-			Button.MouseEnter:Connect(function()
-				if Row.Selected then
-					return
-				end
+            Button.MouseEnter:Connect(function()
+                local Entry = Row.Entry
+                if not Entry or Entry.IsDisabled then
+                    return
+                end
 
-				TweenService:Create(Container, Library.TweenInfo, {
-					BackgroundTransparency = 0.85,
-				}):Play()
-				TweenService:Create(Button, Library.TweenInfo, {
-					TextTransparency = 0.25,
-				}):Play()
+                if Row.Selected then
+                    return
+                end
 
-				if Image then
-					TweenService:Create(Image, Library.TweenInfo, {
-						ImageTransparency = 0.25,
-					}):Play()
-				end
-			end)
+                TweenService:Create(Container, Library.TweenInfo, {
+                    BackgroundTransparency = 0.85,
+                }):Play()
+                TweenService:Create(Button, Library.TweenInfo, {
+                    TextTransparency = 0.25,
+                }):Play()
 
-			Button.MouseLeave:Connect(function()
-				if Row.Selected then
-					return
-				end
+                if Image then
+                    TweenService:Create(Image, Library.TweenInfo, {
+                        ImageTransparency = 0.25,
+                    }):Play()
+                end
+            end)
 
-				TweenService:Create(Container, Library.TweenInfo, {
-					BackgroundTransparency = 1,
-				}):Play()
-				TweenService:Create(Button, Library.TweenInfo, {
-					TextTransparency = 0.5,
-				}):Play()
+            Button.MouseLeave:Connect(function()
+                local Entry = Row.Entry
+                if not Entry or Entry.IsDisabled then
+                    return
+                end
 
-				if Image then
-					TweenService:Create(Image, Library.TweenInfo, {
-						ImageTransparency = 0.5,
-					}):Play()
-				end
-			end)
+                if Row.Selected then
+                    return
+                end
+
+                TweenService:Create(Container, Library.TweenInfo, {
+                    BackgroundTransparency = 1,
+                }):Play()
+                TweenService:Create(Button, Library.TweenInfo, {
+                    TextTransparency = 0.5,
+                }):Play()
+
+                if Image then
+                    TweenService:Create(Image, Library.TweenInfo, {
+                        ImageTransparency = 0.5,
+                    }):Play()
+                end
+            end)
 
             Button.InputBegan:Connect(function(StartInput)
                 if not (Info.Multi and Dropdown.DragSelect and not Library.IsMobile) then
