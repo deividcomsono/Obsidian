@@ -712,8 +712,12 @@ end
 
 function SaveManager:BuildConfigSection(Tab: any, IconName: string)
     assert(SaveManager.Library, "Library is not set, call SaveManager:SetLibrary(Library) first.")
-    local ConfigurationBox = Tab:AddRightGroupbox("Configuration", IconName or "folder-cog")
-    
+    local ConfigurationBox = Tab:AddGroupbox({
+        Side = "Right",
+        Name = "Configuration",
+        IconName = IconName or "folder-cog",
+    })
+
     local ConfigNameInput, ConfigList, ConfigJSONInput, AutoloadConfigLabel
     local function RefreshList()
         ConfigList:SetValues(SaveManager:RefreshConfigList())

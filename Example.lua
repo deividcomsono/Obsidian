@@ -61,7 +61,14 @@ UISettingsTab:UpdateWarningBox({
 
 -- Groupbox and Tabbox inherit the same functions
 -- except Tabboxes you have to call the functions on a tab (Tabbox:AddTab(Name))
-local LeftGroupBox = Tabs.Main:AddLeftGroupbox("Groupbox", "boxes")
+local LeftGroupBox = Tabs.Main:AddGroupbox({
+	Side = "Left", --// (Case-insensitive),
+	Name = "Groupbox",
+	Description = "boxes",
+	IconName = "boxes",
+	-- Collapsed = false,
+	-- DisableCollapsing = false,
+})
 
 -- We can also get our Main tab via the following code:
 -- local LeftGroupBox = Window.Tabs.Main:AddLeftGroupbox("Groupbox", "boxes")
@@ -335,7 +342,10 @@ end)
 -- Groupbox:AddDropdown
 -- Arguments: Idx, Info
 
-local DropdownGroupBox = Tabs.Main:AddRightGroupbox("Dropdowns")
+local DropdownGroupBox = Tabs.Main:AddGroupbox({
+	Side = "Right",
+	Name = "Dropdowns",
+})
 
 DropdownGroupBox:AddDropdown("MyDropdown", {
 	Values = { "This", "is", "a", "dropdown" },
@@ -662,7 +672,10 @@ LeftGroupBox:AddLabel("Press Keybind"):AddKeyPicker("KeyPicker2", {
 })
 
 -- Long text label to demonstrate UI scrolling behaviour.
-local LeftGroupBox2 = Tabs.Main:AddLeftGroupbox("Groupbox #2")
+local LeftGroupBox2 = Tabs.Main:AddGroupbox({
+	Side = "Left",
+	Name = "Groupbox #2",
+})
 LeftGroupBox2:AddLabel(
 	"This label spans multiple lines! We're gonna run out of UI space...\nJust kidding! Scroll down!\n\n\nHello from below!",
 	true
@@ -705,7 +718,11 @@ end)
 Library:AddDraggableLabel("This is a Draggable Label")
 
 -- UI Settings
-local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu", "wrench")
+local MenuGroup = Tabs["UI Settings"]:AddGroupbox({
+	Side = "Left",
+	Name = "Menu",
+	IconName = "wrench"
+})
 
 MenuGroup:AddToggle("KeybindMenuOpen", {
 	Default = Library.KeybindFrame.Visible,

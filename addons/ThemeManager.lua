@@ -882,7 +882,11 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
 end
 
 function ThemeManager:CreateGroupBox(Tab: any, IconName: string)
-    return Tab:AddLeftGroupbox("Themes", IconName or "paintbrush")
+    return Tab:AddGroupbox({
+        Side = "Left",
+        Name = "Themes",
+        IconName = IconName or "paintbrush",
+    })
 end
 
 function ThemeManager:ApplyToTab(Tab: any, IconName: string)
