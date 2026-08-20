@@ -575,6 +575,10 @@ local Sizes = {
     Left = { 0.5, 1 },
     Right = { 0.5, 1 },
 }
+local SideIndex = {
+    left = 1,
+    right = 2,
+}
 
 --// Scheme Functions \\--
 local SchemeReplaceAlias = {
@@ -1775,6 +1779,7 @@ function Library:MakeLine(Frame: GuiObject, Info)
     local Line = New("Frame", {
         AnchorPoint = Info.AnchorPoint or Vector2.zero,
         BackgroundColor3 = "OutlineColor",
+        LayoutOrder = Info.LayoutOrder or 0,
         Position = Info.Position,
         Size = Info.Size,
         ZIndex = Info.ZIndex or Frame.ZIndex,
@@ -10178,6 +10183,15 @@ function Library:CreateWindow(WindowInfo)
         local function AddTabbox(self, Info)
             local ParentObj = self
 
+            if typeof(Info.Side) == "string" then
+                local lowerSide = string.lower(Info.Side)
+                if not SideIndex[lowerSide] then
+                    error("Invalid side:", Info.Side)
+                end
+
+                Info.Side = SideIndex[lowerSide]
+            end
+
             local BoxHolder = New("Frame", {
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
@@ -10498,11 +10512,20 @@ function Library:CreateWindow(WindowInfo)
         end
 
         function Tab:AddGroupbox(Info)
+            if typeof(Info.Side) == "string" then
+                local lowerSide = string.lower(Info.Side)
+                if not SideIndex[lowerSide] then
+                    error("Invalid side:", Info.Side)
+                end
+
+                Info.Side = SideIndex[lowerSide]
+            end
+
             local BoxHolder = New("Frame", {
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
                 Size = UDim2.fromScale(1, 0),
-                Parent = Info.Side == 1 and TabLeft or TabRight,
+                Parent = (Info.Side == 1) and TabLeft or TabRight,
             })
             New("UIListLayout", {
                 Padding = UDim.new(0, 6),
@@ -10515,7 +10538,10 @@ function Library:CreateWindow(WindowInfo)
             })
 
             local GroupboxHolder
+
+            local GroupboxTop
             local GroupboxLabel
+            local GroupboxDescription
 
             local GroupboxContainer
             local GroupboxList
@@ -10536,59 +10562,109 @@ function Library:CreateWindow(WindowInfo)
                         Parent = GroupboxHolder,
                     })
                 )
+                New("UIListLayout", {
+                    Parent = GroupboxHolder,
+                })
                 Library:AddOutline(GroupboxHolder)
 
-                GroupboxLine = Library:MakeLine(GroupboxHolder, {
-                    Position = UDim2.fromOffset(0, 34),
-                    Size = UDim2.new(1, 0, 0, 1),
+                GroupboxTop = New("Frame", {
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.fromScale(1, 0),
+                    Parent = GroupboxHolder,
+                })
+                New("UIPadding", {
+                    PaddingBottom = UDim.new(0, 6),
+                    PaddingLeft = UDim.new(0, 6),
+                    PaddingRight = UDim.new(0, 6),
+                    PaddingTop = UDim.new(0, 6),
+                    Parent = GroupboxTop,
                 })
 
                 local BoxIcon = Library:GetCustomIcon(Info.IconName)
                 if BoxIcon then
                     New("ImageLabel", {
+                        AnchorPoint = Vector2.new(0, 0.5),
                         Image = BoxIcon.Url,
                         ImageColor3 = BoxIcon.Custom and "WhiteColor" or "AccentColor",
                         ImageRectOffset = BoxIcon.ImageRectOffset,
                         ImageRectSize = BoxIcon.ImageRectSize,
-                        Position = UDim2.fromOffset(6, 6),
+                        Position = UDim2.fromScale(0, 0.5),
                         Size = UDim2.fromOffset(22, 22),
-                        Parent = GroupboxHolder,
+                        Parent = GroupboxTop,
                     })
                 end
 
-                GroupboxLabel = New("TextLabel", {
+                local TextsFrame = New("Frame", {
+                    AutomaticSize = Enum.AutomaticSize.Y,
                     BackgroundTransparency = 1,
                     Position = UDim2.fromOffset(BoxIcon and 24 or 0, 0),
-                    Size = UDim2.new(1, 0, 0, 34),
-                    Text = Info.Name,
-                    TextSize = 15,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    Parent = GroupboxHolder,
+                    Size = UDim2.new(1, -22 - (BoxIcon and 24 or 0), 0, 0),
+                    Parent = GroupboxTop,
+                })
+                New("UIListLayout", {
+                    Parent = TextsFrame,
                 })
                 New("UIPadding", {
-                    PaddingLeft = UDim.new(0, 12),
-                    PaddingRight = UDim.new(0, 12),
+                    PaddingBottom = UDim.new(0, 3),
+                    PaddingLeft = UDim.new(0, 6),
+                    PaddingRight = UDim.new(0, 6),
+                    PaddingTop = UDim.new(0, 3),
+                    Parent = TextsFrame,
+                })
+
+                GroupboxLabel = New("TextLabel", {
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.fromScale(1, 0),
+                    Text = Info.Name,
+                    TextSize = 15,
+                    TextWrapped = true,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Parent = TextsFrame,
+                })
+                New("UIPadding", {
+                    PaddingBottom = UDim.new(0, 1),
                     Parent = GroupboxLabel,
+                })
+
+                GroupboxDescription = New("TextLabel", {
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.fromScale(1, 0),
+                    Text = Info.Description or "",
+                    TextSize = 14,
+                    TextTransparency = 0.5,
+                    TextWrapped = true,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Visible = (Info.Description ~= nil),
+                    Parent = TextsFrame,
                 })
 
                 if Info.DisableCollapsing ~= true then
                     GroupboxCollapseArrow = New("ImageButton", {
+                        AnchorPoint = Vector2.new(1, 0.5),
+                        BackgroundTransparency = 1,
                         Image = ArrowIcon and ArrowIcon.Url or "",
                         ImageColor3 = "WhiteColor",
                         ImageRectOffset = ArrowIcon and ArrowIcon.ImageRectOffset or Vector2.zero,
                         ImageRectSize = ArrowIcon and ArrowIcon.ImageRectSize or Vector2.zero,
-                        BackgroundTransparency = 1,
                         Rotation = 180,
-                        Position = UDim2.new(1, -(22 + 6), 0, 6),
+                        Position = UDim2.fromScale(1, 0.5),
                         Size = UDim2.fromOffset(22, 22),
-                        Parent = GroupboxHolder,
+                        Parent = GroupboxTop,
                     })
                 end
 
+                GroupboxLine = Library:MakeLine(GroupboxHolder, {
+                    LayoutOrder = 1,
+                    Size = UDim2.new(1, 0, 0, 1),
+                })
+
                 GroupboxContainer = New("Frame", {
                     BackgroundTransparency = 1,
-                    Position = UDim2.fromOffset(0, 35),
-                    Size = UDim2.new(1, 0, 1, -35),
+                    LayoutOrder = 2,
+                    Size = UDim2.fromScale(1, 0),
                     Parent = GroupboxHolder,
                 })
 
@@ -10632,8 +10708,12 @@ function Library:CreateWindow(WindowInfo)
                     ResizeTween = nil
                 end
 
-                local TargetSize = UDim2.new(1, 0, 0, if Groupbox.Collapsed then 34 else (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
+                local TopSize = (GroupboxTop.AbsoluteSize.Y / Library.DPIScale)
+                local ContainerSize = (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 14
 
+                local TargetSize = UDim2.new(1, 0, 0, if Groupbox.Collapsed then TopSize else (TopSize + 1 + ContainerSize))
+
+                GroupboxContainer.Size = UDim2.new(1, 0, 0, ContainerSize)
                 GroupboxLine.Visible = not Groupbox.Collapsed
                 if Library.Animations and Library.Animations.Groupbox then
                     local TweenInfo = Library.GroupboxTweenInfo or TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -10655,6 +10735,13 @@ function Library:CreateWindow(WindowInfo)
                 else
                     GroupboxHolder.Size = TargetSize
                 end
+            end
+
+            function Groupbox:SetDescription(Description: string | nil)
+                GroupboxDescription.Text = Description or ""
+                GroupboxDescription.Visible = (Description ~= nil)
+
+                Groupbox:Resize()
             end
 
             function Groupbox:SetCollapsed(Collapsed: boolean)
@@ -10780,10 +10867,12 @@ function Library:CreateWindow(WindowInfo)
             return Groupbox
         end
 
+        --// Deprecated - Use Tab:AddGroupbox instead.
         function Tab:AddLeftGroupbox(Name, IconName, Visible, Collapsed, DisableCollapsing)
             return Tab:AddGroupbox({ Side = 1, Name = Name, IconName = IconName, Visible = Visible, Collapsed = Collapsed, DisableCollapsing = DisableCollapsing })
         end
 
+        --// Deprecated - Use Tab:AddGroupbox instead.
         function Tab:AddRightGroupbox(Name, IconName, Visible, Collapsed, DisableCollapsing)
             return Tab:AddGroupbox({ Side = 2, Name = Name, IconName = IconName, Visible = Visible, Collapsed = Collapsed, DisableCollapsing = DisableCollapsing })
         end
