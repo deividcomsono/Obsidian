@@ -2,7 +2,7 @@
 
 ```diff
 [features]
-+ Groupbox:SetDescription()
++ Groupbox Descriptions, Groupbox:SetDescription()
 
 [changes]
 + :AddLeftGroupbox(...) and :AddRightGroupbox(...) are now deprecated; use :AddGroupbox({ ... }) instead
