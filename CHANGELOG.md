@@ -1,3 +1,13 @@
+## 20.08.2026
+
+```diff
+[features]
++ Groupbox:SetDescription()
+
+[changes]
++ :AddLeftGroupbox(...) and :AddRightGroupbox(...) are now deprecated; use :AddGroupbox({ ... }) instead
+```
+
 ## 17.08.2026
 
 ```diff
