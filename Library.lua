@@ -711,6 +711,114 @@ local function Round(Value, Rounding)
     return tonumber(string.format("%." .. Rounding .. "f", Value))
 end
 
+--// Fuzzy Search \\--
+-- VSCode-style fuzzy matcher for the sidebar/tab search box and dropdown
+-- filters.
+local function FuzzyScore(Text: string, Search: string): (boolean, number)
+    if Search == "" then
+        return true, 0
+    end
+    if Text == "" then
+        return false, 0
+    end
+
+    --// Fast path: literal substring match (also the best possible score) \\--
+    local ExactIdx = Text:find(Search, 1, true)
+    if ExactIdx then
+        local PrevChar = ExactIdx > 1 and Text:sub(ExactIdx - 1, ExactIdx - 1) or ""
+        local AtBoundary = ExactIdx == 1 or PrevChar:match("[%s%p_]") ~= nil
+
+        return true, 1e5 - ExactIdx + (AtBoundary and 500 or 0) + (Search:len() * 5)
+    end
+
+    --// Fallback: fuzzy, in-order, non-consecutive character matching \\--
+    local TextLen, SearchLen = Text:len(), Search:len()
+    if SearchLen > TextLen then
+        return false, 0
+    end
+
+    local SearchIdx = 1
+    local Score = 0
+    local RunLength = 0
+    local LastMatchIdx = 0
+
+    for TextIdx = 1, TextLen do
+        if SearchIdx > SearchLen then
+            break
+        end
+
+        if Text:sub(TextIdx, TextIdx) == Search:sub(SearchIdx, SearchIdx) then
+            local PrevChar = TextIdx > 1 and Text:sub(TextIdx - 1, TextIdx - 1) or ""
+            local AtBoundary = TextIdx == 1 or PrevChar:match("[%s%p_]") ~= nil
+
+            RunLength = (LastMatchIdx == TextIdx - 1) and (RunLength + 1) or 1
+            Score += 1 + (AtBoundary and 6 or 0) + math.min(RunLength - 1, 5) * 3
+
+            LastMatchIdx = TextIdx
+            SearchIdx += 1
+        end
+    end
+
+    if SearchIdx <= SearchLen then
+        return false, 0 --// Not every Search character was found, in order
+    end
+
+    Score -= (LastMatchIdx - SearchLen) * 0.05 --// Slightly favour tighter matches
+    return true, Score
+end
+
+local function NormalizeSearch(Search: string): string
+    return (Search:gsub("%s+", ""))
+end
+
+local function TryFuzzyMatch(Text: any, Search: string): boolean
+    if typeof(Text) ~= "string" or Text == "" then
+        return false
+    end
+
+    return (FuzzyScore(Text:lower(), Search))
+end
+
+local function MatchesSearch(ElementInfo, Search: string, ForceMatch: boolean?): boolean
+    if not ElementInfo then
+        return false
+    end
+    if ForceMatch then
+        return true
+    end
+
+    if TryFuzzyMatch(ElementInfo.Text, Search) then
+        return true
+    end
+    if TryFuzzyMatch(ElementInfo.Tooltip, Search) then
+        return true
+    end
+    if TryFuzzyMatch(ElementInfo.DisabledTooltip, Search) then
+        return true
+    end
+
+    --// Optional: search inside Dropdown value lists, so e.g. searching a
+    --// specific option name reveals the Dropdown that contains it \\--
+    if typeof(ElementInfo.Values) == "table" then
+        local Checked = 0
+        for Key, Value in ElementInfo.Values do
+            Checked += 1
+            if Checked > 200 then
+                break
+            end
+
+            if TryFuzzyMatch(Value, Search) or (typeof(Value) ~= "string" and TryFuzzyMatch(tostring(Value), Search)) then
+                return true
+            end
+            if typeof(Key) == "string" and TryFuzzyMatch(Key, Search) then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
 local function GetPlayers(ExcludeLocalPlayer: boolean?)
     local PlayerList = Players:GetPlayers()
 
@@ -747,7 +855,7 @@ function Library:UpdateDependencyBoxes()
     end
 end
 
-local function CheckDepbox(Box, Search)
+local function CheckDepbox(Box, Search, ForceVisible: boolean?)
     local VisibleElements = 0
 
     for _, ElementInfo in Box.Elements do
@@ -759,12 +867,12 @@ local function CheckDepbox(Box, Search)
             local Visible = false
 
             --// Check if Search matches Element's Name and if Element is Visible
-            if ElementInfo.Text:lower():find(Search, 1, true) and ElementInfo.Visible then
+            if MatchesSearch(ElementInfo, Search, ForceVisible) and ElementInfo.Visible then
                 Visible = true
             else
                 ElementInfo.Base.Visible = false
             end
-            if ElementInfo.SubButton.Text:lower():find(Search, 1, true) and ElementInfo.SubButton.Visible then
+            if MatchesSearch(ElementInfo.SubButton, Search, ForceVisible) and ElementInfo.SubButton.Visible then
                 Visible = true
             else
                 ElementInfo.SubButton.Base.Visible = false
@@ -778,7 +886,7 @@ local function CheckDepbox(Box, Search)
         end
 
         --// Check if Search matches Element's Name and if Element is Visible
-        if ElementInfo.Text and ElementInfo.Text:lower():find(Search, 1, true) and ElementInfo.Visible then
+        if ElementInfo.Text and MatchesSearch(ElementInfo, Search, ForceVisible) and ElementInfo.Visible then
             ElementInfo.Holder.Visible = true
             VisibleElements += 1
         else
@@ -791,7 +899,7 @@ local function CheckDepbox(Box, Search)
             continue
         end
 
-        VisibleElements += CheckDepbox(Depbox, Search)
+        VisibleElements += CheckDepbox(Depbox, Search, ForceVisible)
     end
 
     Box.Holder.Visible = VisibleElements > 0
@@ -826,11 +934,21 @@ local function ApplySearchToTab(Tab, Search)
 
     local HasVisible = false
 
+    --// If the Tab itself matches Search (by name/description), don't filter
+    --// out its contents -- pull everything in the Tab along with it \\--
+    local TabMatches = TryFuzzyMatch(Tab.Name, Search) or TryFuzzyMatch(Tab.Description, Search)
+
     --// Loop through Groupboxes to get Elements Info
     for _, Groupbox in Tab.Groupboxes do
         if Groupbox.Visible == false then
             continue
         end
+
+        --// Optional: matching the Groupbox's own name/description reveals
+        --// every element inside it, without needing each one to match too
+        local GroupboxMatches = TabMatches
+            or TryFuzzyMatch(Groupbox.Name, Search)
+            or TryFuzzyMatch(Groupbox.Description, Search)
 
         local VisibleElements = 0
         for _, ElementInfo in Groupbox.Elements do
@@ -842,12 +960,12 @@ local function ApplySearchToTab(Tab, Search)
                 local Visible = false
 
                 --// Check if Search matches Element's Name and if Element is Visible
-                if ElementInfo.Text:lower():find(Search, 1, true) and ElementInfo.Visible then
+                if MatchesSearch(ElementInfo, Search, GroupboxMatches) and ElementInfo.Visible then
                     Visible = true
                 else
                     ElementInfo.Base.Visible = false
                 end
-                if ElementInfo.SubButton.Text:lower():find(Search, 1, true) and ElementInfo.SubButton.Visible then
+                if MatchesSearch(ElementInfo.SubButton, Search, GroupboxMatches) and ElementInfo.SubButton.Visible then
                     Visible = true
                 else
                     ElementInfo.SubButton.Base.Visible = false
@@ -862,7 +980,7 @@ local function ApplySearchToTab(Tab, Search)
             end
 
             --// Check if Search matches Element's Name and if Element is Visible
-            if ElementInfo.Text and ElementInfo.Text:lower():find(Search, 1, true) and ElementInfo.Visible then
+            if ElementInfo.Text and MatchesSearch(ElementInfo, Search, GroupboxMatches) and ElementInfo.Visible then
                 ElementInfo.Holder.Visible = true
                 VisibleElements += 1
             else
@@ -875,7 +993,7 @@ local function ApplySearchToTab(Tab, Search)
                 continue
             end
 
-            VisibleElements += CheckDepbox(Depbox, Search)
+            VisibleElements += CheckDepbox(Depbox, Search, GroupboxMatches)
         end
 
         --// Update Groupbox Size and Visibility if found any element
@@ -893,6 +1011,10 @@ local function ApplySearchToTab(Tab, Search)
         for _, SubTab in Tabbox.Tabs do
             VisibleElements[SubTab] = 0
 
+            --// Optional: matching a Tabbox sub-tab's own name reveals every
+            --// element inside it, without needing each one to match too
+            local SubTabMatches = TabMatches or TryFuzzyMatch(SubTab.Name, Search)
+
             for _, ElementInfo in SubTab.Elements do
                 if ElementInfo.Type == "Divider" then
                     ElementInfo.Holder.Visible = false
@@ -902,12 +1024,12 @@ local function ApplySearchToTab(Tab, Search)
                     local Visible = false
 
                     --// Check if Search matches Element's Name and if Element is Visible
-                    if ElementInfo.Text:lower():find(Search, 1, true) and ElementInfo.Visible then
+                    if MatchesSearch(ElementInfo, Search, SubTabMatches) and ElementInfo.Visible then
                         Visible = true
                     else
                         ElementInfo.Base.Visible = false
                     end
-                    if ElementInfo.SubButton.Text:lower():find(Search, 1, true) and ElementInfo.SubButton.Visible then
+                    if MatchesSearch(ElementInfo.SubButton, Search, SubTabMatches) and ElementInfo.SubButton.Visible then
                         Visible = true
                     else
                         ElementInfo.SubButton.Base.Visible = false
@@ -921,7 +1043,7 @@ local function ApplySearchToTab(Tab, Search)
                 end
 
                 --// Check if Search matches Element's Name and if Element is Visible
-                if ElementInfo.Text and ElementInfo.Text:lower():find(Search, 1, true) and ElementInfo.Visible then
+                if ElementInfo.Text and MatchesSearch(ElementInfo, Search, SubTabMatches) and ElementInfo.Visible then
                     ElementInfo.Holder.Visible = true
                     VisibleElements[SubTab] += 1
                 else
@@ -934,7 +1056,7 @@ local function ApplySearchToTab(Tab, Search)
                     continue
                 end
 
-                VisibleElements[SubTab] += CheckDepbox(Depbox, Search)
+                VisibleElements[SubTab] += CheckDepbox(Depbox, Search, SubTabMatches)
             end
         end
 
@@ -1033,7 +1155,7 @@ function Library:UpdateSearch(SearchText)
         ResetTab(Tab)
     end
 
-    local Search = SearchText:lower()
+    local Search = NormalizeSearch(SearchText:lower())
     if Trim(Search) == "" then
         Library.Searching = false
         Library.LastSearchTab = nil
@@ -6974,6 +7096,11 @@ do
             local DisabledValues = Dropdown.DisabledValues
             local IsDictionary = not IsSequentialArray(Values)
 
+            --// Fuzzy-match dropdown values the same way the sidebar search
+            --// does, so e.g. "clr" can find "Clear Inventory" in a list \\--
+            local SearchQuery = SearchBox and NormalizeSearch(SearchBox.Text:lower()) or ""
+            local IsSearching = SearchQuery ~= ""
+
             local EnabledList, DisabledList = {}, {}
             local Pending = {}
 
@@ -6981,8 +7108,14 @@ do
                 local Value = IsDictionary and Key or RawValue
 
                 local FormattedValue = tostring(Info.FormatListValue and Info.FormatListValue(RawValue) or RawValue)
-                if SearchBox and not FormattedValue:lower():find(SearchBox.Text:lower(), 1, true) then
-                    continue
+
+                local MatchScore = 0
+                if IsSearching then
+                    local Matched, Score = FuzzyScore(FormattedValue:lower(), SearchQuery)
+                    if not Matched then
+                        continue
+                    end
+                    MatchScore = Score
                 end
 
                 local IsDisabled = table.find(DisabledValues, Value) ~= nil
@@ -6995,12 +7128,23 @@ do
                     IsDisabled = IsDisabled,
                     ValueImage = GetValueImage(Value, RawValue),
                     SortKey = Key,
+                    MatchScore = MatchScore,
+                    Order = #Pending + 1,
                 }
 
                 table.insert(Pending, Entry)
             end
 
-            if not IsDictionary then
+            if IsSearching then
+                --// Best matches first, VSCode-style; ties fall back to the
+                --// original ordering \\--
+                table.sort(Pending, function(A, B)
+                    if A.MatchScore ~= B.MatchScore then
+                        return A.MatchScore > B.MatchScore
+                    end
+                    return A.Order < B.Order
+                end)
+            elseif not IsDictionary then
                 table.sort(Pending, function(A, B)
                     return A.SortKey < B.SortKey
                 end)
@@ -10051,6 +10195,7 @@ function Library:CreateWindow(WindowInfo)
 
         --// Tab Table \\--
         local Tab = {
+            Name = Name,
             Description = Description,
 
             Connections = {},
@@ -10356,6 +10501,8 @@ function Library:CreateWindow(WindowInfo)
                 })
 
                 local Tab = {
+                    Name = Name,
+
                     Connections = {},
                     Destroyed = false,
 
@@ -10683,6 +10830,9 @@ function Library:CreateWindow(WindowInfo)
 
             local Groupbox = {
                 Type = "Groupbox",
+
+                Name = Info.Name,
+                Description = Info.Description,
 
                 Connections = {},
                 Destroyed = false,
