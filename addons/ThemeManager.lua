@@ -31,6 +31,10 @@ end
 
 --// Theme Manager
 local SchemeIndexes = { "FontColor", "MainColor", "AccentColor", "BackgroundColor", "OutlineColor" }
+
+--// Accessibility: minimum WCAG AA contrast ratio for normal text
+local CONTRAST_WARN_THRESHOLD = 4.5
+
 local ThemeManager = {
     Library = nil,
 
@@ -38,6 +42,10 @@ local ThemeManager = {
 
     AppliedToTab = false,
     DefaultThemeName = nil,
+
+    --// Accessibility: contrast warning state
+    ContrastLabel = nil,
+    ContrastWasPoor = false,
 
     BuiltInThemes = {
         ["Default"] = {
@@ -134,6 +142,33 @@ local function IsValidFolderPath(Name: string): boolean
         not Name:match("^%s*$") and 
         not Name:find('[<>:"|%?%*%z]')
     )
+end
+
+--// Contrast helpers \\--
+local function LinearizeChannel(Channel: number): number
+    if Channel <= 0.03928 then
+        return Channel / 12.92
+    end
+
+    return ((Channel + 0.055) / 1.055) ^ 2.4
+end
+
+local function GetRelativeLuminance(Color: Color3): number
+    local R = LinearizeChannel(Color.R)
+    local G = LinearizeChannel(Color.G)
+    local B = LinearizeChannel(Color.B)
+
+    return 0.2126 * R + 0.7152 * G + 0.0722 * B
+end
+
+local function GetContrastRatio(ColorA: Color3, ColorB: Color3): number
+    local LuminanceA = GetRelativeLuminance(ColorA)
+    local LuminanceB = GetRelativeLuminance(ColorB)
+
+    local Lighter = math.max(LuminanceA, LuminanceB)
+    local Darker = math.min(LuminanceA, LuminanceB)
+
+    return (Lighter + 0.05) / (Darker + 0.05)
 end
 
 --// Folder helper \\--
@@ -484,6 +519,82 @@ function ThemeManager:DeleteDefaultTheme(): (boolean, string?)
     return true
 end
 
+--// Accessibility: contrast checking \\--
+function ThemeManager:GetContrastReport(): { Ratio: number, PairName: string, Passes: boolean }
+    local Library = ThemeManager.Library
+    local FontColorOption = Library.Options.FontColor
+    local BackgroundColorOption = Library.Options.BackgroundColor
+    local MainColorOption = Library.Options.MainColor
+
+    if not (FontColorOption and BackgroundColorOption and MainColorOption) then
+        return { Ratio = math.huge, PairName = "", Passes = true }
+    end
+
+    local FontColor = FontColorOption.Value
+    local Surfaces = {
+        { Name = "font color vs. background color", Color = BackgroundColorOption.Value },
+        { Name = "font color vs. main color", Color = MainColorOption.Value },
+    }
+
+    local WorstRatio, WorstName = math.huge, ""
+    for _, Surface in Surfaces do
+        local Ratio = GetContrastRatio(FontColor, Surface.Color)
+        if Ratio < WorstRatio then
+            WorstRatio = Ratio
+            WorstName = Surface.Name
+        end
+    end
+
+    return {
+        Ratio = WorstRatio,
+        PairName = WorstName,
+        Passes = WorstRatio >= CONTRAST_WARN_THRESHOLD,
+    }
+end
+
+function ThemeManager:UpdateContrastWarning()
+    local ContrastLabel = ThemeManager.ContrastLabel
+    if not ContrastLabel or ContrastLabel.Destroyed then
+        return
+    end
+
+    local Library = ThemeManager.Library
+    local Report = ThemeManager:GetContrastReport()
+    local TextLabel = ContrastLabel.TextLabel
+
+    if not Library.Registry[TextLabel] then
+        Library:AddToRegistry(TextLabel, {})
+    end
+
+    if Report.Passes then
+        ContrastLabel:SetText(string.format("Contrast check: good (%.1f:1)", Report.Ratio))
+
+        TextLabel.TextColor3 = Library.Scheme.FontColor
+        Library.Registry[TextLabel].TextColor3 = "FontColor"
+    else
+        ContrastLabel:SetText(string.format(
+            "Low contrast (%.1f:1) between %s. Aim for at least %.1f:1 so text stays readable.",
+            Report.Ratio, Report.PairName, CONTRAST_WARN_THRESHOLD
+        ))
+
+        TextLabel.TextColor3 = Library.Scheme.RedColor
+        Library.Registry[TextLabel].TextColor3 = "RedColor"
+
+        if not ThemeManager.ContrastWasPoor then
+            Library:Notify({
+                Title = "Low contrast theme",
+                Description = string.format(
+                    "Your %s has a contrast ratio of %.1f:1, below the recommended %.1f:1. Text may be hard to read.",
+                    Report.PairName, Report.Ratio, CONTRAST_WARN_THRESHOLD
+                ),
+                Time = 6,
+            })
+        end
+    end
+
+    ThemeManager.ContrastWasPoor = not Report.Passes
+end
+
 --// Apply Theme \\--
 function ThemeManager:ThemeUpdate()
     local Library = ThemeManager.Library
@@ -496,6 +607,7 @@ function ThemeManager:ThemeUpdate()
     end
 
     Library:UpdateColorsUsingRegistry()
+    ThemeManager:UpdateContrastWarning()
 end
 
 function ThemeManager:ApplyTheme(ThemeName: string)
@@ -625,7 +737,13 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
     local AccentColor = CreateColorOption("Accent color", "AccentColor")
     local OutlineColor = CreateColorOption("Outline color", "OutlineColor")
     local FontColor = CreateColorOption("Font color", "FontColor")
-    
+
+    --// Accessibility: live contrast readout for the colors above
+    ThemeManager.ContrastLabel = Themesbox:AddLabel({
+        Text = "Contrast check: n/a",
+        DoesWrap = true,
+    })
+
     Themesbox:AddDropdown("FontFace", {
         Text = "Font Face",
         Default = "Code",
@@ -683,6 +801,41 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
         Text = "Custom theme name" 
     })
 
+    local function SaveThemeWithContrastCheck(Name: string, SuccessMessage: string, OnSaved: (() -> nil)?)
+        local function DoSave()
+            local Success, ErrorMessage = ThemeManager:SaveCustomTheme(Name)
+            if not Success then
+                ThemeManager.Library:Notify(string.format("Failed to save theme %q: %s", Name, ErrorMessage))
+                return
+            end
+
+            ThemeManager.Library:Notify(string.format(SuccessMessage, Name))
+            if OnSaved then OnSaved() end
+        end
+
+        local Report = ThemeManager:GetContrastReport()
+        if Report.Passes then
+            DoSave()
+            return
+        end
+
+        ShowDialog(
+            function(): boolean
+                return true
+            end,
+
+            "ThemeManager_LowContrastSave",
+            "Low contrast theme",
+            string.format(
+                "This theme has a contrast ratio of %.1f:1 between %s, below the recommended %.1f:1. Text may be hard to read. Save anyway?",
+                Report.Ratio, Report.PairName, CONTRAST_WARN_THRESHOLD
+            ),
+
+            "Save Anyway",
+            DoSave
+        )
+    end
+
     Themesbox:AddButton("Create theme", function()
         local Name = CustomThemeName.Value
         if IsStringEmpty(Name) then
@@ -706,14 +859,7 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
 
             "Overwrite",
             function()
-                local Success, ErrorMessage = ThemeManager:SaveCustomTheme(Name)
-                if not Success then
-                    ThemeManager.Library:Notify(string.format("Failed to create theme %q: %s", Name, ErrorMessage))
-                    return
-                end
-
-                ThemeManager.Library:Notify(string.format("Successfully created theme %q", Name))
-                RefreshList()
+                SaveThemeWithContrastCheck(Name, "Successfully created theme %q", RefreshList)
             end
         )
     end)
@@ -772,8 +918,7 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
 
             "Overwrite",
             function()
-                ThemeManager:SaveCustomTheme(Name)
-                ThemeManager.Library:Notify(string.format("Successfully overwrote theme %q", Name))
+                SaveThemeWithContrastCheck(Name, "Successfully overwrote theme %q")
             end
         )
     end)
@@ -875,6 +1020,7 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
 
     --// Load default
     ThemeManager:LoadDefault()
+    ThemeManager:UpdateContrastWarning()
     ThemeManager.AppliedToTab = true
     RefreshDefaultThemeLabel()
 
