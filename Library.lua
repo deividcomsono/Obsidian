@@ -368,7 +368,7 @@ local Templates = {
         AlwaysOnTop = false,
 
         --// Window Snapping \\--
-        Snapping = true,
+        Snapping = false,
         SnapDistance = 28,
         SnapMargin = 8,
         SnapAvoidCoreGui = true,
@@ -1693,6 +1693,9 @@ function Library:MakeDraggable(
                 ZIndex = 10000,
                 Parent = ScreenGui,
             })
+        end
+
+        if not SnapGuideY then
             SnapGuideY = New("Frame", {
                 BackgroundColor3 = "AccentColor",
                 BackgroundTransparency = 0.25,
@@ -1764,8 +1767,7 @@ function Library:MakeDraggable(
             local NewY = FramePos.Y.Offset + Delta.Y
 
             if SnapConfig and SnapConfig.Enabled then
-                local ViewportSize = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize
-                    or Vector2.new(1920, 1080)
+                local ViewportSize = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
                 local Distance = SnapConfig.Distance or 28
                 local Margin = SnapConfig.Margin or 8
 
@@ -9355,7 +9357,12 @@ function Library:CreateWindow(WindowInfo)
     local BottomBackground
     local FooterLabel
     local TopBar
-    local WindowSnapConfig
+    local WindowSnapConfig = {
+        Enabled = WindowInfo.Snapping,
+        Distance = WindowInfo.SnapDistance,
+        Margin = WindowInfo.SnapMargin,
+        AvoidCoreGui = WindowInfo.SnapAvoidCoreGui,
+    }
 
     local InitialLeftWidth = math.ceil(WindowInfo.Size.X.Offset * 0.3)
     local IsCompact = WindowInfo.SidebarCompacted
@@ -9438,12 +9445,6 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.new(1, 0, 0, 48),
             Parent = MainFrame,
         })
-        WindowSnapConfig = {
-            Enabled = WindowInfo.Snapping,
-            Distance = WindowInfo.SnapDistance,
-            Margin = WindowInfo.SnapMargin,
-            AvoidCoreGui = WindowInfo.SnapAvoidCoreGui,
-        }
         Library:MakeDraggable(MainFrame, TopBar, false, true, WindowSnapConfig)
 
         --// Title \\--
