@@ -712,8 +712,6 @@ local function Round(Value, Rounding)
 end
 
 --// Fuzzy Search \\--
--- VSCode-style fuzzy matcher for the sidebar/tab search box and dropdown
--- filters.
 local function FuzzyScore(Text: string, Search: string): (boolean, number)
     if Search == "" then
         return true, 0
@@ -946,9 +944,7 @@ local function ApplySearchToTab(Tab, Search)
 
         --// Optional: matching the Groupbox's own name/description reveals
         --// every element inside it, without needing each one to match too
-        local GroupboxMatches = TabMatches
-            or TryFuzzyMatch(Groupbox.Name, Search)
-            or TryFuzzyMatch(Groupbox.Description, Search)
+        local GroupboxMatches = TabMatches or (TryFuzzyMatch(Groupbox.Name, Search) or TryFuzzyMatch(Groupbox.Description, Search))
 
         local VisibleElements = 0
         for _, ElementInfo in Groupbox.Elements do
@@ -7136,8 +7132,7 @@ do
             end
 
             if IsSearching then
-                --// Best matches first, VSCode-style; ties fall back to the
-                --// original ordering \\--
+                --// Best matches first; ties fall back to original order \\--
                 table.sort(Pending, function(A, B)
                     if A.MatchScore ~= B.MatchScore then
                         return A.MatchScore > B.MatchScore
