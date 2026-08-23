@@ -9137,8 +9137,21 @@ function Library:Notify(...)
         end
     end
 
-    function Data:Destroy()
+    function Data:Destroy(Reason: string?) -- Reason: "auto" | "manual" | "programmatic"
+        if Data.Destroyed then
+            return
+        end
         Data.Destroyed = true
+        Reason = Reason or "programmatic"
+
+        if Data.Callback then
+            local IsManual = Reason == "manual"
+
+            local ShouldFireCallback = IsManual ~= (Data.CallbackOnAutoDismiss == true)
+            if ShouldFireCallback then
+                Library:SafeCallback(Data.Callback, Data, Reason)
+            end
+        end
 
         if typeof(Data.Time) == "Instance" then
             pcall(Data.Time.Destroy, Data.Time)
