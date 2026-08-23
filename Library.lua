@@ -8805,11 +8805,12 @@ function Library:SetNotifySide(Side: string)
         NotificationArea.Position = UDim2.new(1, -6, 0, 6)
     end
 
-    for FakeBackground, NotifyData in Library.Notifications do
+    for FakeBackground in Library.Notifications do
         if not (FakeBackground and FakeBackground.Parent) then continue end
         FakeBackground.AnchorPoint = if IsLeft then Vector2.new(0, 0) else Vector2.new(1, 0)
 
-        if NotifyData.RefreshPriorityIndicator then
+        local NotifyData = Library.Notifications[FakeBackground]
+        if NotifyData and NotifyData.RefreshPriorityIndicator then
             NotifyData:RefreshPriorityIndicator()
         end
     end
