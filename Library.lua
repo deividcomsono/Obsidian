@@ -12187,17 +12187,6 @@ function Library:CreateWindow(WindowInfo)
             return
         end
 
-        if
-            Input.KeyCode == Enum.KeyCode.K
-            and Library.Toggled
-            and SearchBox
-            and SearchBox.Visible
-            and (UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.RightControl))
-        then
-            SearchBox:CaptureFocus()
-            return
-        end
-
         if UserInputService:GetFocusedTextBox() then
             return
         end
