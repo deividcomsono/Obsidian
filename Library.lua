@@ -8805,12 +8805,11 @@ function Library:SetNotifySide(Side: string)
         NotificationArea.Position = UDim2.new(1, -6, 0, 6)
     end
 
-    for FakeBackground in Library.Notifications do
+    for FakeBackground, NotifyData in Library.Notifications do
         if not (FakeBackground and FakeBackground.Parent) then continue end
         FakeBackground.AnchorPoint = if IsLeft then Vector2.new(0, 0) else Vector2.new(1, 0)
 
-        local NotifyData = Library.Notifications[FakeBackground]
-        if NotifyData and NotifyData.RefreshPriorityIndicator then
+        if NotifyData.RefreshPriorityIndicator then
             NotifyData:RefreshPriorityIndicator()
         end
     end
@@ -8888,6 +8887,24 @@ function Library:Notify(...)
     )
     Library:AddOutline(Holder)
 
+    local Inner = New("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 0),
+        Parent = Holder,
+    })
+    New("UIListLayout", {
+        Padding = UDim.new(0, 4),
+        Parent = Inner,
+    })
+    New("UIPadding", {
+        PaddingBottom = UDim.new(0, 8),
+        PaddingLeft = UDim.new(0, 8),
+        PaddingRight = UDim.new(0, 8),
+        PaddingTop = UDim.new(0, 8),
+        Parent = Inner,
+    })
+
     local PriorityIndicator: Frame?
     local PriorityIndicatorConnection: RBXScriptConnection?
 
@@ -8938,29 +8955,11 @@ function Library:Notify(...)
     end
     UpdatePriorityIndicator()
 
-    local ContentHolder = New("Frame", {
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1,
-        Size = UDim2.fromScale(1, 0),
-        Parent = Holder,
-    })
-    New("UIListLayout", {
-        Padding = UDim.new(0, 4),
-        Parent = ContentHolder,
-    })
-    New("UIPadding", {
-        PaddingBottom = UDim.new(0, 8),
-        PaddingLeft = UDim.new(0, 8),
-        PaddingRight = UDim.new(0, 8),
-        PaddingTop = UDim.new(0, 8),
-        Parent = ContentHolder,
-    })
-
     local ContentContainer = New("Frame", {
         BackgroundTransparency = 1,
         AutomaticSize = Enum.AutomaticSize.XY,
         Size = UDim2.fromScale(1, 0),
-        Parent = ContentHolder,
+        Parent = Inner,
     })
 
     if Data.BigIcon then
@@ -9137,21 +9136,8 @@ function Library:Notify(...)
         end
     end
 
-    function Data:Destroy(Reason: string?) -- Reason: "auto" | "manual" | "programmatic"
-        if Data.Destroyed then
-            return
-        end
+    function Data:Destroy()
         Data.Destroyed = true
-        Reason = Reason or "programmatic"
-
-        if Data.Callback then
-            local IsManual = Reason == "manual"
-
-            local ShouldFireCallback = IsManual ~= (Data.CallbackOnAutoDismiss == true)
-            if ShouldFireCallback then
-                Library:SafeCallback(Data.Callback, Data, Reason)
-            end
-        end
 
         if typeof(Data.Time) == "Instance" then
             pcall(Data.Time.Destroy, Data.Time)
@@ -9193,7 +9179,7 @@ function Library:Notify(...)
         BackgroundTransparency = 1,
         Size = UDim2.new(1, 0, 0, 7),
         Visible = (Data.Persist ~= true and typeof(Data.Time) ~= "Instance") or typeof(Data.Steps) == "number",
-        Parent = ContentHolder,
+        Parent = Inner,
     })
     local TimerBar = New("Frame", {
         BackgroundColor3 = "BackgroundColor",
