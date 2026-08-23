@@ -196,6 +196,15 @@ local Library = {
     NotifySide = "Right",
     NotifyTweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 
+    NotifyPriority = {
+        Urgent = 0,
+        Normal = 1,
+        Low = 2,
+    },
+    NotifyPriorityColors = {
+        [0] = "RedColor",
+    },
+
     --// Dialogues \\--
     Dialogues = {},
     ActiveDialog = nil,
@@ -8736,6 +8745,30 @@ function Library:SetBackgroundImage(Image: string | number)
     Library:UpdateColorsUsingRegistry()
 end
 
+local function GetNotifyPriority(Data): number
+    return Data.Priority or Library.NotifyPriority.Normal
+end
+
+local function InsertNotifyOrdered(FakeBackground: Frame, Data)
+    if Data.Priority == nil then
+        Data.Priority = Library.NotifyPriority.Normal
+    end
+    if Data.SentAt == nil then
+        Data.SentAt = os.clock()
+    end
+
+    local InsertAt = #NotifyOrder + 1
+    for Index, ExistingBackground in NotifyOrder do
+        local ExistingData = Library.Notifications[ExistingBackground]
+        if ExistingData and GetNotifyPriority(ExistingData) > Data.Priority then
+            InsertAt = Index
+            break
+        end
+    end
+
+    table.insert(NotifyOrder, InsertAt, FakeBackground)
+end
+
 function Library:UpdateNotificationPositions(Snap: boolean?)
     local IsLeft = Library.NotifySide:lower() == "left"
     local XScale = IsLeft and 0 or 1
@@ -8772,9 +8805,13 @@ function Library:SetNotifySide(Side: string)
         NotificationArea.Position = UDim2.new(1, -6, 0, 6)
     end
 
-    for FakeBackground in Library.Notifications do
+    for FakeBackground, NotifyData in Library.Notifications do
         if not (FakeBackground and FakeBackground.Parent) then continue end
         FakeBackground.AnchorPoint = if IsLeft then Vector2.new(0, 0) else Vector2.new(1, 0)
+
+        if NotifyData.RefreshPriorityIndicator then
+            NotifyData:RefreshPriorityIndicator()
+        end
     end
 
     if Library.UpdateNotificationPositions then
@@ -8803,11 +8840,13 @@ function Library:Notify(...)
         Data.IconColor = Info.IconColor
 
         Data.Volume = tonumber(Info.Volume) or 3
+        Data.Priority = tonumber(Info.Priority) or Library.NotifyPriority.Normal
     else
         Data.Description = tostring(Info)
         Data.Time = select(2, ...) or 5
         Data.SoundId = select(3, ...)
         Data.Volume = select(4, ...) or 3
+        Data.Priority = Library.NotifyPriority.Normal
     end
     Data.Destroyed = false
 
@@ -8846,24 +8885,81 @@ function Library:Notify(...)
             Parent = Holder,
         })
     )
+    Library:AddOutline(Holder)
+
+    local Inner = New("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 0),
+        Parent = Holder,
+    })
     New("UIListLayout", {
         Padding = UDim.new(0, 4),
-        Parent = Holder,
+        Parent = Inner,
     })
     New("UIPadding", {
         PaddingBottom = UDim.new(0, 8),
         PaddingLeft = UDim.new(0, 8),
         PaddingRight = UDim.new(0, 8),
         PaddingTop = UDim.new(0, 8),
-        Parent = Holder,
+        Parent = Inner,
     })
-    Library:AddOutline(Holder)
+
+    local PriorityIndicator: Frame?
+    local PriorityIndicatorConnection: RBXScriptConnection?
+
+    local IndicatorWidth = 8
+    local IndicatorGap = 6
+
+    local function SyncPriorityIndicatorSize()
+        if PriorityIndicator then
+            PriorityIndicator.Size = UDim2.fromOffset(IndicatorWidth, Holder.AbsoluteSize.Y)
+        end
+    end
+
+    local function UpdatePriorityIndicator()
+        if PriorityIndicatorConnection then
+            PriorityIndicatorConnection:Disconnect()
+            PriorityIndicatorConnection = nil
+        end
+        if PriorityIndicator then
+            PriorityIndicator:Destroy()
+            PriorityIndicator = nil
+        end
+
+        local Color = Library.NotifyPriorityColors[Data.Priority]
+        if Color then
+            local IsLeftSide = Library.NotifySide:lower() == "left"
+            local IndicatorPosition = IsLeftSide
+                and UDim2.new(1, IndicatorGap, 0, 0)
+                or UDim2.new(0, -(IndicatorGap + IndicatorWidth), 0, 0)
+
+            PriorityIndicator = New("Frame", {
+                AnchorPoint = Vector2.new(0, 0),
+                BackgroundColor3 = Color,
+                Position = IndicatorPosition,
+                Size = UDim2.fromOffset(IndicatorWidth, Holder.AbsoluteSize.Y),
+                Parent = Holder,
+            })
+            table.insert(
+                Library.Corners,
+                New("UICorner", {
+                    CornerRadius = UDim.new(0, Library.CornerRadius),
+                    Parent = PriorityIndicator,
+                })
+            )
+            Library:AddOutline(PriorityIndicator)
+
+            PriorityIndicatorConnection = Holder:GetPropertyChangedSignal("AbsoluteSize"):Connect(SyncPriorityIndicatorSize)
+        end
+    end
+    UpdatePriorityIndicator()
 
     local ContentContainer = New("Frame", {
         BackgroundTransparency = 1,
         AutomaticSize = Enum.AutomaticSize.XY,
         Size = UDim2.fromScale(1, 0),
-        Parent = Holder,
+        Parent = Inner,
     })
 
     if Data.BigIcon then
@@ -9016,6 +9112,30 @@ function Library:Notify(...)
         end
     end
 
+    function Data:RefreshPriorityIndicator()
+        UpdatePriorityIndicator()
+    end
+
+    function Data:SetPriority(NewPriority: number)
+        NewPriority = tonumber(NewPriority) or Library.NotifyPriority.Normal
+        if NewPriority == Data.Priority then
+            return
+        end
+
+        Data.Priority = NewPriority
+        UpdatePriorityIndicator()
+
+        if Library.Notifications[FakeBackground] then
+            local Idx = table.find(NotifyOrder, FakeBackground)
+            if Idx then
+                table.remove(NotifyOrder, Idx)
+            end
+
+            InsertNotifyOrdered(FakeBackground, Data)
+            Library:UpdateNotificationPositions()
+        end
+    end
+
     function Data:Destroy()
         Data.Destroyed = true
 
@@ -9025,6 +9145,11 @@ function Library:Notify(...)
 
         if DeleteConnection then
             DeleteConnection:Disconnect()
+        end
+
+        if PriorityIndicatorConnection then
+            PriorityIndicatorConnection:Disconnect()
+            PriorityIndicatorConnection = nil
         end
 
         if FakeBackground then
@@ -9054,7 +9179,7 @@ function Library:Notify(...)
         BackgroundTransparency = 1,
         Size = UDim2.new(1, 0, 0, 7),
         Visible = (Data.Persist ~= true and typeof(Data.Time) ~= "Instance") or typeof(Data.Steps) == "number",
-        Parent = Holder,
+        Parent = Inner,
     })
     local TimerBar = New("Frame", {
         BackgroundColor3 = "BackgroundColor",
@@ -9089,7 +9214,7 @@ function Library:Notify(...)
 
     Data.Holder = Holder
 
-    table.insert(NotifyOrder, FakeBackground)
+    InsertNotifyOrdered(FakeBackground, Data)
     Library.Notifications[FakeBackground] = Data
 
     Library:UpdateNotificationPositions()
