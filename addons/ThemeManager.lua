@@ -31,9 +31,7 @@ end
 
 --// Theme Manager
 local SchemeIndexes = { "FontColor", "MainColor", "AccentColor", "BackgroundColor", "OutlineColor" }
-
---// Accessibility: minimum WCAG AA contrast ratio for normal text
-local CONTRAST_WARN_THRESHOLD = 4.5
+local ContrastWarnThreshold = 4.5 --// Accessibility: minimum WCAG AA contrast ratio for normal text
 
 local ThemeManager = {
     Library = nil,
@@ -145,12 +143,23 @@ local function IsValidFolderPath(Name: string): boolean
 end
 
 --// Contrast helpers \\--
+--// WCAG 2.x relative luminance / contrast constants (https://www.w3.org/TR/WCAG21/#dfn-relative-luminance)
+local SrgbLinearThreshold = 0.03928 --// sRGB channel value below which the linear conversion is a simple divide
+local SrgbLinearDivisor = 12.92 --// Divisor used for channel values below SrgbLinearThreshold
+local SrgbGammaOffset = 0.055 --// Offset applied before the gamma expansion power curve
+local SrgbGammaScale = 1.055 --// Scale applied before the gamma expansion power curve
+local SrgbGammaExponent = 2.4 --// Exponent for the gamma expansion power curve
+local LuminanceRedWeight = 0.2126 --// Red channel weight in the relative luminance formula
+local LuminanceGreenWeight = 0.7152 --// Green channel weight in the relative luminance formula
+local LuminanceBlueWeight = 0.0722 --// Blue channel weight in the relative luminance formula
+local ContrastRatioOffset = 0.05 --// Offset added to both luminances when computing a contrast ratio
+
 local function LinearizeChannel(Channel: number): number
-    if Channel <= 0.03928 then
-        return Channel / 12.92
+    if Channel <= SrgbLinearThreshold then
+        return Channel / SrgbLinearDivisor
     end
 
-    return ((Channel + 0.055) / 1.055) ^ 2.4
+    return ((Channel + SrgbGammaOffset) / SrgbGammaScale) ^ SrgbGammaExponent
 end
 
 local function GetRelativeLuminance(Color: Color3): number
@@ -158,7 +167,7 @@ local function GetRelativeLuminance(Color: Color3): number
     local G = LinearizeChannel(Color.G)
     local B = LinearizeChannel(Color.B)
 
-    return 0.2126 * R + 0.7152 * G + 0.0722 * B
+    return LuminanceRedWeight * R + LuminanceGreenWeight * G + LuminanceBlueWeight * B
 end
 
 local function GetContrastRatio(ColorA: Color3, ColorB: Color3): number
@@ -168,7 +177,9 @@ local function GetContrastRatio(ColorA: Color3, ColorB: Color3): number
     local Lighter = math.max(LuminanceA, LuminanceB)
     local Darker = math.min(LuminanceA, LuminanceB)
 
-    return (Lighter + 0.05) / (Darker + 0.05)
+    return (Lighter + ContrastRatioOffset) / (Darker + ContrastRatioOffset)
+end
+
 local function IsValidThemeData(Data: any): boolean
     if typeof(Data) ~= "table" then
         return false
@@ -566,7 +577,7 @@ function ThemeManager:GetContrastReport(): { Ratio: number, PairName: string, Pa
     return {
         Ratio = WorstRatio,
         PairName = WorstName,
-        Passes = WorstRatio >= CONTRAST_WARN_THRESHOLD,
+        Passes = WorstRatio >= ContrastWarnThreshold,
     }
 end
 
@@ -592,7 +603,7 @@ function ThemeManager:UpdateContrastWarning()
     else
         ContrastLabel:SetText(string.format(
             "Low contrast (%.1f:1) between %s. Aim for at least %.1f:1 so text stays readable.",
-            Report.Ratio, Report.PairName, CONTRAST_WARN_THRESHOLD
+            Report.Ratio, Report.PairName, ContrastWarnThreshold
         ))
 
         TextLabel.TextColor3 = Library.Scheme.RedColor
@@ -603,7 +614,7 @@ function ThemeManager:UpdateContrastWarning()
                 Title = "Low contrast theme",
                 Description = string.format(
                     "Your %s has a contrast ratio of %.1f:1, below the recommended %.1f:1. Text may be hard to read.",
-                    Report.PairName, Report.Ratio, CONTRAST_WARN_THRESHOLD
+                    Report.PairName, Report.Ratio, ContrastWarnThreshold
                 ),
                 Time = 10,
             })
@@ -888,7 +899,7 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
             "Low contrast theme",
             string.format(
                 "This theme has a contrast ratio of %.1f:1 between %s, below the recommended %.1f:1. Text may be hard to read. Save anyway?",
-                Report.Ratio, Report.PairName, CONTRAST_WARN_THRESHOLD
+                Report.Ratio, Report.PairName, ContrastWarnThreshold
             ),
 
             "Save Anyway",
