@@ -587,7 +587,7 @@ function ThemeManager:UpdateContrastWarning()
                     "Your %s has a contrast ratio of %.1f:1, below the recommended %.1f:1. Text may be hard to read.",
                     Report.PairName, Report.Ratio, CONTRAST_WARN_THRESHOLD
                 ),
-                Time = 6,
+                Time = 10,
             })
         end
     end
