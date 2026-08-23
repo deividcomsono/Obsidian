@@ -9086,11 +9086,6 @@ function Library:Notify(...)
             DeleteConnection:Disconnect()
         end
 
-        if PriorityIndicatorConnection then
-            PriorityIndicatorConnection:Disconnect()
-            PriorityIndicatorConnection = nil
-        end
-
         if FakeBackground then
             local Idx = table.find(NotifyOrder, FakeBackground)
             if Idx then
