@@ -1605,9 +1605,6 @@ function PositionDraggable(UI: GuiObject, StartPos: UDim2?)
 end
 
 --// Window Snapping \\--
--- Reads Roblox's own topbar inset (menu, chat toggle, player list, backpack, etc.) so window
--- snapping can avoid sitting underneath or behind Roblox's interface. GuiService:GetGuiInset()
--- is the same inset ScreenGuis with IgnoreGuiInset = false already respect.
 local function GetCoreGuiInset(): (Vector2, Vector2)
     local Success, TopLeft, BottomRight = pcall(function()
         return GuiService:GetGuiInset()
@@ -1620,10 +1617,6 @@ local function GetCoreGuiInset(): (Vector2, Vector2)
     return Vector2.zero, Vector2.zero
 end
 
--- Computes the magnetic X/Y targets (screen Edges + Center) an element can snap to, keyed by name
--- so callers can tell exactly which Edge (or Center) matched. When AvoidCoreGui is true, the
--- "safe area" used for these targets excludes whatever space Roblox's own topbar currently
--- occupies, so Edges/Center land below and around it instead of underneath it.
 local function GetSnapEdges(ElemSize: Vector2, ViewportSize: Vector2, Margin: number, AvoidCoreGui: boolean)
     local SafeMin, SafeMax = Vector2.zero, ViewportSize
 
@@ -1647,7 +1640,6 @@ local function GetSnapEdges(ElemSize: Vector2, ViewportSize: Vector2, Margin: nu
     return TargetsX, TargetsY
 end
 
--- Finds the closest named target within Distance on a single axis, or nil if nothing is close enough.
 local function GetClosestSnapTarget(Value: number, Targets: { [string]: number }, Distance: number): (number?, string?)
     local ClosestName, ClosestValue, ClosestDist = nil, nil, Distance
 
@@ -1663,9 +1655,6 @@ local function GetClosestSnapTarget(Value: number, Targets: { [string]: number }
     return ClosestValue, ClosestName
 end
 
--- Converts a snapped axis value into the screen-space coordinate the guide line should be drawn
--- at, so it sits flush with the screen Edge (or through the true Center) rather than through the
--- middle of the dragged element.
 local function GetSnapGuideOffset(Name: string, SnappedValue: number, ElemDimension: number): number
     if Name == "RightEdge" or Name == "BottomEdge" then
         return SnappedValue + ElemDimension
@@ -1780,8 +1769,6 @@ function Library:MakeDraggable(
                 local Distance = SnapConfig.Distance or 28
                 local Margin = SnapConfig.Margin or 8
 
-                -- Resolve to absolute screen-space so Edges/Center line up regardless of the
-                -- element's current Scale anchor (e.g. a window that started Centered).
                 local AbsX = FramePos.X.Scale * ViewportSize.X + NewX
                 local AbsY = FramePos.Y.Scale * ViewportSize.Y + NewY
 
