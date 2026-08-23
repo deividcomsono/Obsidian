@@ -8801,9 +8801,6 @@ function Library:Notify(...)
 
         Data.Callback = typeof(Info.Callback) == "function" and Info.Callback or nil
         Data.Closable = Info.Closable == true or (Data.Persist == true and Data.Callback ~= nil)
-        Data.CallbackOnAutoDismiss = if Info.CallbackOnAutoDismiss ~= nil
-            then Info.CallbackOnAutoDismiss == true
-            else Data.Persist ~= true
 
         Data.Icon = Info.Icon
         Data.BigIcon = Info.BigIcon
@@ -9062,20 +9059,15 @@ function Library:Notify(...)
         end
     end
 
-    function Data:Destroy(Reason: string?) -- Reason: "auto" | "manual" | "programmatic"
+    function Data:Destroy(Reason: string?) -- Reason: "time" | "manual" | "code"
         if Data.Destroyed then
             return
         end
         Data.Destroyed = true
-        Reason = Reason or "programmatic"
+        Reason = Reason or "code"
 
         if Data.Callback then
-            local IsManual = Reason == "manual"
-
-            local ShouldFireCallback = IsManual ~= (Data.CallbackOnAutoDismiss == true)
-            if ShouldFireCallback then
-                Library:SafeCallback(Data.Callback, Data, Reason)
-            end
+            Library:SafeCallback(Data.Callback, Data, Reason)
         end
 
         if typeof(Data.Time) == "Instance" then
@@ -9175,7 +9167,7 @@ function Library:Notify(...)
         end
 
         if not Data.Destroyed then
-            Data:Destroy("auto")
+            Data:Destroy("time")
         end
     end)
 
