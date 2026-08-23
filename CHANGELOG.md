@@ -1,3 +1,10 @@
+## 23.08.2026
+
+```diff
+[features]
++ Import/Export Theme and Configuration JSON through the UI
+```
+
 ## 20.08.2026
 
 ```diff
