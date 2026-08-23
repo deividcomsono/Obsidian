@@ -2,7 +2,7 @@
 
 ```diff
 [features]
-+ Import/Export Theme and Configuration JSON imports through the UI
++ Import/Export Theme and Configuration JSON through the UI
 ```
 
 ## 20.08.2026
