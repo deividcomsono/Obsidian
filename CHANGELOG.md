@@ -1,3 +1,33 @@
+## 25.08.2026
+
+```diff
+[features]
++ Library:ApplyLucideIcon(ImageGui: ImageLabel | ImageButton, Icon: LucideIcon, Rotation: number?)
++ Groupbox/Tabbox pop-out into draggable element (enabled by default)
++ Tabbox and Groupbox :SetPoppedOut, :TogglePoppedOut
++ Fuzzy matching for sidebar and dropdown search
++ Window snapping to screen edges/center (Snapping, SnapAvoidCoreGui, SnapDistance, SnapMargin)
++ Window:SetSnapping(Enabled, Distance?, Margin?)
++ Automatic WCAG contrast checking for themes
+
+[changes]
++ Dropdown search results are sorted by best match
++ Matching a Tab/Groupbox name in search reveals all of its contents
++ ZIndex changed to Siblings mode
++ Increased the maximum width for Button KeyPickers
++ Escape dismisses open menus/dialogs and releases text input focus (without toggling the window)
++ AccentColor focus-border tween applied to all text inputs
++ Hover feedback on KeyBox Execute and KeyPicker key display buttons
+
+[fixes]
++ Fixed Tab:SetOrder()
++ Fixed Dropdown:SetValueImages()
++ Fixed KeyPicker sliding animation sometimes causing errors
++ Fixed Button KeyPickers not resizing properly to fit the text
++ Fixed mouse icon state not reverting properly
++ Fixed corner radiuses not properly changing with Dropdowns, KeyPickers, ColorPickers and certain Context Menus
+```
+
 ## 23.08.2026
 
 ```diff
