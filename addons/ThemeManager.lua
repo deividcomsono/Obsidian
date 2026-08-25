@@ -29,9 +29,20 @@ if isfolder_success == false or typeof(isfolder_error) ~= "boolean" then
     end
 end
 
+--// WCAG21 constants (https://www.w3.org/TR/WCAG21/#dfn-relative-luminance)
+local ContrastWarnThreshold = 4.5 --// Accessibility: minimum WCAG AA contrast ratio for normal text
+local SrgbLinearThreshold = 0.03928 --// sRGB channel value below which the linear conversion is a simple divide
+local SrgbLinearDivisor = 12.92 --// Divisor used for channel values below SrgbLinearThreshold
+local SrgbGammaOffset = 0.055 --// Offset applied before the gamma expansion power curve
+local SrgbGammaScale = 1.055 --// Scale applied before the gamma expansion power curve
+local SrgbGammaExponent = 2.4 --// Exponent for the gamma expansion power curve
+local LuminanceRedWeight,
+      LuminanceGreenWeight,
+      LuminanceBlueWeight = 0.2126, 0.7152, 0.0722 --// R, G, B channel weights in the relative luminance formula
+local ContrastRatioOffset = 0.05 --// Offset added to both luminances when computing a contrast ratio
+
 --// Theme Manager
 local SchemeIndexes = { "FontColor", "MainColor", "AccentColor", "BackgroundColor", "OutlineColor" }
-local ContrastWarnThreshold = 4.5 --// Accessibility: minimum WCAG AA contrast ratio for normal text
 
 local ThemeManager = {
     Library = nil,
@@ -143,17 +154,6 @@ local function IsValidFolderPath(Name: string): boolean
 end
 
 --// Contrast helpers \\--
---// WCAG 2.x relative luminance / contrast constants (https://www.w3.org/TR/WCAG21/#dfn-relative-luminance)
-local SrgbLinearThreshold = 0.03928 --// sRGB channel value below which the linear conversion is a simple divide
-local SrgbLinearDivisor = 12.92 --// Divisor used for channel values below SrgbLinearThreshold
-local SrgbGammaOffset = 0.055 --// Offset applied before the gamma expansion power curve
-local SrgbGammaScale = 1.055 --// Scale applied before the gamma expansion power curve
-local SrgbGammaExponent = 2.4 --// Exponent for the gamma expansion power curve
-local LuminanceRedWeight = 0.2126 --// Red channel weight in the relative luminance formula
-local LuminanceGreenWeight = 0.7152 --// Green channel weight in the relative luminance formula
-local LuminanceBlueWeight = 0.0722 --// Blue channel weight in the relative luminance formula
-local ContrastRatioOffset = 0.05 --// Offset added to both luminances when computing a contrast ratio
-
 local function LinearizeChannel(Channel: number): number
     if Channel <= SrgbLinearThreshold then
         return Channel / SrgbLinearDivisor
