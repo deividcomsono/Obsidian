@@ -3141,6 +3141,7 @@ do
             Size = UDim2.fromOffset(18, 18),
             Text = (IsForButton and SlideOverflow) and "" or KeyPicker.Value,
             TextSize = 14,
+            TextTransparency = 0.4,
             Parent = ToggleLabel,
         })
 
@@ -3175,6 +3176,18 @@ do
             BottomLeftRadius = UDim.new(0, Library.CornerRadius / 2),
             Parent = Picker,
         }); table.insert(Library.SpecificCorners, PickerCorner)
+
+        Picker.MouseEnter:Connect(function()
+            TweenService:Create(Picker, Library.TweenInfo, {
+                TextTransparency = 0,
+            }):Play()
+        end)
+
+        Picker.MouseLeave:Connect(function()
+            TweenService:Create(Picker, Library.TweenInfo, {
+                TextTransparency = 0.4,
+            }):Play()
+        end)
 
         if IsForButton then
             local Holder = New("Frame", {
@@ -6310,6 +6323,7 @@ do
         })
 
         local InputTextBox
+        local InputTextBoxStroke
         if Info.AllowRightClickInput then
             InputTextBox = New("TextBox", {
                 BackgroundTransparency = 1,
@@ -6321,7 +6335,7 @@ do
                 ClearTextOnFocus = false,
                 Parent = Bar,
             })
-            New("UIStroke", {
+            InputTextBoxStroke = New("UIStroke", {
                 ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
                 Color = "DarkColor",
                 LineJoinMode = Enum.LineJoinMode.Miter,
@@ -6532,6 +6546,20 @@ do
                 Num = Round(Num, Slider.Rounding)
                 Slider:SetValue(Num)
             end))
+
+            table.insert(Slider.Connections, InputTextBox.Focused:Connect(function()
+                Library.Registry[InputTextBoxStroke].Color = "AccentColor"
+                TweenService:Create(InputTextBoxStroke, Library.TweenInfo, {
+                    Color = Library.Scheme.AccentColor,
+                }):Play()
+            end))
+
+            table.insert(Slider.Connections, InputTextBox.FocusLost:Connect(function()
+                Library.Registry[InputTextBoxStroke].Color = "DarkColor"
+                TweenService:Create(InputTextBoxStroke, Library.TweenInfo, {
+                    Color = Library.Scheme.DarkColor,
+                }):Play()
+            end))
         end
 
         local LastTap = 0
@@ -6730,7 +6758,7 @@ do
             Parent = DisplayContainer,
         })
 
-        New("UIStroke", {
+        local DisplayStroke = New("UIStroke", {
             Color = "OutlineColor",
             Parent = DisplayContainer,
         })
@@ -6792,6 +6820,20 @@ do
                 PaddingLeft = UDim.new(0, 8),
                 Parent = SearchBox,
             })
+
+            table.insert(Dropdown.Connections, SearchBox.Focused:Connect(function()
+                Library.Registry[DisplayStroke].Color = "AccentColor"
+                TweenService:Create(DisplayStroke, Library.TweenInfo, {
+                    Color = Library.Scheme.AccentColor,
+                }):Play()
+            end))
+
+            table.insert(Dropdown.Connections, SearchBox.FocusLost:Connect(function()
+                Library.Registry[DisplayStroke].Color = "OutlineColor"
+                TweenService:Create(DisplayStroke, Library.TweenInfo, {
+                    Color = Library.Scheme.OutlineColor,
+                }):Play()
+            end))
         end
 
         local GetValueImage = function(Value, RawValue)
@@ -9419,10 +9461,24 @@ function Library:CreateWindow(WindowInfo)
             PaddingTop = UDim.new(0, 8),
             Parent = SearchBox,
         })
-        New("UIStroke", {
+        local SearchBoxStroke = New("UIStroke", {
             Color = "OutlineColor",
             Parent = SearchBox,
         })
+
+        Library:GiveSignal(SearchBox.Focused:Connect(function()
+            Library.Registry[SearchBoxStroke].Color = "AccentColor"
+            TweenService:Create(SearchBoxStroke, Library.TweenInfo, {
+                Color = Library.Scheme.AccentColor,
+            }):Play()
+        end))
+
+        Library:GiveSignal(SearchBox.FocusLost:Connect(function()
+            Library.Registry[SearchBoxStroke].Color = "OutlineColor"
+            TweenService:Create(SearchBoxStroke, Library.TweenInfo, {
+                Color = Library.Scheme.OutlineColor,
+            }):Play()
+        end))
 
         local SearchIcon = Library:GetIcon("search")
         if SearchIcon then
@@ -11167,7 +11223,7 @@ function Library:CreateWindow(WindowInfo)
                 PaddingRight = UDim.new(0, 8),
                 Parent = Box,
             })
-            New("UIStroke", {
+            local BoxStroke = New("UIStroke", {
                 Color = "OutlineColor",
                 Parent = Box,
             })
@@ -11179,6 +11235,20 @@ function Library:CreateWindow(WindowInfo)
                 })
             )
 
+            Box.Focused:Connect(function()
+                Library.Registry[BoxStroke].Color = "AccentColor"
+                TweenService:Create(BoxStroke, Library.TweenInfo, {
+                    Color = Library.Scheme.AccentColor,
+                }):Play()
+            end)
+
+            Box.FocusLost:Connect(function()
+                Library.Registry[BoxStroke].Color = "OutlineColor"
+                TweenService:Create(BoxStroke, Library.TweenInfo, {
+                    Color = Library.Scheme.OutlineColor,
+                }):Play()
+            end)
+
             local Button = New("TextButton", {
                 AnchorPoint = Vector2.new(1, 0),
                 BackgroundColor3 = "MainColor",
@@ -11186,6 +11256,7 @@ function Library:CreateWindow(WindowInfo)
                 Size = UDim2.new(0, 63, 1, 0),
                 Text = "Execute",
                 TextSize = 14,
+                TextTransparency = 0.4,
                 Parent = Holder,
             })
             New("UIStroke", {
@@ -11199,6 +11270,18 @@ function Library:CreateWindow(WindowInfo)
                     Parent = Button,
                 })
             )
+
+            Button.MouseEnter:Connect(function()
+                TweenService:Create(Button, Library.TweenInfo, {
+                    TextTransparency = 0,
+                }):Play()
+            end)
+
+            Button.MouseLeave:Connect(function()
+                TweenService:Create(Button, Library.TweenInfo, {
+                    TextTransparency = 0.4,
+                }):Play()
+            end)
 
             Button.InputBegan:Connect(function(Input)
                 if not IsClickInput(Input) then
@@ -11544,6 +11627,7 @@ function Library:CreateWindow(WindowInfo)
             Destroyed = false,
             Elements = {},
             Container = DialogContainer,
+            OutsideClickDismiss = Info.OutsideClickDismiss,
         }
 
         function Dialog:Resize()
@@ -12078,6 +12162,28 @@ function Library:CreateWindow(WindowInfo)
 
     Library:GiveSignal(UserInputService.InputBegan:Connect(function(Input: InputObject)
         if Library.Unloaded then
+            return
+        end
+
+        if Input.KeyCode == Enum.KeyCode.Escape then
+            -- Releasing focus from a text input takes priority and never toggles the window --
+            local FocusedBox = UserInputService:GetFocusedTextBox()
+            if FocusedBox then
+                FocusedBox:ReleaseFocus()
+                return
+            end
+
+            -- Dismiss the topmost dialog before closing any open menu --
+            if Library.ActiveDialog and Library.ActiveDialog.OutsideClickDismiss ~= false then
+                Library.ActiveDialog:Dismiss()
+                return
+            end
+
+            if CurrentMenu then
+                CurrentMenu:Close()
+                return
+            end
+
             return
         end
 
