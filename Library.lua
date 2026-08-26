@@ -1602,7 +1602,7 @@ local ModalElement = New("TextButton", {
 --// Floats and Overlays
 local Floats = New("Frame", {
     BackgroundTransparency = 1,
-    Size = UDim2.fromOffset(0, 0),
+    Size = UDim2.fromScale(1, 1),
     ZIndex = 10,
     Active = false,
     Parent = ScreenGui,
@@ -1610,7 +1610,7 @@ local Floats = New("Frame", {
 
 local Overlay = New("Frame", {
     BackgroundTransparency = 1,
-    Size = UDim2.fromOffset(0, 0),
+    Size = UDim2.fromScale(1, 1),
     ZIndex = 20,
     Active = false,
     Parent = ScreenGui,
