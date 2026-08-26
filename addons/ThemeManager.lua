@@ -29,8 +29,21 @@ if isfolder_success == false or typeof(isfolder_error) ~= "boolean" then
     end
 end
 
+--// WCAG21 constants (https://www.w3.org/TR/WCAG21/#dfn-relative-luminance)
+local ContrastWarnThreshold = 4.5 --// Accessibility: minimum WCAG AA contrast ratio for normal text
+local SrgbLinearThreshold = 0.03928 --// sRGB channel value below which the linear conversion is a simple divide
+local SrgbLinearDivisor = 12.92 --// Divisor used for channel values below SrgbLinearThreshold
+local SrgbGammaOffset = 0.055 --// Offset applied before the gamma expansion power curve
+local SrgbGammaScale = 1.055 --// Scale applied before the gamma expansion power curve
+local SrgbGammaExponent = 2.4 --// Exponent for the gamma expansion power curve
+local LuminanceRedWeight,
+      LuminanceGreenWeight,
+      LuminanceBlueWeight = 0.2126, 0.7152, 0.0722 --// R, G, B channel weights in the relative luminance formula
+local ContrastRatioOffset = 0.05 --// Offset added to both luminances when computing a contrast ratio
+
 --// Theme Manager
 local SchemeIndexes = { "FontColor", "MainColor", "AccentColor", "BackgroundColor", "OutlineColor" }
+
 local ThemeManager = {
     Library = nil,
 
@@ -38,6 +51,10 @@ local ThemeManager = {
 
     AppliedToTab = false,
     DefaultThemeName = nil,
+
+    --// Accessibility: contrast warning state
+    ContrastLabel = nil,
+    ContrastWasPoor = false,
 
     BuiltInThemes = {
         ["Default"] = {
@@ -134,6 +151,48 @@ local function IsValidFolderPath(Name: string): boolean
         not Name:match("^%s*$") and 
         not Name:find('[<>:"|%?%*%z]')
     )
+end
+
+--// Contrast helpers \\--
+local function LinearizeChannel(Channel: number): number
+    if Channel <= SrgbLinearThreshold then
+        return Channel / SrgbLinearDivisor
+    end
+
+    return ((Channel + SrgbGammaOffset) / SrgbGammaScale) ^ SrgbGammaExponent
+end
+
+local function GetRelativeLuminance(Color: Color3): number
+    local R = LinearizeChannel(Color.R)
+    local G = LinearizeChannel(Color.G)
+    local B = LinearizeChannel(Color.B)
+
+    return LuminanceRedWeight * R + LuminanceGreenWeight * G + LuminanceBlueWeight * B
+end
+
+local function GetContrastRatio(ColorA: Color3, ColorB: Color3): number
+    local LuminanceA = GetRelativeLuminance(ColorA)
+    local LuminanceB = GetRelativeLuminance(ColorB)
+
+    local Lighter = math.max(LuminanceA, LuminanceB)
+    local Darker = math.min(LuminanceA, LuminanceB)
+
+    return (Lighter + ContrastRatioOffset) / (Darker + ContrastRatioOffset)
+end
+
+local function IsValidThemeData(Data: any): boolean
+    if typeof(Data) ~= "table" then
+        return false
+    end
+
+    --// Require the color scheme to be present; font/background image are optional and fall back to current values
+    for _, SchemeIndex in SchemeIndexes do
+        if typeof(Data[SchemeIndex]) ~= "string" then
+            return false
+        end
+    end
+
+    return true
 end
 
 --// Folder helper \\--
@@ -268,6 +327,20 @@ function ThemeManager:GetCustomTheme(ThemeName: string): any
     return Decoded
 end
 
+local function BuildCurrentThemeData(): {[string]: any}
+    local Library = ThemeManager.Library
+    local ThemeData = {
+        FontFace = Library.Options.FontFace.Value,
+        BackgroundImage = Library.Options.BackgroundImage.Value
+    }
+
+    for _, SchemeIndex in SchemeIndexes do
+        ThemeData[SchemeIndex] = Library.Options[SchemeIndex].Value:ToHex()
+    end
+
+    return ThemeData
+end
+
 function ThemeManager:SaveCustomTheme(ThemeName: string): any
     if IsStringEmpty(ThemeName) then
         return false, "Invalid theme name provided"
@@ -284,19 +357,10 @@ function ThemeManager:SaveCustomTheme(ThemeName: string): any
 
     ThemeManager:CheckFolderTree()
 
-    local Library = ThemeManager.Library
-    local ThemeData = {
-        FontFace = Library.Options.FontFace.Value,
-        BackgroundImage = Library.Options.BackgroundImage.Value
-    }
-
-    for _, SchemeIndex in SchemeIndexes do
-        ThemeData[SchemeIndex] = Library.Options[SchemeIndex].Value:ToHex()
-    end
-
-    local SuccessEncode, EncodedData = pcall(HttpService.JSONEncode, HttpService, ThemeData)
+    --// Custom theme files use the same flat shape as an exported theme JSON, so reuse the encoder
+    local EncodedData, SuccessEncode, EncodeErrorMessage = ThemeManager:SaveJSON()
     if not SuccessEncode then
-        return false, "Failed to encode data"
+        return false, EncodeErrorMessage
     end
 
     local SuccessWrite, ErrorMessage = pcall(writefile, ThemePath, EncodedData)
@@ -484,6 +548,82 @@ function ThemeManager:DeleteDefaultTheme(): (boolean, string?)
     return true
 end
 
+--// Accessibility: contrast checking \\--
+function ThemeManager:GetContrastReport(): { Ratio: number, PairName: string, Passes: boolean }
+    local Library = ThemeManager.Library
+    local FontColorOption = Library.Options.FontColor
+    local BackgroundColorOption = Library.Options.BackgroundColor
+    local MainColorOption = Library.Options.MainColor
+
+    if not (FontColorOption and BackgroundColorOption and MainColorOption) then
+        return { Ratio = math.huge, PairName = "", Passes = true }
+    end
+
+    local FontColor = FontColorOption.Value
+    local Surfaces = {
+        { Name = "font color vs. background color", Color = BackgroundColorOption.Value },
+        { Name = "font color vs. main color", Color = MainColorOption.Value },
+    }
+
+    local WorstRatio, WorstName = math.huge, ""
+    for _, Surface in Surfaces do
+        local Ratio = GetContrastRatio(FontColor, Surface.Color)
+        if Ratio < WorstRatio then
+            WorstRatio = Ratio
+            WorstName = Surface.Name
+        end
+    end
+
+    return {
+        Ratio = WorstRatio,
+        PairName = WorstName,
+        Passes = WorstRatio >= ContrastWarnThreshold,
+    }
+end
+
+function ThemeManager:UpdateContrastWarning()
+    local ContrastLabel = ThemeManager.ContrastLabel
+    if not ContrastLabel or ContrastLabel.Destroyed then
+        return
+    end
+
+    local Library = ThemeManager.Library
+    local Report = ThemeManager:GetContrastReport()
+    local TextLabel = ContrastLabel.TextLabel
+
+    if not Library.Registry[TextLabel] then
+        Library:AddToRegistry(TextLabel, {})
+    end
+
+    if Report.Passes then
+        ContrastLabel:SetText(string.format("Contrast check: good (%.1f:1)", Report.Ratio))
+
+        TextLabel.TextColor3 = Library.Scheme.FontColor
+        Library.Registry[TextLabel].TextColor3 = "FontColor"
+    else
+        ContrastLabel:SetText(string.format(
+            "Low contrast (%.1f:1) between %s. Aim for at least %.1f:1 so text stays readable.",
+            Report.Ratio, Report.PairName, ContrastWarnThreshold
+        ))
+
+        TextLabel.TextColor3 = Library.Scheme.RedColor
+        Library.Registry[TextLabel].TextColor3 = "RedColor"
+
+        if not ThemeManager.ContrastWasPoor then
+            Library:Notify({
+                Title = "Low contrast theme",
+                Description = string.format(
+                    "Your %s has a contrast ratio of %.1f:1, below the recommended %.1f:1. Text may be hard to read.",
+                    Report.PairName, Report.Ratio, ContrastWarnThreshold
+                ),
+                Time = 10,
+            })
+        end
+    end
+
+    ThemeManager.ContrastWasPoor = not Report.Passes
+end
+
 --// Apply Theme \\--
 function ThemeManager:ThemeUpdate()
     local Library = ThemeManager.Library
@@ -496,6 +636,52 @@ function ThemeManager:ThemeUpdate()
     end
 
     Library:UpdateColorsUsingRegistry()
+    ThemeManager:UpdateContrastWarning()
+end
+
+--// Applies a flat theme data table (either a parsed theme file or an imported JSON blob) to the library.
+--// Split out of ApplyTheme so imported JSON can go through the same path as themes loaded from disk.
+function ThemeManager:ApplyThemeData(ThemeData: any): (boolean, string?)
+    if typeof(ThemeData) ~= "table" then
+        return false, "Invalid theme data"
+    end
+
+    local Library = ThemeManager.Library
+
+    for Index, Value in ThemeData do
+        if Index == "VideoLink" then
+            continue
+        end
+
+        local Element = Library.Options[Index]
+        local FinalValue = Value
+
+        if Index == "FontFace" then
+            if typeof(Value) ~= "string" or not Enum.Font[Value] then continue end
+            ThemeManager.Library:SetFont(Enum.Font[Value])
+
+        elseif Index == "BackgroundImage" then
+            if typeof(Value) ~= "string" then continue end
+            ThemeManager.Library:SetBackgroundImage(Value)
+
+        elseif table.find(SchemeIndexes, Index) then
+            local SuccessColor, Color = pcall(Color3.fromHex, Value)
+            if not SuccessColor then continue end
+
+            FinalValue = Color
+            Library.Scheme[Index] = FinalValue
+
+        else
+            continue --// Unrecognized field, ignore it
+        end
+
+        if Element then
+            Element:SetValue(FinalValue)
+        end
+    end
+
+    ThemeManager:ThemeUpdate()
+    return true
 end
 
 function ThemeManager:ApplyTheme(ThemeName: string)
@@ -510,36 +696,33 @@ function ThemeManager:ApplyTheme(ThemeName: string)
         return false, "Theme not found"
     end
     
-    local Library = ThemeManager.Library
-    local SchemeData = Data[2]
-    local ThemeData = CustomThemeData or SchemeData
+    local ThemeData = CustomThemeData or Data[2]
+    return ThemeManager:ApplyThemeData(ThemeData)
+end
 
-    for Index, Value in ThemeData do
-        if Index == "VideoLink" then
-            continue
-        end
+--// JSON Import & Export \\--
+function ThemeManager:SaveJSON(): (string, boolean, string?)
+    local ThemeData = BuildCurrentThemeData()
 
-        local Element = Library.Options[Index]
-        local FinalValue = Value
-
-        if Index == "FontFace" then
-            ThemeManager.Library:SetFont(Enum.Font[FinalValue])
-
-        elseif Index == "BackgroundImage" then
-            ThemeManager.Library:SetBackgroundImage(FinalValue)
-
-        else
-            FinalValue = Color3.fromHex(Value)
-            Library.Scheme[Index] = FinalValue
-        end
-
-        if Element then
-            Element:SetValue(FinalValue)
-        end
+    local SuccessEncode, EncodedData = pcall(HttpService.JSONEncode, HttpService, ThemeData)
+    if not SuccessEncode then
+        return "", false, "Failed to encode data"
     end
 
-    ThemeManager:ThemeUpdate()
-    return true
+    return EncodedData, true
+end
+
+function ThemeManager:LoadJSON(Content: string): (boolean, string?)
+    if IsStringEmpty(Content) then
+        return false, "No JSON provided"
+    end
+
+    local SuccessDecode, Decoded = pcall(HttpService.JSONDecode, HttpService, Content)
+    if not SuccessDecode or not IsValidThemeData(Decoded) then
+        return false, "Failed to decode theme data"
+    end
+
+    return ThemeManager:ApplyThemeData(Decoded)
 end
 
 --// GUI \\--
@@ -593,7 +776,7 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
         table.insert(BuiltInThemesNames, Name)
     end
 
-    local CustomThemeList, CustomThemeName, ThemeList, FontFace, BackgroundImage, DefaultThemeLabel
+    local CustomThemeList, CustomThemeName, ThemeList, FontFace, BackgroundImage, DefaultThemeLabel, ThemeJSONInput
     local function RefreshList()
         CustomThemeList:SetValues(ThemeManager:ReloadCustomThemes())
         CustomThemeList:SetValue(nil)
@@ -625,7 +808,13 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
     local AccentColor = CreateColorOption("Accent color", "AccentColor")
     local OutlineColor = CreateColorOption("Outline color", "OutlineColor")
     local FontColor = CreateColorOption("Font color", "FontColor")
-    
+
+    --// Accessibility: live contrast readout for the colors above
+    ThemeManager.ContrastLabel = Themesbox:AddLabel({
+        Text = "Contrast check: n/a",
+        DoesWrap = true,
+    })
+
     Themesbox:AddDropdown("FontFace", {
         Text = "Font Face",
         Default = "Code",
@@ -683,6 +872,41 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
         Text = "Custom theme name" 
     })
 
+    local function SaveThemeWithContrastCheck(Name: string, SuccessMessage: string, OnSaved: (() -> nil)?)
+        local function DoSave()
+            local Success, ErrorMessage = ThemeManager:SaveCustomTheme(Name)
+            if not Success then
+                ThemeManager.Library:Notify(string.format("Failed to save theme %q: %s", Name, ErrorMessage))
+                return
+            end
+
+            ThemeManager.Library:Notify(string.format(SuccessMessage, Name))
+            if OnSaved then OnSaved() end
+        end
+
+        local Report = ThemeManager:GetContrastReport()
+        if Report.Passes then
+            DoSave()
+            return
+        end
+
+        ShowDialog(
+            function(): boolean
+                return true
+            end,
+
+            "ThemeManager_LowContrastSave",
+            "Low contrast theme",
+            string.format(
+                "This theme has a contrast ratio of %.1f:1 between %s, below the recommended %.1f:1. Text may be hard to read. Save anyway?",
+                Report.Ratio, Report.PairName, ContrastWarnThreshold
+            ),
+
+            "Save Anyway",
+            DoSave
+        )
+    end
+
     Themesbox:AddButton("Create theme", function()
         local Name = CustomThemeName.Value
         if IsStringEmpty(Name) then
@@ -706,14 +930,7 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
 
             "Overwrite",
             function()
-                local Success, ErrorMessage = ThemeManager:SaveCustomTheme(Name)
-                if not Success then
-                    ThemeManager.Library:Notify(string.format("Failed to create theme %q: %s", Name, ErrorMessage))
-                    return
-                end
-
-                ThemeManager.Library:Notify(string.format("Successfully created theme %q", Name))
-                RefreshList()
+                SaveThemeWithContrastCheck(Name, "Successfully created theme %q", RefreshList)
             end
         )
     end)
@@ -772,8 +989,7 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
 
             "Overwrite",
             function()
-                ThemeManager:SaveCustomTheme(Name)
-                ThemeManager.Library:Notify(string.format("Successfully overwrote theme %q", Name))
+                SaveThemeWithContrastCheck(Name, "Successfully overwrote theme %q")
             end
         )
     end)
@@ -848,13 +1064,64 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
 
     DefaultThemeLabel = Themesbox:AddLabel("Current default theme: ...", true);
 
+    Themesbox:AddDivider()
+
+    --// Import & Export
+    Themesbox:AddInput("ThemeManager_ThemeJSON", {
+        Text = "Theme JSON"
+    })
+
+    Themesbox:AddButton("Import theme", function()
+        local ThemeJSON = ThemeJSONInput.Value
+        if IsStringEmpty(ThemeJSON) then
+            ThemeManager.Library:Notify("Theme JSON cannot be empty")
+            return
+        end
+
+        ShowDialog(
+            function(): boolean
+                return true
+            end,
+
+            "ThemeManager_ImportTheme",
+            "Import theme",
+            "Are you sure you want to import this theme? Your current colors will be overwritten.",
+
+            "Import",
+            function()
+                local Success, ErrorMessage = ThemeManager:LoadJSON(ThemeJSON)
+                if not Success then
+                    ThemeManager.Library:Notify(string.format("Failed to import theme: %s", ErrorMessage))
+                    return
+                end
+
+                ThemeManager.Library:Notify("Successfully imported theme")
+            end
+        )
+    end)
+
+    Themesbox:AddButton("Export current theme", function()
+        local EncodedData, Success, ErrorMessage = ThemeManager:SaveJSON()
+        if not Success then
+            ThemeManager.Library:Notify(ErrorMessage)
+            return
+        end
+
+        ThemeJSONInput:SetValue(EncodedData)
+        if setclipboard then
+            setclipboard(EncodedData)
+            ThemeManager.Library:Notify("Copied theme to your clipboard")
+        end
+    end)
+
     --// Set Variables
-    CustomThemeList, CustomThemeName, ThemeList, FontFace, BackgroundImage =
+    CustomThemeList, CustomThemeName, ThemeList, FontFace, BackgroundImage, ThemeJSONInput =
         ThemeManager.Library.Options.ThemeManager_CustomThemeList,
         ThemeManager.Library.Options.ThemeManager_CustomThemeName,
         ThemeManager.Library.Options.ThemeManager_ThemeList,
         ThemeManager.Library.Options.FontFace,
-        ThemeManager.Library.Options.BackgroundImage;
+        ThemeManager.Library.Options.BackgroundImage,
+        ThemeManager.Library.Options.ThemeManager_ThemeJSON;
 
     --// Handlers
     ThemeList:OnChanged(function()
@@ -875,6 +1142,7 @@ function ThemeManager:CreateThemeManager(Themesbox: any)
 
     --// Load default
     ThemeManager:LoadDefault()
+    ThemeManager:UpdateContrastWarning()
     ThemeManager.AppliedToTab = true
     RefreshDefaultThemeLabel()
 
