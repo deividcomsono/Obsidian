@@ -227,13 +227,17 @@ local Library = {
 
     GroupboxTweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
     RotatingChevronTweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+    ButtonRippleTweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 
     Animations = {
         ToggleWindow = false,
         TabSwitch = false,
         Groupbox = false,
         Dropdown = false,
-        KeyPicker = false
+        KeyPicker = false,
+        ColorPicker = false,
+        Input = false,
+        Button = false
     },
 
     --// States \\--
@@ -1800,6 +1804,49 @@ function Library:MouseIsOverFrame(Frame: GuiObject, Mouse: Vector2): boolean
         and Mouse.Y <= AbsPos.Y + AbsSize.Y
 end
 
+function Library:CreateButtonRipple(Base: GuiButton, Input: InputObject, Color: string?)
+    if not (Library.Animations and Library.Animations.Button == true) then
+        return
+    end
+
+    local AbsolutePosition, AbsoluteSize = Base.AbsolutePosition, Base.AbsoluteSize
+
+    --// Where on the button the click landed, so the ripple originates from the cursor \\--
+    local RelativeX = math.clamp(Input.Position.X - AbsolutePosition.X, 0, AbsoluteSize.X)
+    local RelativeY = math.clamp(Input.Position.Y - AbsolutePosition.Y, 0, AbsoluteSize.Y)
+
+    --// Diameter needed to cover the furthest corner from the click point \\--
+    local FurthestX = math.max(RelativeX, AbsoluteSize.X - RelativeX)
+    local FurthestY = math.max(RelativeY, AbsoluteSize.Y - RelativeY)
+    local Diameter = 2 * math.sqrt(FurthestX ^ 2 + FurthestY ^ 2)
+
+    local Ripple = New("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = Color or "FontColor",
+        BackgroundTransparency = 0.7,
+        BorderSizePixel = 0,
+        Position = UDim2.fromOffset(RelativeX, RelativeY),
+        Size = UDim2.fromOffset(0, 0),
+        Parent = Base,
+    })
+
+    New("UICorner", {
+        CornerRadius = UDim.new(1, 0),
+        Parent = Ripple,
+    })
+
+    local Tween = TweenService:Create(Ripple, Library.ButtonRippleTweenInfo, {
+        Size = UDim2.fromOffset(Diameter, Diameter),
+        BackgroundTransparency = 1,
+    })
+
+    Library:GiveSignal(Tween.Completed:Once(function()
+        Ripple:Destroy()
+    end))
+
+    Tween:Play()
+end
+
 function Library:IsInsideFrame(ParentFrame: GuiObject, Frame: GuiObject)
     local GuiPos = Frame.AbsolutePosition
     local GuiSize = Frame.AbsoluteSize
@@ -2984,6 +3031,7 @@ function Library:AddDraggableButton(...)
 
     local Button = New("TextButton", {
         BackgroundColor3 = "BackgroundColor",
+        ClipsDescendants = true,
         Position = UDim2.fromOffset(6, 6),
         TextSize = 16,
         ZIndex = 1,
@@ -3011,6 +3059,8 @@ function Library:AddDraggableButton(...)
         if not IsClickInput(Input) then
             return
         end
+
+        Library:CreateButtonRipple(Button, Input)
 
         local Start = tick()
 
@@ -3172,6 +3222,7 @@ function Library:AddDraggableImageButton(...)
 
     local Button = New("TextButton", {
         BackgroundColor3 = "BackgroundColor",
+        ClipsDescendants = true,
         Position = UDim2.fromOffset(6, 6),
         Size = UDim2.fromOffset(IconSize + 12, IconSize + 12),
         Text = "",
@@ -3211,6 +3262,8 @@ function Library:AddDraggableImageButton(...)
         if not IsClickInput(Input) then
             return
         end
+
+        Library:CreateButtonRipple(Button, Input)
 
         local Start = tick()
 
@@ -4240,6 +4293,7 @@ do
             local Button = New("TextButton", {
                 BackgroundColor3 = "MainColor",
                 BackgroundTransparency = 1,
+                ClipsDescendants = true,
                 Size = UDim2.new(1, 0, 0, IsForButton and 21 or (TotalModeButtons == 1 and 18 or 19)),
                 Text = Mode,
                 TextSize = 14,
@@ -4301,6 +4355,14 @@ do
 
             Button.MouseButton1Click:Connect(function()
                 ModeButton:Select()
+            end)
+
+            Button.InputBegan:Connect(function(Input)
+                if not IsClickInput(Input) then
+                    return
+                end
+
+                Library:CreateButtonRipple(Button, Input)
             end)
 
             Button.MouseEnter:Connect(function()
@@ -5366,11 +5428,20 @@ do
                 local Button = New("TextButton", {
                     BackgroundColor3 = "MainColor",
                     BackgroundTransparency = 1,
+                    ClipsDescendants = true,
                     Size = UDim2.new(1, 0, 0, 21),
                     Text = Text,
                     TextSize = 14,
                     Parent = ContextMenu.Menu,
                 })
+
+                Button.InputBegan:Connect(function(Input)
+                    if not IsClickInput(Input) then
+                        return
+                    end
+
+                    Library:CreateButtonRipple(Button, Input)
+                end)
 
                 Button.MouseButton1Click:Connect(function()
                     Library:SafeCallback(Func)
@@ -5433,6 +5504,7 @@ do
 
         local CopyColorButton = New("TextButton", {
             BackgroundColor3 = "MainColor",
+            ClipsDescendants = true,
             Size = UDim2.fromScale(1, 1),
             Text = "Copy color",
             TextSize = 14,
@@ -5452,6 +5524,7 @@ do
 
         local PasteColorButton = New("TextButton", {
             BackgroundColor3 = "MainColor",
+            ClipsDescendants = true,
             Size = UDim2.fromScale(1, 1),
             Text = "Paste color",
             TextSize = 14,
@@ -5496,6 +5569,22 @@ do
             TweenService:Create(PasteColorButton, Library.TweenInfo, {
                 BackgroundColor3 = Library.Scheme.MainColor,
             }):Play()
+        end))
+
+        table.insert(ColorPicker.Connections, CopyColorButton.InputBegan:Connect(function(Input)
+            if not IsClickInput(Input) then
+                return
+            end
+
+            Library:CreateButtonRipple(CopyColorButton, Input)
+        end))
+
+        table.insert(ColorPicker.Connections, PasteColorButton.InputBegan:Connect(function(Input)
+            if not IsClickInput(Input) then
+                return
+            end
+
+            Library:CreateButtonRipple(PasteColorButton, Input)
         end))
 
         table.insert(ColorPicker.Connections, CopyColorButton.MouseButton1Click:Connect(function()
@@ -6138,6 +6227,7 @@ do
             local Base = New("TextButton", {
                 Active = not Button.Disabled,
                 BackgroundColor3 = Button.Disabled and "BackgroundColor" or "MainColor",
+                ClipsDescendants = true,
                 Size = UDim2.fromScale(1, 1),
                 Text = Button.Text,
                 TextSize = 14,
@@ -6164,6 +6254,14 @@ do
         end
 
         local function InitEvents(Button)
+            Button.Base.InputBegan:Connect(function(Input: InputObject)
+                if Button.Disabled or not IsClickInput(Input) then
+                    return
+                end
+
+                Library:CreateButtonRipple(Button.Base, Input, Button.Risky and "RedColor" or "FontColor")
+            end)
+
             Button.Base.MouseEnter:Connect(function()
                 if Button.Disabled then
                     return
@@ -12408,6 +12506,7 @@ function Library:CreateWindow(WindowInfo)
             local Button = New("TextButton", {
                 AnchorPoint = Vector2.new(1, 0),
                 BackgroundColor3 = "MainColor",
+                ClipsDescendants = true,
                 Position = UDim2.fromScale(1, 0),
                 Size = UDim2.new(0, 63, 1, 0),
                 Text = "Execute",
@@ -12448,6 +12547,7 @@ function Library:CreateWindow(WindowInfo)
                     return
                 end
 
+                Library:CreateButtonRipple(Button, Input)
                 Callback(Box.Text)
             end)
         end
@@ -12926,6 +13026,7 @@ function Library:CreateWindow(WindowInfo)
                 BackgroundColor3 = BtnColor,
                 BorderColor3 = BtnOutline,
                 BackgroundTransparency = WaitTime > 0 and 0.5 or 0,
+                ClipsDescendants = true,
                 Size = UDim2.fromOffset(0, 26),
                 Text = "",
                 AutoButtonColor = false,
@@ -12948,10 +13049,13 @@ function Library:CreateWindow(WindowInfo)
             })
 
             local TextColor = Library.Scheme.FontColor
+            local RippleColor = "FontColor"
             if Variant == "Primary" then
                 TextColor = Library.Scheme.BackgroundColor
+                RippleColor = "BackgroundColor"
             elseif Variant == "Destructive" then
                 TextColor = Color3.new(1, 1, 1)
+                RippleColor = "WhiteColor"
             end
 
             local BtnLabel = New("TextLabel", {
@@ -13018,6 +13122,11 @@ function Library:CreateWindow(WindowInfo)
                 TweenService:Create(TextBtn, Library.TweenInfo, {
                     BackgroundColor3 = ActiveColor
                 }):Play()
+            end)
+
+            TextBtn.InputBegan:Connect(function(Input)
+                if not IsActive or not IsClickInput(Input) then return end
+                Library:CreateButtonRipple(TextBtn, Input, RippleColor)
             end)
 
             TextBtn.MouseButton1Click:Connect(function()
@@ -13963,6 +14072,7 @@ function Library:CreateLoading(LoadingInfo)
             local TextBtn = New("TextButton", {
                 BackgroundColor3 = BtnColor,
                 BorderColor3 = BtnOutline,
+                ClipsDescendants = true,
                 Size = UDim2.fromOffset(0, 26),
                 Text = "",
                 AutoButtonColor = false,
@@ -13984,10 +14094,13 @@ function Library:CreateLoading(LoadingInfo)
             })
 
             local TextColor = Library.Scheme.FontColor
+            local RippleColor = "FontColor"
             if Variant == "Primary" then
                 TextColor = Library.Scheme.BackgroundColor
+                RippleColor = "BackgroundColor"
             elseif Variant == "Destructive" then
                 TextColor = Color3.new(1, 1, 1)
+                RippleColor = "WhiteColor"
             end
 
             local BtnLabel = New("TextLabel", {
@@ -14015,6 +14128,11 @@ function Library:CreateLoading(LoadingInfo)
                 TweenService:Create(TextBtn, Library.TweenInfo, {
                     BackgroundColor3 = ActiveColor
                 }):Play()
+            end)
+
+            TextBtn.InputBegan:Connect(function(Input)
+                if not IsClickInput(Input) then return end
+                Library:CreateButtonRipple(TextBtn, Input, RippleColor)
             end)
 
             TextBtn.MouseButton1Click:Connect(function()
