@@ -631,7 +631,7 @@ export type Option =
 
 --// Container Types
 export type BaseGroupbox = {
-    AddDivider: (self: Groupbox, Info: string | { Text: string?, Margin: number?, MarginTop: number?, MarginBottom: number? }) -> (),
+    AddDivider: (self: Groupbox, Info: (string | { Text: string?, Margin: number?, MarginTop: number?, MarginBottom: number? })?) -> (),
     AddLabel: (
         self: Groupbox,
         Info: { Text: string, DoesWrap: boolean?, Size: number?, Visible: boolean?, Idx: string? } | string,
