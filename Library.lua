@@ -228,6 +228,7 @@ local Library = {
     GroupboxTweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
     RotatingChevronTweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
     ButtonRippleTweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+    ButtonTextWipeTweenInfo = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 
     Animations = {
         ToggleWindow = false,
@@ -1845,6 +1846,113 @@ function Library:CreateButtonRipple(Base: GuiButton, Input: InputObject, Color: 
     end))
 
     Tween:Play()
+end
+
+local ActiveTextWipes = setmetatable({}, { __mode = "k" })
+
+local function GetTextWipeLabel(Base: TextButton): TextLabel
+    local Mask = Base:FindFirstChild("__TextWipeMask")
+    if Mask then
+        return Mask:FindFirstChild("__TextWipeLabel")
+    end
+
+    Mask = New("Frame", {
+        Name = "__TextWipeMask",
+        BackgroundTransparency = 1,
+        ClipsDescendants = true,
+        Size = UDim2.fromScale(1, 1),
+        Parent = Base,
+    })
+
+    local Label = New("TextLabel", {
+        Name = "__TextWipeLabel",
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 1),
+        Font = Base.Font,
+        TextSize = Base.TextSize,
+        TextWrapped = Base.TextWrapped,
+        TextScaled = Base.TextScaled,
+        RichText = Base.RichText,
+        TextXAlignment = Base.TextXAlignment,
+        TextYAlignment = Base.TextYAlignment,
+        TextColor3 = Base.TextColor3,
+        TextTransparency = Base.TextTransparency,
+        Text = Base.Text,
+        Parent = Mask,
+    })
+
+    Base:GetPropertyChangedSignal("TextColor3"):Connect(function()
+        Label.TextColor3 = Base.TextColor3
+    end)
+    Base:GetPropertyChangedSignal("TextTransparency"):Connect(function()
+        Label.TextTransparency = Base.TextTransparency
+    end)
+
+    Base.Text = ""
+
+    return Label
+end
+
+function Library:SetButtonText(Base: TextButton, NewText: string, OnSwap: (() -> ())?)
+    local Mask = Base:FindFirstChild("__TextWipeMask")
+    local Label = Mask and Mask:FindFirstChild("__TextWipeLabel")
+    local CurrentText = Label and Label.Text or Base.Text
+
+    if CurrentText == NewText then
+        Library:SafeCallback(OnSwap)
+        return
+    end
+
+    if not (Library.Animations and Library.Animations.Button == true) then
+        if Label then
+            Label.Text = NewText
+        else
+            Base.Text = NewText
+        end
+
+        Library:SafeCallback(OnSwap)
+        return
+    end
+
+    if not Label then
+        Label = GetTextWipeLabel(Base)
+    end
+
+    local Existing = ActiveTextWipes[Base]
+    if Existing then
+        StopTween(Existing, true)
+        ActiveTextWipes[Base] = nil
+    end
+
+    Label.Position = UDim2.fromScale(0, 0)
+
+    local WipeOut = TweenService:Create(Label, Library.ButtonTextWipeTweenInfo, {
+        Position = UDim2.fromScale(1, 0),
+    })
+
+    ActiveTextWipes[Base] = WipeOut
+    WipeOut:Play()
+    WipeOut.Completed:Wait()
+
+    if ActiveTextWipes[Base] == WipeOut then
+        ActiveTextWipes[Base] = nil
+    end
+
+    Label.Text = NewText
+    Label.Position = UDim2.fromScale(-1, 0)
+    Library:SafeCallback(OnSwap)
+
+    local WipeIn = TweenService:Create(Label, Library.ButtonTextWipeTweenInfo, {
+        Position = UDim2.fromScale(0, 0),
+    })
+
+    ActiveTextWipes[Base] = WipeIn
+    WipeIn:Play()
+    WipeIn.Completed:Wait()
+
+    if ActiveTextWipes[Base] == WipeIn then
+        ActiveTextWipes[Base] = nil
+    end
 end
 
 function Library:IsInsideFrame(ParentFrame: GuiObject, Frame: GuiObject)
@@ -6291,15 +6399,17 @@ do
                 if Button.DoubleClick then
                     Button.Locked = true
 
-                    Button.Base.Text = "Are you sure?"
-                    Button.Base.TextColor3 = Library.Scheme.AccentColor
-                    Library.Registry[Button.Base].TextColor3 = "AccentColor"
+                    Library:SetButtonText(Button.Base, "Are you sure?", function()
+                        Button.Base.TextColor3 = Library.Scheme.AccentColor
+                        Library.Registry[Button.Base].TextColor3 = "AccentColor"
+                    end)
 
                     local Clicked = WaitForEvent(Button.Base.MouseButton1Click, 0.5)
 
-                    Button.Base.Text = Button.Text
-                    Button.Base.TextColor3 = Button.Risky and Library.Scheme.RedColor or Library.Scheme.FontColor
-                    Library.Registry[Button.Base].TextColor3 = Button.Risky and "RedColor" or "FontColor"
+                    Library:SetButtonText(Button.Base, Button.Text, function()
+                        Button.Base.TextColor3 = Button.Risky and Library.Scheme.RedColor or Library.Scheme.FontColor
+                        Library.Registry[Button.Base].TextColor3 = Button.Risky and "RedColor" or "FontColor"
+                    end)
 
                     if Clicked then
                         Library:SafeCallback(Button.Func)
@@ -6380,7 +6490,7 @@ do
 
             function SubButton:SetText(Text: string)
                 SubButton.Text = Text
-                SubButton.Base.Text = Text
+                Library:SetButtonText(SubButton.Base, Text)
             end
 
             if typeof(SubButton.Tooltip) == "string" or typeof(SubButton.DisabledTooltip) == "string" then
@@ -6468,7 +6578,7 @@ do
 
         function Button:SetText(Text: string)
             Button.Text = Text
-            Button.Base.Text = Text
+            Library:SetButtonText(Button.Base, Text)
         end
 
         if typeof(Button.Tooltip) == "string" or typeof(Button.DisabledTooltip) == "string" then
