@@ -184,6 +184,7 @@ local Library = {
 
     --// Tabs \\--
     ActiveTab = nil,
+    PreviousTab = nil,
     Tabs = {},
     TabButtons = {},
 
@@ -2281,14 +2282,15 @@ end
 local TransparencyCache = {}
 local ActiveTabTweens = setmetatable({}, { __mode = "k" })
 
-function Library:PlayTabAnimation(TabCanvas: CanvasGroup, Showing: boolean, OnComplete: (() -> ())?)
-    if not TabCanvas then
+function Library:PlayTabAnimation(Tab, Showing: boolean, OnComplete: (() -> ())?)
+    if type(Tab) ~= "table" or not Tab.Canvas then
         if OnComplete then
             OnComplete()
         end
 
         return
     end
+    local TabCanvas = Tab.Canvas :: CanvasGroup
 
     local Existing = ActiveTabTweens[TabCanvas]
     if Existing then
@@ -2315,15 +2317,29 @@ function Library:PlayTabAnimation(TabCanvas: CanvasGroup, Showing: boolean, OnCo
         local Offset = Library.TabSwipeOffset or 26
         local SwipeFrom = string.lower(Library.TabSwipeFrom or "bottom")
         local StartPosition
+        local StartingPositions = {
+            Left = UDim2.fromOffset(-Offset, 0),
+            Right = UDim2.fromOffset(Offset, 0),
+            Top = UDim2.fromOffset(0, -Offset),
+            Bottom = UDim2.fromOffset(0, Offset),
+        }
 
-        if SwipeFrom == "left" then
-            StartPosition = UDim2.fromOffset(-Offset, 0)
+        if SwipeFrom == "auto" and Library.PreviousTab then
+            local CurrentOrder = Tab.Button.LayoutOrder
+            local PreviousOrder = Library.PreviousTab.Button.LayoutOrder
+            if CurrentOrder and PreviousOrder then -- this may be unnecessary but oh well
+                StartPosition = CurrentOrder > PreviousOrder and StartingPositions.Top or StartingPositions.Bottom -- bigger order means its under the current button
+            else
+                StartPosition = StartingPositions.Bottom
+            end
+        elseif SwipeFrom == "left" then
+            StartPosition = StartingPositions.Left
         elseif SwipeFrom == "top" then
-            StartPosition = UDim2.fromOffset(0, -Offset)
+            StartPosition = StartingPositions.Top
         elseif SwipeFrom == "right" then
-            StartPosition = UDim2.fromOffset(Offset, 0)
+            StartPosition = StartingPositions.Right
         else -- bottom (Default)
-            StartPosition = UDim2.fromOffset(0, Offset)
+            StartPosition = StartingPositions.Bottom
         end
 
         TabCanvas.ZIndex = BaseZIndex + 1
@@ -11104,6 +11120,7 @@ function Library:CreateWindow(WindowInfo)
             Destroyed = false,
 
             Window = Window,
+            Button = TabButton,
             Canvas = TabCanvas,
             Sides = {
                 TabLeft,
@@ -12117,7 +12134,7 @@ function Library:CreateWindow(WindowInfo)
                 Window:ShowTabInfo(Name, Description)
             end
 
-            Library:PlayTabAnimation(TabCanvas, true)
+            Library:PlayTabAnimation(Tab, true)
             Tab:RefreshSides()
 
             Library.ActiveTab = Tab
@@ -12142,9 +12159,10 @@ function Library:CreateWindow(WindowInfo)
                 }):Play()
             end
 
-            Library:PlayTabAnimation(TabCanvas, false)
+            Library:PlayTabAnimation(Tab, false)
             Window:HideTabInfo()
 
+            Library.PreviousTab = Tab
             Library.ActiveTab = nil
         end
 
@@ -12349,6 +12367,7 @@ function Library:CreateWindow(WindowInfo)
             Elements = {},
 
             Window = Window,
+            Button = TabButton,
             Canvas = TabCanvas
         }
 
@@ -12515,7 +12534,7 @@ function Library:CreateWindow(WindowInfo)
                 }):Play()
             end
 
-            Library:PlayTabAnimation(TabCanvas, true)
+            Library:PlayTabAnimation(Tab, true)
 
             if Description then
                 Window:ShowTabInfo(Name, Description)
@@ -12545,9 +12564,10 @@ function Library:CreateWindow(WindowInfo)
                 }):Play()
             end
 
-            Library:PlayTabAnimation(TabCanvas, false)
+            Library:PlayTabAnimation(Tab, false)
             Window:HideTabInfo()
 
+            Library.PreviousTab = Tab
             Library.ActiveTab = nil
         end
 
