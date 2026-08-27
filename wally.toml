@@ -1,6 +1,6 @@
 [package]
 name = "deividcomsono/obsidian"
-version = "25.12.2"
+version = "26.8.0"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 

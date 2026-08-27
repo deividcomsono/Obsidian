@@ -1,0 +1,70 @@
+base: roblox
+globals:
+  cloneref:
+    args:
+      - type: any
+    must_use: true
+  clonereference:
+    args:
+      - type: any
+    must_use: true
+  game.HttpGet:
+    method: true
+    args:
+      - type: string
+      - required: false
+        type: bool
+      - required: false
+        type:
+          display: HttpRequestType
+      - required: false
+        type: bool
+    must_use: true
+  getcustomasset:
+    args:
+      - type: any
+    must_use: true
+  getgenv:
+    args: []
+    must_use: true
+  gethui:
+    args: []
+    must_use: true
+  isfile:
+    args:
+      - type: string
+    must_use: true
+  isfolder:
+    args:
+      - type: string
+    must_use: true
+  makefolder:
+    args:
+      - type: string
+  protectgui:
+    args:
+      - type:
+          display: Instance
+  setclipboard:
+    args:
+      - type: string
+  sethiddenproperty:
+    args:
+      - type:
+          display: Instance
+      - type: string
+      - type: any
+  setscriptable:
+    args:
+      - type:
+          display: Instance
+      - type: string
+      - type: any
+  syn.protect_gui:
+    args:
+      - type:
+          display: Instance
+  writefile:
+    args:
+      - type: string
+      - type: string
