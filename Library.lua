@@ -8480,6 +8480,10 @@ do
 
         function Dropdown:SetValue(Value)
             if Info.Multi then
+                if typeof(Value) == "string" then
+                    Value = if Value == "" then {} else { [Value] = true }
+                end
+
                 local Table = {}
 
                 for Val, Active in Value or {} do
