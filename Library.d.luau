@@ -907,7 +907,7 @@ export type Window = {
         Animations: { [string]: boolean }?,
         TabTransitionTime: number?,
         TabSwipeOffset: number?,
-        TabSwipeFrom: ("left" | "right" | "top" | "bottom" | string)?
+        TabSwipeFrom: ("left" | "right" | "top" | "bottom" | "auto" | string)?
     ) -> (),
     Toggle: (self: Window, Value: boolean?) -> (),
 }
@@ -1129,7 +1129,7 @@ export type Library = {
             }?,
             TabTransitionTime: number?,
             TabSwipeOffset: number?,
-            TabSwipeFrom: ("left" | "right" | "top" | "bottom" | string)?,
+            TabSwipeFrom: ("left" | "right" | "top" | "bottom" | "auto" | string)?,
         }
     ) -> Window,
     Toggle: (self: Library, Value: boolean?) -> (),

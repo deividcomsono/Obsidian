@@ -184,6 +184,7 @@ local Library = {
 
     --// Tabs \\--
     ActiveTab = nil,
+    PreviousTab = nil,
     Tabs = {},
     TabButtons = {},
 
@@ -2282,8 +2283,8 @@ end
 local TransparencyCache = {}
 local ActiveTabTweens = setmetatable({}, { __mode = "k" })
 
-function Library:PlayTabAnimation(TabCanvas: CanvasGroup, Showing: boolean, OnComplete: (() -> ())?)
-    if not TabCanvas then
+function Library:PlayTabAnimation(Tab, Showing: boolean, OnComplete: (() -> ())?)
+    if type(Tab) ~= "table" or not Tab.Container then
         if OnComplete then
             OnComplete()
         end
@@ -2291,18 +2292,18 @@ function Library:PlayTabAnimation(TabCanvas: CanvasGroup, Showing: boolean, OnCo
         return
     end
 
-    local Existing = ActiveTabTweens[TabCanvas]
+    local TabContainer = Tab.Container :: Frame
+    local Existing = ActiveTabTweens[TabContainer]
     if Existing then
         StopTween(Existing, true)
-        ActiveTabTweens[TabCanvas] = nil
+        ActiveTabTweens[TabContainer] = nil
     end
 
-    local BaseZIndex = TabCanvas.ZIndex
+    local BaseZIndex = TabContainer.ZIndex
     if not (Library.Animations and Library.Animations.TabSwitch) then
-        TabCanvas.Visible = Showing
-        TabCanvas.GroupTransparency = Showing and 0 or 1
-        TabCanvas.Position = UDim2.fromScale(0, 0)
-        TabCanvas.ZIndex = BaseZIndex
+        TabContainer.Visible = Showing
+        TabContainer.Position = UDim2.fromScale(0, 0)
+        TabContainer.ZIndex = BaseZIndex
 
         if OnComplete then
             OnComplete()
@@ -2316,28 +2317,40 @@ function Library:PlayTabAnimation(TabCanvas: CanvasGroup, Showing: boolean, OnCo
         local Offset = Library.TabSwipeOffset or 26
         local SwipeFrom = string.lower(Library.TabSwipeFrom or "bottom")
         local StartPosition
+        local StartingPositions = {
+            Left = UDim2.fromOffset(-Offset, 0),
+            Right = UDim2.fromOffset(Offset, 0),
+            Top = UDim2.fromOffset(0, -Offset),
+            Bottom = UDim2.fromOffset(0, Offset),
+        }
 
-        if SwipeFrom == "left" then
-            StartPosition = UDim2.fromOffset(-Offset, 0)
+        if SwipeFrom == "auto" and Library.PreviousTab then
+            local CurrentOrder = Tab.Button.LayoutOrder
+            local PreviousOrder = Library.PreviousTab.Button.LayoutOrder
+            if CurrentOrder and PreviousOrder then -- this may be unnecessary but oh well
+                StartPosition = CurrentOrder > PreviousOrder and StartingPositions.Top or StartingPositions.Bottom -- bigger order means its under the current button
+            else
+                StartPosition = StartingPositions.Bottom
+            end
+        elseif SwipeFrom == "left" then
+            StartPosition = StartingPositions.Left
         elseif SwipeFrom == "top" then
-            StartPosition = UDim2.fromOffset(0, -Offset)
+            StartPosition = StartingPositions.Top
         elseif SwipeFrom == "right" then
-            StartPosition = UDim2.fromOffset(Offset, 0)
+            StartPosition = StartingPositions.Right
         else -- bottom (Default)
-            StartPosition = UDim2.fromOffset(0, Offset)
+            StartPosition = StartingPositions.Bottom
         end
 
-        TabCanvas.ZIndex = BaseZIndex + 1
-        TabCanvas.GroupTransparency = 1
-        TabCanvas.Position = StartPosition
-        TabCanvas.Visible = true
+        TabContainer.ZIndex = BaseZIndex + 1
+        TabContainer.Position = StartPosition
+        TabContainer.Visible = true
 
-        local Tween = TweenService:Create(TabCanvas, TweenInfo, {
-            GroupTransparency = 0,
+        local Tween = TweenService:Create(TabContainer, TweenInfo, {
             Position = UDim2.fromScale(0, 0)
         })
 
-        ActiveTabTweens[TabCanvas] = Tween
+        ActiveTabTweens[TabContainer] = Tween
         Tween:Play()
 
         local Connection; Connection = Tween.Completed:Connect(function(PlaybackState)
@@ -2345,24 +2358,23 @@ function Library:PlayTabAnimation(TabCanvas: CanvasGroup, Showing: boolean, OnCo
                 Connection:Disconnect()
             end
 
-            if ActiveTabTweens[TabCanvas] == Tween then
-                ActiveTabTweens[TabCanvas] = nil
+            if ActiveTabTweens[TabContainer] == Tween then
+                ActiveTabTweens[TabContainer] = nil
             end
 
             if PlaybackState == Enum.PlaybackState.Cancelled then
                 return
             end
 
-            TabCanvas.ZIndex = BaseZIndex
+            TabContainer.ZIndex = BaseZIndex
             if OnComplete then
                 OnComplete()
             end
         end)
     else
-        TabCanvas.GroupTransparency = 1
-        TabCanvas.Visible = false
-        TabCanvas.Position = UDim2.fromScale(0, 0)
-        TabCanvas.ZIndex = BaseZIndex
+        TabContainer.Visible = false
+        TabContainer.Position = UDim2.fromScale(0, 0)
+        TabContainer.ZIndex = BaseZIndex
 
         if OnComplete then
             OnComplete()
@@ -8469,6 +8481,10 @@ do
 
         function Dropdown:SetValue(Value)
             if Info.Multi then
+                if typeof(Value) == "string" then
+                    Value = if Value == "" then {} else { [Value] = true }
+                end
+
                 local Table = {}
 
                 for Val, Active in Value or {} do
@@ -11006,7 +11022,6 @@ function Library:CreateWindow(WindowInfo)
         local TabIcon
 
         local TabContainer
-        local TabCanvas
         local TabLeft
         local TabRight
 
@@ -11058,23 +11073,13 @@ function Library:CreateWindow(WindowInfo)
                 Icon = TabIcon,
             })
 
-            --// Tab Canvas \\--
-            TabCanvas = New("CanvasGroup", {
-                BackgroundTransparency = 1,
-                ClipsDescendants = true,
-                GroupTransparency = 0,
-                Size = UDim2.fromScale(1, 1),
-                Visible = false,
-                Parent = Container,
-            })
-
             --// Tab Container \\--
             TabContainer = New("Frame", {
                 BackgroundTransparency = 1,
                 Position = UDim2.fromScale(0, 0),
                 Size = UDim2.fromScale(1, 1),
-                Visible = true,
-                Parent = TabCanvas,
+                Visible = false,
+                Parent = Container,
             })
 
             TabLeft = New("ScrollingFrame", {
@@ -11155,7 +11160,8 @@ function Library:CreateWindow(WindowInfo)
             Destroyed = false,
 
             Window = Window,
-            Canvas = TabCanvas,
+            Button = TabButton,
+            Container = TabContainer,
             Sides = {
                 TabLeft,
                 TabRight,
@@ -12168,7 +12174,7 @@ function Library:CreateWindow(WindowInfo)
                 Window:ShowTabInfo(Name, Description)
             end
 
-            Library:PlayTabAnimation(TabCanvas, true)
+            Library:PlayTabAnimation(Tab, true)
             Tab:RefreshSides()
 
             Library.ActiveTab = Tab
@@ -12193,9 +12199,10 @@ function Library:CreateWindow(WindowInfo)
                 }):Play()
             end
 
-            Library:PlayTabAnimation(TabCanvas, false)
+            Library:PlayTabAnimation(Tab, false)
             Window:HideTabInfo()
 
+            Library.PreviousTab = Tab
             Library.ActiveTab = nil
         end
 
@@ -12241,9 +12248,7 @@ function Library:CreateWindow(WindowInfo)
                 end
             end
 
-            if TabCanvas then
-                TabCanvas:Destroy()
-            elseif TabContainer then
+            if TabContainer then
                 TabContainer:Destroy()
             end
 
@@ -12308,7 +12313,6 @@ function Library:CreateWindow(WindowInfo)
         local TabLabel
         local TabIcon
 
-        local TabCanvas
         local TabContainer
 
         Icon = if Icon == "key" then KeyIcon else Library:GetCustomIcon(Icon)
@@ -12358,16 +12362,6 @@ function Library:CreateWindow(WindowInfo)
                 Icon = TabIcon,
             })
 
-            --// Tab Canvas \\--
-            TabCanvas = New("CanvasGroup", {
-                BackgroundTransparency = 1,
-                ClipsDescendants = true,
-                GroupTransparency = 0,
-                Size = UDim2.fromScale(1, 1),
-                Visible = false,
-                Parent = Container,
-            })
-
             --// Tab Container \\--
             TabContainer = New("ScrollingFrame", {
                 AutomaticCanvasSize = Enum.AutomaticSize.Y,
@@ -12376,8 +12370,8 @@ function Library:CreateWindow(WindowInfo)
                 ScrollBarThickness = 0,
                 Position = UDim2.fromScale(0, 0),
                 Size = UDim2.fromScale(1, 1),
-                Visible = true,
-                Parent = TabCanvas,
+                Visible = false,
+                Parent = Container,
             })
             New("UIListLayout", {
                 HorizontalAlignment = Enum.HorizontalAlignment.Center,
@@ -12400,7 +12394,8 @@ function Library:CreateWindow(WindowInfo)
             Elements = {},
 
             Window = Window,
-            Canvas = TabCanvas
+            Button = TabButton,
+            Container = TabContainer
         }
 
         function Tab:AddKeyBox(Callback)
@@ -12499,9 +12494,7 @@ function Library:CreateWindow(WindowInfo)
         end
 
         function Tab:Destroy()
-            if TabCanvas then
-                TabCanvas:Destroy()
-            elseif TabContainer then
+            if TabContainer then
                 TabContainer:Destroy()
             end
 
@@ -12566,7 +12559,7 @@ function Library:CreateWindow(WindowInfo)
                 }):Play()
             end
 
-            Library:PlayTabAnimation(TabCanvas, true)
+            Library:PlayTabAnimation(Tab, true)
 
             if Description then
                 Window:ShowTabInfo(Name, Description)
@@ -12596,9 +12589,10 @@ function Library:CreateWindow(WindowInfo)
                 }):Play()
             end
 
-            Library:PlayTabAnimation(TabCanvas, false)
+            Library:PlayTabAnimation(Tab, false)
             Window:HideTabInfo()
 
+            Library.PreviousTab = Tab
             Library.ActiveTab = nil
         end
 
