@@ -2283,27 +2283,26 @@ local TransparencyCache = {}
 local ActiveTabTweens = setmetatable({}, { __mode = "k" })
 
 function Library:PlayTabAnimation(Tab, Showing: boolean, OnComplete: (() -> ())?)
-    if type(Tab) ~= "table" or not Tab.Canvas then
+    if type(Tab) ~= "table" or not Tab.Container then
         if OnComplete then
             OnComplete()
         end
 
         return
     end
-    local TabCanvas = Tab.Canvas :: CanvasGroup
 
-    local Existing = ActiveTabTweens[TabCanvas]
+    local TabContainer = Tab.Container :: Frame
+    local Existing = ActiveTabTweens[TabContainer]
     if Existing then
         StopTween(Existing, true)
-        ActiveTabTweens[TabCanvas] = nil
+        ActiveTabTweens[TabContainer] = nil
     end
 
-    local BaseZIndex = TabCanvas.ZIndex
+    local BaseZIndex = TabContainer.ZIndex
     if not (Library.Animations and Library.Animations.TabSwitch) then
-        TabCanvas.Visible = Showing
-        TabCanvas.GroupTransparency = Showing and 0 or 1
-        TabCanvas.Position = UDim2.fromScale(0, 0)
-        TabCanvas.ZIndex = BaseZIndex
+        TabContainer.Visible = Showing
+        TabContainer.Position = UDim2.fromScale(0, 0)
+        TabContainer.ZIndex = BaseZIndex
 
         if OnComplete then
             OnComplete()
@@ -2342,17 +2341,15 @@ function Library:PlayTabAnimation(Tab, Showing: boolean, OnComplete: (() -> ())?
             StartPosition = StartingPositions.Bottom
         end
 
-        TabCanvas.ZIndex = BaseZIndex + 1
-        TabCanvas.GroupTransparency = 1
-        TabCanvas.Position = StartPosition
-        TabCanvas.Visible = true
+        TabContainer.ZIndex = BaseZIndex + 1
+        TabContainer.Position = StartPosition
+        TabContainer.Visible = true
 
-        local Tween = TweenService:Create(TabCanvas, TweenInfo, {
-            GroupTransparency = 0,
+        local Tween = TweenService:Create(TabContainer, TweenInfo, {
             Position = UDim2.fromScale(0, 0)
         })
 
-        ActiveTabTweens[TabCanvas] = Tween
+        ActiveTabTweens[TabContainer] = Tween
         Tween:Play()
 
         local Connection; Connection = Tween.Completed:Connect(function(PlaybackState)
@@ -2360,24 +2357,23 @@ function Library:PlayTabAnimation(Tab, Showing: boolean, OnComplete: (() -> ())?
                 Connection:Disconnect()
             end
 
-            if ActiveTabTweens[TabCanvas] == Tween then
-                ActiveTabTweens[TabCanvas] = nil
+            if ActiveTabTweens[TabContainer] == Tween then
+                ActiveTabTweens[TabContainer] = nil
             end
 
             if PlaybackState == Enum.PlaybackState.Cancelled then
                 return
             end
 
-            TabCanvas.ZIndex = BaseZIndex
+            TabContainer.ZIndex = BaseZIndex
             if OnComplete then
                 OnComplete()
             end
         end)
     else
-        TabCanvas.GroupTransparency = 1
-        TabCanvas.Visible = false
-        TabCanvas.Position = UDim2.fromScale(0, 0)
-        TabCanvas.ZIndex = BaseZIndex
+        TabContainer.Visible = false
+        TabContainer.Position = UDim2.fromScale(0, 0)
+        TabContainer.ZIndex = BaseZIndex
 
         if OnComplete then
             OnComplete()
@@ -10971,7 +10967,6 @@ function Library:CreateWindow(WindowInfo)
         local TabIcon
 
         local TabContainer
-        local TabCanvas
         local TabLeft
         local TabRight
 
@@ -11023,23 +11018,13 @@ function Library:CreateWindow(WindowInfo)
                 Icon = TabIcon,
             })
 
-            --// Tab Canvas \\--
-            TabCanvas = New("CanvasGroup", {
-                BackgroundTransparency = 1,
-                ClipsDescendants = true,
-                GroupTransparency = 0,
-                Size = UDim2.fromScale(1, 1),
-                Visible = false,
-                Parent = Container,
-            })
-
             --// Tab Container \\--
             TabContainer = New("Frame", {
                 BackgroundTransparency = 1,
                 Position = UDim2.fromScale(0, 0),
                 Size = UDim2.fromScale(1, 1),
-                Visible = true,
-                Parent = TabCanvas,
+                Visible = false,
+                Parent = Container,
             })
 
             TabLeft = New("ScrollingFrame", {
@@ -11121,7 +11106,7 @@ function Library:CreateWindow(WindowInfo)
 
             Window = Window,
             Button = TabButton,
-            Canvas = TabCanvas,
+            Container = TabContainer,
             Sides = {
                 TabLeft,
                 TabRight,
@@ -12208,9 +12193,7 @@ function Library:CreateWindow(WindowInfo)
                 end
             end
 
-            if TabCanvas then
-                TabCanvas:Destroy()
-            elseif TabContainer then
+            if TabContainer then
                 TabContainer:Destroy()
             end
 
@@ -12275,7 +12258,6 @@ function Library:CreateWindow(WindowInfo)
         local TabLabel
         local TabIcon
 
-        local TabCanvas
         local TabContainer
 
         Icon = if Icon == "key" then KeyIcon else Library:GetCustomIcon(Icon)
@@ -12325,16 +12307,6 @@ function Library:CreateWindow(WindowInfo)
                 Icon = TabIcon,
             })
 
-            --// Tab Canvas \\--
-            TabCanvas = New("CanvasGroup", {
-                BackgroundTransparency = 1,
-                ClipsDescendants = true,
-                GroupTransparency = 0,
-                Size = UDim2.fromScale(1, 1),
-                Visible = false,
-                Parent = Container,
-            })
-
             --// Tab Container \\--
             TabContainer = New("ScrollingFrame", {
                 AutomaticCanvasSize = Enum.AutomaticSize.Y,
@@ -12343,8 +12315,8 @@ function Library:CreateWindow(WindowInfo)
                 ScrollBarThickness = 0,
                 Position = UDim2.fromScale(0, 0),
                 Size = UDim2.fromScale(1, 1),
-                Visible = true,
-                Parent = TabCanvas,
+                Visible = false,
+                Parent = Container,
             })
             New("UIListLayout", {
                 HorizontalAlignment = Enum.HorizontalAlignment.Center,
@@ -12368,7 +12340,7 @@ function Library:CreateWindow(WindowInfo)
 
             Window = Window,
             Button = TabButton,
-            Canvas = TabCanvas
+            Container = TabContainer
         }
 
         function Tab:AddKeyBox(Callback)
@@ -12467,9 +12439,7 @@ function Library:CreateWindow(WindowInfo)
         end
 
         function Tab:Destroy()
-            if TabCanvas then
-                TabCanvas:Destroy()
-            elseif TabContainer then
+            if TabContainer then
                 TabContainer:Destroy()
             end
 
