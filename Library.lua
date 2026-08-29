@@ -9852,7 +9852,7 @@ function Library:Notify(...)
         Data.Steps = Info.Steps
         Data.Persist = Info.Persist
 
-        Data.Callback = typeof(Data.Callback) == "function" and Data.Callback or nil
+        Data.Callback = typeof(Info.Callback) == "function" and Info.Callback or nil
         Data.Closable = Info.Closable == true
 
         Data.Icon = Info.Icon
@@ -9942,12 +9942,12 @@ function Library:Notify(...)
         CloseButton.MouseEnter:Connect(function()
             TweenService:Create(CloseButton, Library.TweenInfo, {
                 ImageTransparency = 0,
-            })
+            }):Play()
         end)
         CloseButton.MouseLeave:Connect(function()
             TweenService:Create(CloseButton, Library.TweenInfo, {
                 ImageTransparency = 0.5,
-            })
+            }):Play()
         end)
         CloseButton.MouseButton1Click:Connect(function()
             Data:Destroy("user")
