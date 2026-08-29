@@ -184,7 +184,6 @@ local Library = {
 
     --// Tabs \\--
     ActiveTab = nil,
-    PreviousTab = nil,
     Tabs = {},
     TabButtons = {},
 
@@ -228,13 +227,15 @@ local Library = {
 
     GroupboxTweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
     RotatingChevronTweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+    SliderTweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 
     Animations = {
         ToggleWindow = false,
         TabSwitch = false,
         Groupbox = false,
         Dropdown = false,
-        KeyPicker = false
+        KeyPicker = false,
+        Slider = false
     },
 
     --// States \\--
@@ -427,7 +428,8 @@ local Templates = {
             TabSwitch = false,
             Groupbox = false,
             Dropdown = false,
-            KeyPicker = false
+            KeyPicker = false,
+            Slider = false
         },
 
         TabTransitionTime = 0.22,
@@ -1603,7 +1605,7 @@ local ModalElement = New("TextButton", {
 --// Floats and Overlays
 local Floats = New("Frame", {
     BackgroundTransparency = 1,
-    Size = UDim2.fromScale(1, 1),
+    Size = UDim2.fromOffset(0, 0),
     ZIndex = 10,
     Active = false,
     Parent = ScreenGui,
@@ -1611,7 +1613,7 @@ local Floats = New("Frame", {
 
 local Overlay = New("Frame", {
     BackgroundTransparency = 1,
-    Size = UDim2.fromScale(1, 1),
+    Size = UDim2.fromOffset(0, 0),
     ZIndex = 20,
     Active = false,
     Parent = ScreenGui,
@@ -1708,7 +1710,7 @@ do
 end
 
 --// Icons \\--
-local CheckIcon, ArrowIcon, ResizeIcon, KeyIcon, MoveIcon, PopOutIcon, CloseIcon
+local CheckIcon, ArrowIcon, ResizeIcon, KeyIcon, MoveIcon, PopOutIcon
 function Library:SetIconModule(module: IconModule)
     FetchIcons = true
     Icons = module
@@ -1719,7 +1721,6 @@ function Library:SetIconModule(module: IconModule)
     KeyIcon = Library:GetIcon("key")
     MoveIcon = Library:GetIcon("move")
     PopOutIcon = Library:GetIcon("square-arrow-down-left")
-    CloseIcon = Library:GetIcon("x")
 end
 
 local OnlineFetchIcons, OnlineIcons = pcall(function()
@@ -2283,8 +2284,8 @@ end
 local TransparencyCache = {}
 local ActiveTabTweens = setmetatable({}, { __mode = "k" })
 
-function Library:PlayTabAnimation(Tab, Showing: boolean, OnComplete: (() -> ())?)
-    if type(Tab) ~= "table" or not Tab.Container then
+function Library:PlayTabAnimation(TabCanvas: CanvasGroup, Showing: boolean, OnComplete: (() -> ())?)
+    if not TabCanvas then
         if OnComplete then
             OnComplete()
         end
@@ -2292,18 +2293,18 @@ function Library:PlayTabAnimation(Tab, Showing: boolean, OnComplete: (() -> ())?
         return
     end
 
-    local TabContainer = Tab.Container :: Frame
-    local Existing = ActiveTabTweens[TabContainer]
+    local Existing = ActiveTabTweens[TabCanvas]
     if Existing then
         StopTween(Existing, true)
-        ActiveTabTweens[TabContainer] = nil
+        ActiveTabTweens[TabCanvas] = nil
     end
 
-    local BaseZIndex = TabContainer.ZIndex
+    local BaseZIndex = TabCanvas.ZIndex
     if not (Library.Animations and Library.Animations.TabSwitch) then
-        TabContainer.Visible = Showing
-        TabContainer.Position = UDim2.fromScale(0, 0)
-        TabContainer.ZIndex = BaseZIndex
+        TabCanvas.Visible = Showing
+        TabCanvas.GroupTransparency = Showing and 0 or 1
+        TabCanvas.Position = UDim2.fromScale(0, 0)
+        TabCanvas.ZIndex = BaseZIndex
 
         if OnComplete then
             OnComplete()
@@ -2317,40 +2318,28 @@ function Library:PlayTabAnimation(Tab, Showing: boolean, OnComplete: (() -> ())?
         local Offset = Library.TabSwipeOffset or 26
         local SwipeFrom = string.lower(Library.TabSwipeFrom or "bottom")
         local StartPosition
-        local StartingPositions = {
-            Left = UDim2.fromOffset(-Offset, 0),
-            Right = UDim2.fromOffset(Offset, 0),
-            Top = UDim2.fromOffset(0, -Offset),
-            Bottom = UDim2.fromOffset(0, Offset),
-        }
 
-        if SwipeFrom == "auto" and Library.PreviousTab then
-            local CurrentOrder = Tab.Button.LayoutOrder
-            local PreviousOrder = Library.PreviousTab.Button.LayoutOrder
-            if CurrentOrder and PreviousOrder then -- this may be unnecessary but oh well
-                StartPosition = CurrentOrder > PreviousOrder and StartingPositions.Top or StartingPositions.Bottom -- bigger order means its under the current button
-            else
-                StartPosition = StartingPositions.Bottom
-            end
-        elseif SwipeFrom == "left" then
-            StartPosition = StartingPositions.Left
+        if SwipeFrom == "left" then
+            StartPosition = UDim2.fromOffset(-Offset, 0)
         elseif SwipeFrom == "top" then
-            StartPosition = StartingPositions.Top
+            StartPosition = UDim2.fromOffset(0, -Offset)
         elseif SwipeFrom == "right" then
-            StartPosition = StartingPositions.Right
+            StartPosition = UDim2.fromOffset(Offset, 0)
         else -- bottom (Default)
-            StartPosition = StartingPositions.Bottom
+            StartPosition = UDim2.fromOffset(0, Offset)
         end
 
-        TabContainer.ZIndex = BaseZIndex + 1
-        TabContainer.Position = StartPosition
-        TabContainer.Visible = true
+        TabCanvas.ZIndex = BaseZIndex + 1
+        TabCanvas.GroupTransparency = 1
+        TabCanvas.Position = StartPosition
+        TabCanvas.Visible = true
 
-        local Tween = TweenService:Create(TabContainer, TweenInfo, {
+        local Tween = TweenService:Create(TabCanvas, TweenInfo, {
+            GroupTransparency = 0,
             Position = UDim2.fromScale(0, 0)
         })
 
-        ActiveTabTweens[TabContainer] = Tween
+        ActiveTabTweens[TabCanvas] = Tween
         Tween:Play()
 
         local Connection; Connection = Tween.Completed:Connect(function(PlaybackState)
@@ -2358,23 +2347,24 @@ function Library:PlayTabAnimation(Tab, Showing: boolean, OnComplete: (() -> ())?
                 Connection:Disconnect()
             end
 
-            if ActiveTabTweens[TabContainer] == Tween then
-                ActiveTabTweens[TabContainer] = nil
+            if ActiveTabTweens[TabCanvas] == Tween then
+                ActiveTabTweens[TabCanvas] = nil
             end
 
             if PlaybackState == Enum.PlaybackState.Cancelled then
                 return
             end
 
-            TabContainer.ZIndex = BaseZIndex
+            TabCanvas.ZIndex = BaseZIndex
             if OnComplete then
                 OnComplete()
             end
         end)
     else
-        TabContainer.Visible = false
-        TabContainer.Position = UDim2.fromScale(0, 0)
-        TabContainer.ZIndex = BaseZIndex
+        TabCanvas.GroupTransparency = 1
+        TabCanvas.Visible = false
+        TabCanvas.Position = UDim2.fromScale(0, 0)
+        TabCanvas.ZIndex = BaseZIndex
 
         if OnComplete then
             OnComplete()
@@ -7370,7 +7360,9 @@ do
             Library.Registry[Fill].BackgroundColor3 = Slider.Disabled and "OutlineColor" or "AccentColor"
         end
 
-        function Slider:Display()
+        local FillTween: TweenBase
+
+        function Slider:Display(Instant: boolean?)
             if Library.Unloaded then
                 return
             end
@@ -7402,7 +7394,33 @@ do
             end
 
             local X = (Slider.Value - Slider.Min) / (Slider.Max - Slider.Min)
-            Fill.Size = UDim2.fromScale(X, 1)
+            local TargetSize = UDim2.fromScale(X, 1)
+
+            if FillTween then
+                StopTween(FillTween, true)
+                FillTween = nil
+            end
+
+            if not Instant and Library.Animations and Library.Animations.Slider then
+                local AnimTweenInfo = Library.SliderTweenInfo or TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                local Tween = TweenService:Create(Fill, AnimTweenInfo, { Size = TargetSize })
+                FillTween = Tween
+
+                local Connection; Connection = Library:GiveSignal(Tween.Completed:Once(function()
+                    if Connection then
+                        Connection:Disconnect()
+                    end
+
+                    if FillTween == Tween then
+                        StopTween(FillTween, true)
+                        FillTween = nil
+                    end
+                end))
+
+                Tween:Play()
+            else
+                Fill.Size = TargetSize
+            end
         end
 
         function Slider:OnChanged(Func)
@@ -7623,7 +7641,7 @@ do
         end
 
         Slider:UpdateColors()
-        Slider:Display()
+        Slider:Display(true)
         Groupbox:Resize()
 
         Slider.Holder = Holder
@@ -7635,6 +7653,11 @@ do
 
         function Slider:Destroy()
             Slider.Destroyed = true
+
+            if FillTween then
+                StopTween(FillTween, true)
+                FillTween = nil
+            end
 
             if Slider.Connections then
                 for _, Connection in Slider.Connections do
@@ -8481,10 +8504,6 @@ do
 
         function Dropdown:SetValue(Value)
             if Info.Multi then
-                if typeof(Value) == "string" then
-                    Value = if Value == "" then {} else { [Value] = true }
-                end
-
                 local Table = {}
 
                 for Val, Active in Value or {} do
@@ -8890,7 +8909,10 @@ do
                 return
             end
 
-            if input.UserInputType == Enum.UserInputType.MouseButton2 or (input.UserInputType == Enum.UserInputType.Touch and not Pinching) then
+            if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                Dragging = true
+                LastMousePos = input.Position
+            elseif input.UserInputType == Enum.UserInputType.Touch and not Pinching then
                 Dragging = true
                 LastMousePos = input.Position
             end
@@ -8905,7 +8927,9 @@ do
                 return
             end
 
-            if input.UserInputType == Enum.UserInputType.MouseButton2 or input.UserInputType == Enum.UserInputType.Touch then
+            if input.UserInputType == Enum.UserInputType.MouseButton2 then
+                Dragging = false
+            elseif input.UserInputType == Enum.UserInputType.Touch then
                 Dragging = false
             end
         end))
@@ -8952,7 +8976,7 @@ do
             end
         end))
 
-        table.insert(Viewport.Connections, UserInputService.TouchPinch:Connect(function(touchPositions, _, _, state)
+        table.insert(Viewport.Connections, UserInputService.TouchPinch:Connect(function(touchPositions, scale, velocity, state)
             if Library.Unloaded then
                 return
             end
@@ -9852,9 +9876,6 @@ function Library:Notify(...)
         Data.Steps = Info.Steps
         Data.Persist = Info.Persist
 
-        Data.Callback = typeof(Info.Callback) == "function" and Info.Callback or nil
-        Data.Closable = Info.Closable == true
-
         Data.Icon = Info.Icon
         Data.BigIcon = Info.BigIcon
         Data.IconColor = Info.IconColor
@@ -9903,62 +9924,24 @@ function Library:Notify(...)
             Parent = Holder,
         })
     )
-    Library:AddOutline(Holder)
-
-    local ContentHolder = New("Frame", {
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1,
-        Size = UDim2.fromScale(1, 0),
-        Parent = Holder,
-    })
     New("UIListLayout", {
         Padding = UDim.new(0, 4),
-        Parent = ContentHolder,
+        Parent = Holder,
     })
     New("UIPadding", {
         PaddingBottom = UDim.new(0, 8),
         PaddingLeft = UDim.new(0, 8),
         PaddingRight = UDim.new(0, 8),
         PaddingTop = UDim.new(0, 8),
-        Parent = ContentHolder,
+        Parent = Holder,
     })
-
-    local CloseButton
-    if Data.Closable then
-        CloseButton = New("ImageButton", {
-            AnchorPoint = Vector2.new(1, 0),
-            BackgroundTransparency = 1,
-            Image = CloseIcon and CloseIcon.Url or "",
-            ImageColor3 = "FontColor",
-            ImageRectOffset = CloseIcon and CloseIcon.ImageRectOffset or Vector2.zero,
-            ImageRectSize = CloseIcon and CloseIcon.ImageRectSize or Vector2.zero,
-            ImageTransparency = 0.5,
-            Position = UDim2.new(1, -8, 0, 8),
-            Size = UDim2.fromOffset(14, 14),
-            ZIndex = 6,
-            Parent = Holder,
-        })
-
-        CloseButton.MouseEnter:Connect(function()
-            TweenService:Create(CloseButton, Library.TweenInfo, {
-                ImageTransparency = 0,
-            }):Play()
-        end)
-        CloseButton.MouseLeave:Connect(function()
-            TweenService:Create(CloseButton, Library.TweenInfo, {
-                ImageTransparency = 0.5,
-            }):Play()
-        end)
-        CloseButton.MouseButton1Click:Connect(function()
-            Data:Destroy("user")
-        end)
-    end
+    Library:AddOutline(Holder)
 
     local ContentContainer = New("Frame", {
         BackgroundTransparency = 1,
         AutomaticSize = Enum.AutomaticSize.XY,
         Size = UDim2.fromScale(1, 0),
-        Parent = ContentHolder,
+        Parent = Holder,
     })
 
     if Data.BigIcon then
@@ -10061,11 +10044,10 @@ function Library:Notify(...)
     function Data:Resize()
         local ExtraWidth = BigIconLabel and 32 or 0
         local IconWidth = IconLabel and 21 or 0
-        local CloseWidth = Data.Closable and 20 or 0
 
         if Title then
             local X, Y =
-                Library:GetTextBounds(Title.Text, Title.FontFace, Title.TextSize, (NotificationArea.AbsoluteSize.X / Library.DPIScale) - 24 - ExtraWidth - IconWidth - CloseWidth)
+                Library:GetTextBounds(Title.Text, Title.FontFace, Title.TextSize, (NotificationArea.AbsoluteSize.X / Library.DPIScale) - 24 - ExtraWidth - IconWidth)
             Title.Size = UDim2.fromOffset(X, Y)
             TitleX = X + IconWidth
             TitleContainer.Size = UDim2.fromOffset(TitleX, math.max(Y, IconLabel and 16 or 0))
@@ -10108,17 +10090,8 @@ function Library:Notify(...)
         end
     end
 
-    function Data:Destroy(Reason)
-        if Data.Destroyed then
-            return
-        end
-
-        Reason = Reason or "script"
+    function Data:Destroy()
         Data.Destroyed = true
-
-        if Data.Callback then
-            pcall(Data.Callback, Reason)
-        end
 
         if typeof(Data.Time) == "Instance" then
             pcall(Data.Time.Destroy, Data.Time)
@@ -10155,7 +10128,7 @@ function Library:Notify(...)
         BackgroundTransparency = 1,
         Size = UDim2.new(1, 0, 0, 7),
         Visible = (Data.Persist ~= true and typeof(Data.Time) ~= "Instance") or typeof(Data.Steps) == "number",
-        Parent = ContentHolder,
+        Parent = Holder,
     })
     local TimerBar = New("Frame", {
         BackgroundColor3 = "BackgroundColor",
@@ -10216,7 +10189,9 @@ function Library:Notify(...)
             task.wait(Data.Time)
         end
 
-        Data:Destroy("timer")
+        if not Data.Destroyed then
+            Data:Destroy()
+        end
     end)
 
     return Data
@@ -11021,6 +10996,7 @@ function Library:CreateWindow(WindowInfo)
         local TabIcon
 
         local TabContainer
+        local TabCanvas
         local TabLeft
         local TabRight
 
@@ -11072,13 +11048,23 @@ function Library:CreateWindow(WindowInfo)
                 Icon = TabIcon,
             })
 
+            --// Tab Canvas \\--
+            TabCanvas = New("CanvasGroup", {
+                BackgroundTransparency = 1,
+                ClipsDescendants = true,
+                GroupTransparency = 0,
+                Size = UDim2.fromScale(1, 1),
+                Visible = false,
+                Parent = Container,
+            })
+
             --// Tab Container \\--
             TabContainer = New("Frame", {
                 BackgroundTransparency = 1,
                 Position = UDim2.fromScale(0, 0),
                 Size = UDim2.fromScale(1, 1),
-                Visible = false,
-                Parent = Container,
+                Visible = true,
+                Parent = TabCanvas,
             })
 
             TabLeft = New("ScrollingFrame", {
@@ -11159,8 +11145,7 @@ function Library:CreateWindow(WindowInfo)
             Destroyed = false,
 
             Window = Window,
-            Button = TabButton,
-            Container = TabContainer,
+            Canvas = TabCanvas,
             Sides = {
                 TabLeft,
                 TabRight,
@@ -11542,6 +11527,48 @@ function Library:CreateWindow(WindowInfo)
                     Parent = Container,
                 })
 
+                local ActiveButtonTweens: { TweenBase } = {}
+
+                local function StopButtonTweens()
+                    for _, Tween in ActiveButtonTweens do
+                        StopTween(Tween, true)
+                    end
+                    table.clear(ActiveButtonTweens)
+                end
+
+                local function SetButtonState(Active: boolean)
+                    StopButtonTweens()
+
+                    local TargetBackgroundTransparency = Active and 1 or 0
+                    local TargetLabelTransparency = Active and 0 or 0.5
+                    local TargetIconTransparency = Active and 0 or 0.5
+
+                    if Library.Animations and Library.Animations.Groupbox then
+                        local AnimTweenInfo = Library.GroupboxTweenInfo or TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+                        table.insert(ActiveButtonTweens, TweenService:Create(Button, AnimTweenInfo, { BackgroundTransparency = TargetBackgroundTransparency }))
+                        if ButtonLabel then
+                            table.insert(ActiveButtonTweens, TweenService:Create(ButtonLabel, AnimTweenInfo, { TextTransparency = TargetLabelTransparency }))
+                        end
+                        if ButtonIcon then
+                            table.insert(ActiveButtonTweens, TweenService:Create(ButtonIcon, AnimTweenInfo, { ImageTransparency = TargetIconTransparency }))
+                        end
+
+                        for _, Tween in ActiveButtonTweens do
+                            Tween:Play()
+                        end
+                    else
+                        Button.BackgroundTransparency = TargetBackgroundTransparency
+
+                        if ButtonLabel then
+                            ButtonLabel.TextTransparency = TargetLabelTransparency
+                        end
+                        if ButtonIcon then
+                            ButtonIcon.ImageTransparency = TargetIconTransparency
+                        end
+                    end
+                end
+
                 local Tab = {
                     Name = Name,
 
@@ -11562,14 +11589,7 @@ function Library:CreateWindow(WindowInfo)
                         Tabbox.ActiveTab:Hide()
                     end
 
-                    Button.BackgroundTransparency = 1
-
-                    if ButtonLabel then
-                        ButtonLabel.TextTransparency = 0
-                    end
-                    if ButtonIcon then
-                        ButtonIcon.ImageTransparency = 0
-                    end
+                    SetButtonState(true)
 
                     Line.Visible = false
 
@@ -11581,14 +11601,8 @@ function Library:CreateWindow(WindowInfo)
                 end
 
                 function Tab:Hide()
-                    Button.BackgroundTransparency = 0
+                    SetButtonState(false)
 
-                    if ButtonLabel then
-                        ButtonLabel.TextTransparency = 0.5
-                    end
-                    if ButtonIcon then
-                        ButtonIcon.ImageTransparency = 0.5
-                    end
                     Line.Visible = true
                     Container.Visible = false
 
@@ -11620,6 +11634,8 @@ function Library:CreateWindow(WindowInfo)
 
                 function Tab:Destroy()
                     Tab.Destroyed = true
+
+                    StopButtonTweens()
 
                     if Tab.Connections then
                         for _, Connection in Tab.Connections do
@@ -12173,7 +12189,7 @@ function Library:CreateWindow(WindowInfo)
                 Window:ShowTabInfo(Name, Description)
             end
 
-            Library:PlayTabAnimation(Tab, true)
+            Library:PlayTabAnimation(TabCanvas, true)
             Tab:RefreshSides()
 
             Library.ActiveTab = Tab
@@ -12198,10 +12214,9 @@ function Library:CreateWindow(WindowInfo)
                 }):Play()
             end
 
-            Library:PlayTabAnimation(Tab, false)
+            Library:PlayTabAnimation(TabCanvas, false)
             Window:HideTabInfo()
 
-            Library.PreviousTab = Tab
             Library.ActiveTab = nil
         end
 
@@ -12247,7 +12262,9 @@ function Library:CreateWindow(WindowInfo)
                 end
             end
 
-            if TabContainer then
+            if TabCanvas then
+                TabCanvas:Destroy()
+            elseif TabContainer then
                 TabContainer:Destroy()
             end
 
@@ -12312,6 +12329,7 @@ function Library:CreateWindow(WindowInfo)
         local TabLabel
         local TabIcon
 
+        local TabCanvas
         local TabContainer
 
         Icon = if Icon == "key" then KeyIcon else Library:GetCustomIcon(Icon)
@@ -12361,6 +12379,16 @@ function Library:CreateWindow(WindowInfo)
                 Icon = TabIcon,
             })
 
+            --// Tab Canvas \\--
+            TabCanvas = New("CanvasGroup", {
+                BackgroundTransparency = 1,
+                ClipsDescendants = true,
+                GroupTransparency = 0,
+                Size = UDim2.fromScale(1, 1),
+                Visible = false,
+                Parent = Container,
+            })
+
             --// Tab Container \\--
             TabContainer = New("ScrollingFrame", {
                 AutomaticCanvasSize = Enum.AutomaticSize.Y,
@@ -12369,8 +12397,8 @@ function Library:CreateWindow(WindowInfo)
                 ScrollBarThickness = 0,
                 Position = UDim2.fromScale(0, 0),
                 Size = UDim2.fromScale(1, 1),
-                Visible = false,
-                Parent = Container,
+                Visible = true,
+                Parent = TabCanvas,
             })
             New("UIListLayout", {
                 HorizontalAlignment = Enum.HorizontalAlignment.Center,
@@ -12393,8 +12421,7 @@ function Library:CreateWindow(WindowInfo)
             Elements = {},
 
             Window = Window,
-            Button = TabButton,
-            Container = TabContainer
+            Canvas = TabCanvas
         }
 
         function Tab:AddKeyBox(Callback)
@@ -12493,7 +12520,9 @@ function Library:CreateWindow(WindowInfo)
         end
 
         function Tab:Destroy()
-            if TabContainer then
+            if TabCanvas then
+                TabCanvas:Destroy()
+            elseif TabContainer then
                 TabContainer:Destroy()
             end
 
@@ -12558,7 +12587,7 @@ function Library:CreateWindow(WindowInfo)
                 }):Play()
             end
 
-            Library:PlayTabAnimation(Tab, true)
+            Library:PlayTabAnimation(TabCanvas, true)
 
             if Description then
                 Window:ShowTabInfo(Name, Description)
@@ -12588,10 +12617,9 @@ function Library:CreateWindow(WindowInfo)
                 }):Play()
             end
 
-            Library:PlayTabAnimation(Tab, false)
+            Library:PlayTabAnimation(TabCanvas, false)
             Window:HideTabInfo()
 
-            Library.PreviousTab = Tab
             Library.ActiveTab = nil
         end
 
