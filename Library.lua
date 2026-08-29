@@ -1717,7 +1717,7 @@ do
 end
 
 --// Icons \\--
-local CheckIcon, ArrowIcon, ResizeIcon, KeyIcon, MoveIcon, PopOutIcon
+local CheckIcon, ArrowIcon, ResizeIcon, KeyIcon, MoveIcon, PopOutIcon, CloseIcon
 function Library:SetIconModule(module: IconModule)
     FetchIcons = true
     Icons = module
@@ -1728,6 +1728,7 @@ function Library:SetIconModule(module: IconModule)
     KeyIcon = Library:GetIcon("key")
     MoveIcon = Library:GetIcon("move")
     PopOutIcon = Library:GetIcon("square-arrow-down-left")
+    CloseIcon = Library:GetIcon("x")
 end
 
 local OnlineFetchIcons, OnlineIcons = pcall(function()
@@ -9948,6 +9949,9 @@ function Library:Notify(...)
         Data.Steps = Info.Steps
         Data.Persist = Info.Persist
 
+        Data.Callback = typeof(Info.Callback) == "function" and Info.Callback or nil
+        Data.Closable = Info.Closable == true
+
         Data.Icon = Info.Icon
         Data.BigIcon = Info.BigIcon
         Data.IconColor = Info.IconColor
@@ -9996,24 +10000,62 @@ function Library:Notify(...)
             Parent = Holder,
         })
     )
+    Library:AddOutline(Holder)
+
+    local ContentHolder = New("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 0),
+        Parent = Holder,
+    })
     New("UIListLayout", {
         Padding = UDim.new(0, 4),
-        Parent = Holder,
+        Parent = ContentHolder,
     })
     New("UIPadding", {
         PaddingBottom = UDim.new(0, 8),
         PaddingLeft = UDim.new(0, 8),
         PaddingRight = UDim.new(0, 8),
         PaddingTop = UDim.new(0, 8),
-        Parent = Holder,
+        Parent = ContentHolder,
     })
-    Library:AddOutline(Holder)
+
+    local CloseButton
+    if Data.Closable then
+        CloseButton = New("ImageButton", {
+            AnchorPoint = Vector2.new(1, 0),
+            BackgroundTransparency = 1,
+            Image = CloseIcon and CloseIcon.Url or "",
+            ImageColor3 = "FontColor",
+            ImageRectOffset = CloseIcon and CloseIcon.ImageRectOffset or Vector2.zero,
+            ImageRectSize = CloseIcon and CloseIcon.ImageRectSize or Vector2.zero,
+            ImageTransparency = 0.5,
+            Position = UDim2.new(1, -8, 0, 8),
+            Size = UDim2.fromOffset(14, 14),
+            ZIndex = 6,
+            Parent = Holder,
+        })
+
+        CloseButton.MouseEnter:Connect(function()
+            TweenService:Create(CloseButton, Library.TweenInfo, {
+                ImageTransparency = 0,
+            }):Play()
+        end)
+        CloseButton.MouseLeave:Connect(function()
+            TweenService:Create(CloseButton, Library.TweenInfo, {
+                ImageTransparency = 0.5,
+            }):Play()
+        end)
+        CloseButton.MouseButton1Click:Connect(function()
+            Data:Destroy("user")
+        end)
+    end
 
     local ContentContainer = New("Frame", {
         BackgroundTransparency = 1,
         AutomaticSize = Enum.AutomaticSize.XY,
         Size = UDim2.fromScale(1, 0),
-        Parent = Holder,
+        Parent = ContentHolder,
     })
 
     if Data.BigIcon then
@@ -10116,10 +10158,11 @@ function Library:Notify(...)
     function Data:Resize()
         local ExtraWidth = BigIconLabel and 32 or 0
         local IconWidth = IconLabel and 21 or 0
+        local CloseWidth = Data.Closable and 20 or 0
 
         if Title then
             local X, Y =
-                Library:GetTextBounds(Title.Text, Title.FontFace, Title.TextSize, (NotificationArea.AbsoluteSize.X / Library.DPIScale) - 24 - ExtraWidth - IconWidth)
+                Library:GetTextBounds(Title.Text, Title.FontFace, Title.TextSize, (NotificationArea.AbsoluteSize.X / Library.DPIScale) - 24 - ExtraWidth - IconWidth - CloseWidth)
             Title.Size = UDim2.fromOffset(X, Y)
             TitleX = X + IconWidth
             TitleContainer.Size = UDim2.fromOffset(TitleX, math.max(Y, IconLabel and 16 or 0))
@@ -10162,8 +10205,17 @@ function Library:Notify(...)
         end
     end
 
-    function Data:Destroy()
+    function Data:Destroy(Reason)
+        if Data.Destroyed then
+            return
+        end
+
+        Reason = Reason or "script"
         Data.Destroyed = true
+
+        if Data.Callback then
+            pcall(Data.Callback, Reason)
+        end
 
         if typeof(Data.Time) == "Instance" then
             pcall(Data.Time.Destroy, Data.Time)
@@ -10200,7 +10252,7 @@ function Library:Notify(...)
         BackgroundTransparency = 1,
         Size = UDim2.new(1, 0, 0, 7),
         Visible = (Data.Persist ~= true and typeof(Data.Time) ~= "Instance") or typeof(Data.Steps) == "number",
-        Parent = Holder,
+        Parent = ContentHolder,
     })
     local TimerBar = New("Frame", {
         BackgroundColor3 = "BackgroundColor",
@@ -10261,9 +10313,7 @@ function Library:Notify(...)
             task.wait(Data.Time)
         end
 
-        if not Data.Destroyed then
-            Data:Destroy()
-        end
+        Data:Destroy("timer")
     end)
 
     return Data
