@@ -323,6 +323,7 @@ export type Label = {
     TextLabel: TextLabel,
     Container: GuiObject,
     Holder: TextLabel,
+    Parent: BaseGroupbox,
 
     SetVisible: (self: Label, Visible: boolean) -> (),
     SetText: (self: Label, Text: string) -> (),
@@ -349,6 +350,7 @@ export type Button = {
     Stroke: UIStroke,
     Holder: Frame,
     SubButton: SubButton?,
+    Parent: BaseGroupbox,
 
     AddButton: (self: Button, Info: ButtonInfo | string, Func: (() -> ())?, Idx: string?) -> SubButton,
     UpdateColors: (self: Button) -> (),
@@ -396,6 +398,7 @@ export type Toggle = {
     TextLabel: TextLabel,
     Container: GuiObject,
     Holder: TextButton,
+    Parent: BaseGroupbox,
 
     UpdateColors: (self: Toggle) -> (),
     Display: (self: Toggle) -> (),
@@ -602,6 +605,7 @@ export type UIPassthrough = {
 export type Divider = {
     Type: "Divider",
     Holder: Frame,
+    Parent: BaseGroupbox,
     Destroy: (self: Divider) -> (),
 }
 
@@ -713,6 +717,7 @@ export type SubTab = BaseGroupbox & {
     ButtonHolder: TextButton,
     Container: Frame,
     Tab: Tab,
+    Tabbox: Tabbox,
     Elements: { [number]: Element },
     DependencyBoxes: { [number]: DependencyBox },
 
