@@ -5886,6 +5886,8 @@ do
             MarginTop = MarginTop,
             MarginBottom = MarginBottom,
             Type = "Divider",
+
+            Parent = Groupbox,
         }
 
         function Divider:SetVisible(Value)
@@ -5933,7 +5935,7 @@ do
             Data.Text = Params.Text or ""
             Data.DoesWrap = Params.DoesWrap or false
             Data.Size = Params.Size or 14
-            Data.Visible = Params.Visible or true
+            Data.Visible = if typeof(Params.Visible) == "boolean" then Params.Visible else true
             Data.Idx = typeof(Second) == "table" and First or nil
         else
             Data.Text = First or ""
@@ -5957,6 +5959,8 @@ do
 
             Visible = Data.Visible,
             Type = "Label",
+
+            Parent = Groupbox,
         }
 
         local TextLabel = New("TextLabel", {
@@ -5966,6 +5970,7 @@ do
             TextSize = Data.Size,
             TextWrapped = Label.DoesWrap,
             TextXAlignment = Groupbox.IsKeyTab and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left,
+            Visible = Label.Visible,
             Parent = Container,
         })
 
@@ -6100,7 +6105,7 @@ do
 
                 Info.Risky = Params.Risky or false
                 Info.Disabled = Params.Disabled or false
-                Info.Visible = Params.Visible or true
+                Info.Visible = if typeof(Params.Visible) == "boolean" then Params.Visible else true
                 Info.Idx = typeof(Second) == "table" and First or nil
             else
                 Info.Text = First or ""
@@ -6141,6 +6146,8 @@ do
 
             Tween = nil,
             Type = "Button",
+
+            Parent = Groupbox,
         }
 
         local Holder = New("Frame", {
@@ -6490,6 +6497,8 @@ do
 
             Variant = "Checkbox",
             Type = "Toggle",
+
+            Parent = Groupbox,
         }
 
         local Button = New("TextButton", {
@@ -6746,6 +6755,8 @@ do
 
             Variant = "Switch",
             Type = "Toggle",
+
+            Parent = Groupbox,
         }
 
         local Button = New("TextButton", {
@@ -11671,6 +11682,8 @@ function Library:CreateWindow(WindowInfo)
                     ButtonCorner = ButtonCorner,
 
                     Tab = Tab,
+                    Tabbox = Tabbox,
+
                     Elements = {},
                     DependencyBoxes = {},
                 }
