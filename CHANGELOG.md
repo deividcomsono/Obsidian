@@ -1,6 +1,9 @@
 ## 31.08.2026
 
 ```diff
+[features]
++ Tooltip support for tab buttons
+
 [changes]
 + ColorPickers use the smallest possible size on Mobile now
 + SetValue will now set the Value but will not run the Callbacks when the element is disabled

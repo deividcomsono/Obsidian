@@ -11280,6 +11280,7 @@ function Library:CreateWindow(WindowInfo)
         local Name = nil
         local Icon = nil
         local Description = nil
+        local Tooltip = nil
         local Order = nil
 
         if select("#", ...) == 1 and typeof(...) == "table" then
@@ -11287,6 +11288,7 @@ function Library:CreateWindow(WindowInfo)
             Name = Info.Name or "Tab"
             Icon = Info.Icon
             Description = Info.Description
+            Tooltip = Info.Tooltip
             Order = Info.Order
         else
             Name = select(1, ...)
@@ -11437,6 +11439,9 @@ function Library:CreateWindow(WindowInfo)
         local Tab = {
             Name = Name,
             Description = Description,
+
+            Tooltip = Tooltip,
+            TooltipTable = nil,
 
             Connections = {},
             Destroyed = false,
@@ -12503,6 +12508,19 @@ function Library:CreateWindow(WindowInfo)
             TabButton.LayoutOrder = Order
         end
 
+        function Tab:SetTooltip(Text: string?)
+            Tab.Tooltip = Text
+
+            if Tab.TooltipTable then
+                Tab.TooltipTable:Destroy()
+                Tab.TooltipTable = nil
+            end
+
+            if typeof(Text) == "string" then
+                Tab.TooltipTable = Library:AddTooltip(Text, nil, TabButton)
+            end
+        end
+
         function Tab:Destroy()
             Tab.Destroyed = true
 
@@ -12510,6 +12528,11 @@ function Library:CreateWindow(WindowInfo)
                 for _, Connection in Tab.Connections do
                     Connection:Disconnect()
                 end
+            end
+
+            if Tab.TooltipTable then
+                Tab.TooltipTable:Destroy()
+                Tab.TooltipTable = nil
             end
 
             for _, Groupbox in Tab.Groupboxes do
@@ -12551,6 +12574,10 @@ function Library:CreateWindow(WindowInfo)
         end
 
         --// Execution \\--
+        if typeof(Tooltip) == "string" then
+            Tab.TooltipTable = Library:AddTooltip(Tooltip, nil, TabButton)
+        end
+
         if not Library.ActiveTab then
             Tab:Show()
         end
@@ -12572,6 +12599,7 @@ function Library:CreateWindow(WindowInfo)
         local Name = nil
         local Icon = nil
         local Description = nil
+        local Tooltip = nil
         local Order = nil
 
         if select("#", ...) == 1 and typeof(...) == "table" then
@@ -12579,6 +12607,7 @@ function Library:CreateWindow(WindowInfo)
             Name = Info.Name or "Tab"
             Icon = Info.Icon
             Description = Info.Description
+            Tooltip = Info.Tooltip
             Order = Info.Order
         else
             Name = select(1, ...) or "Tab"
@@ -12674,6 +12703,9 @@ function Library:CreateWindow(WindowInfo)
         local Tab = {
             Description = Description,
             IsKeyTab = true,
+
+            Tooltip = Tooltip,
+            TooltipTable = nil,
 
             Elements = {},
 
@@ -12888,7 +12920,24 @@ function Library:CreateWindow(WindowInfo)
             end
         end
 
+        function Tab:SetTooltip(Text: string?)
+            Tab.Tooltip = Text
+
+            if Tab.TooltipTable then
+                Tab.TooltipTable:Destroy()
+                Tab.TooltipTable = nil
+            end
+
+            if typeof(Text) == "string" then
+                Tab.TooltipTable = Library:AddTooltip(Text, nil, TabButton)
+            end
+        end
+
         --// Execution \\--
+        if typeof(Tooltip) == "string" then
+            Tab.TooltipTable = Library:AddTooltip(Tooltip, nil, TabButton)
+        end
+
         if not Library.ActiveTab then
             Tab:Show()
         end
