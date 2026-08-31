@@ -589,6 +589,7 @@ local Templates = {
         Mode = "Toggle",
         Modes = { "Always", "Toggle", "Hold" },
         SyncToggleState = false,
+        NoUI = false,
 
         Callback = function() end,
         ChangedCallback = function() end,
@@ -3890,6 +3891,7 @@ do
             Toggled = false,
             Mode = Info.Mode,
             SyncToggleState = Info.SyncToggleState,
+            NoUI = Info.NoUI == true,
 
             Callback = Info.Callback,
             ChangedCallback = Info.ChangedCallback,
@@ -4214,7 +4216,7 @@ do
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 16),
                 Text = "",
-                Visible = not Info.NoUI,
+                Visible = not KeyPicker.NoUI,
                 Parent = Library.KeybindContainer,
             })
 
@@ -4282,7 +4284,7 @@ do
 
             KeyPicker.DoClick = function(...) end --// make luau lsp shut up
             table.insert(KeyPicker.Connections, Holder.MouseButton1Click:Connect(function()
-                if KeybindsToggle.Normal then
+                if KeybindsToggle.Normal or KeyPicker.NoUI then
                     return
                 end
 
@@ -4568,23 +4570,27 @@ do
 
         function KeyPicker:Update()
             local Disabled = ParentObj.Disabled == true
+            local Inert = Disabled or KeyPicker.NoUI
 
-            if Disabled and Picking then
+            if Inert and Picking then
                 SetPickingState(false, true)
             end
 
             KeyPicker:Display()
 
-            Picker.Active = not Disabled
-            ApplyPickerTextTransparency(Disabled and 0.8 or 0.4)
+            Picker.Active = not Inert
+            ApplyPickerTextTransparency(Inert and 0.8 or 0.4)
 
-            if Disabled then
+            if Inert then
                 if MenuTable.Active then
                     MenuTable:Close()
                 end
             end
 
-            if Info.NoUI then
+            if KeyPicker.NoUI then
+                if KeybindsToggle.Loaded then
+                    KeybindsToggle:SetVisibility(false)
+                end
                 return
             end
 
@@ -4654,7 +4660,7 @@ do
         end
 
         function KeyPicker:DoClick()
-            if Picking or ParentObj.Disabled then
+            if Picking or ParentObj.Disabled or KeyPicker.NoUI then
                 return
             end
 
@@ -4683,7 +4689,7 @@ do
         end
 
         function KeyPicker:RunChanged(IsKeyValid, KeyCode)
-            if ParentObj.Disabled then
+            if ParentObj.Disabled or KeyPicker.NoUI then
                 return
             end
 
@@ -4749,8 +4755,19 @@ do
             KeyPicker:Update()
         end
 
+        function KeyPicker:SetNoUI(NoUI: boolean)
+            NoUI = NoUI == true
+
+            if KeyPicker.NoUI == NoUI then
+                return
+            end
+
+            KeyPicker.NoUI = NoUI
+            KeyPicker:Update()
+        end
+
         table.insert(KeyPicker.Connections, Picker.MouseButton1Click:Connect(function()
-            if Picking or Library.IsPicking or ParentObj.Disabled then
+            if Picking or Library.IsPicking or ParentObj.Disabled or KeyPicker.NoUI then
                 return
             end
 
@@ -4903,7 +4920,7 @@ do
         end))
 
         table.insert(KeyPicker.Connections, Picker.MouseButton2Click:Connect(function()
-            if ParentObj.Disabled then
+            if ParentObj.Disabled or KeyPicker.NoUI then
                 return
             end
 
@@ -4918,6 +4935,7 @@ do
             local IsMouse = IsMouseClickInput(Input)
             if
                 ParentObj.Disabled
+                or KeyPicker.NoUI
                 or KeyPicker.Mode == "Always"
                 or KeyPicker.Value == "Unknown"
                 or KeyPicker.Value == "None"
@@ -4966,6 +4984,7 @@ do
             local IsMouse = IsMouseClickInput(Input)
             if
                 ParentObj.Disabled
+                or KeyPicker.NoUI
                 or KeyPicker.Value == "Unknown"
                 or KeyPicker.Value == "None"
                 or Picking
