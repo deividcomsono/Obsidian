@@ -755,6 +755,8 @@ export type Tab = {
     DependencyGroupboxes: { [number]: DependencyGroupbox },
     Sides: { ScrollingFrame },
     WarningBox: { IsNormal: boolean, LockSize: boolean, Visible: boolean, Title: string, Text: string },
+    Tooltip: string?,
+    TooltipTable: Tooltip?,
 
     UpdateWarningBox: (
         self: Tab,
@@ -798,6 +800,7 @@ export type Tab = {
     Hide: (self: Tab) -> (),
     SetVisible: (self: Tab, Visible: boolean) -> (),
     SetOrder: (self: Tab, Order: number) -> (),
+    SetTooltip: (self: Tab, Text: string?) -> (),
 }
 
 export type KeyTab = BaseGroupbox & {
@@ -805,6 +808,8 @@ export type KeyTab = BaseGroupbox & {
     IsKeyTab: true,
     Window: Window,
     Container: ScrollingFrame,
+    Tooltip: string?,
+    TooltipTable: Tooltip?,
 
     AddKeyBox: (self: KeyTab, ExpectedKey: string?, Callback: (Success: boolean, Key: string) -> ()) -> (),
     Resize: (self: KeyTab) -> (),
@@ -812,6 +817,7 @@ export type KeyTab = BaseGroupbox & {
     Show: (self: KeyTab) -> (),
     Hide: (self: KeyTab) -> (),
     SetVisible: (self: KeyTab, Visible: boolean) -> (),
+    SetTooltip: (self: KeyTab, Text: string?) -> (),
 }
 
 export type LoadingErrorButtonInfo = {
@@ -905,14 +911,14 @@ export type Window = {
     HideTabInfo: (self: Window) -> (),
     AddTab: (
         self: Window,
-        Info: { Name: string, Icon: string?, Description: string?, Order: number? } | string,
+        Info: { Name: string, Icon: string?, Description: string?, Tooltip: string?, Order: number? } | string,
         Icon: string?,
         Description: string?,
         Order: number?
     ) -> Tab,
     AddKeyTab: (
         self: Window,
-        Info: { Name: string, Icon: string?, Description: string? } | string,
+        Info: { Name: string, Icon: string?, Description: string?, Tooltip: string?, Order: number? } | string,
         Icon: string?,
         Description: string?
     ) -> KeyTab,
