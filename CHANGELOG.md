@@ -4,6 +4,7 @@
 [changes]
 + ColorPickers use the smallest possible size on Mobile now
 + SetValue will now set the Value but will not run the Callbacks when the element is disabled
++ Search now switches to the tab with the most prominent match
 
 [fixed]
 + Fixed notifications resizing incorrectly
