@@ -3019,26 +3019,22 @@ function Library:AddDraggableButton(...)
     end
     Library:AddOutline(Button)
 
-    local DragThreshold = if ExcludeDragging then 0.25 else math.huge
+    local MaxClickDistance = ExcludeDragging and 12 or math.huge
     Button.InputBegan:Connect(function(Input: InputObject)
         if not IsClickInput(Input) then
             return
         end
 
-        local Start = tick()
-
+        local StartPos = Input.Position
         local Changed
         Changed = Input.Changed:Connect(function()
             if Input.UserInputState ~= Enum.UserInputState.End then
                 return
             end
 
-            local IsLikelyDragging = tick() - Start > DragThreshold
-            if IsLikelyDragging then
-                return
+            if (Input.Position - StartPos).Magnitude <= MaxClickDistance then
+                Library:SafeCallback(Func, DraggableButton)
             end
-
-            Library:SafeCallback(Func, DraggableButton)
 
             if Changed and Changed.Connected then
                 Changed:Disconnect()
@@ -3219,26 +3215,22 @@ function Library:AddDraggableImageButton(...)
     end
     Library:AddOutline(Button)
 
-    local DragThreshold = if ExcludeDragging then 0.25 else math.huge
+    local MaxClickDistance = ExcludeDragging and 12 or math.huge
     Button.InputBegan:Connect(function(Input: InputObject)
         if not IsClickInput(Input) then
             return
         end
 
-        local Start = tick()
-
+        local StartPos = Input.Position
         local Changed
         Changed = Input.Changed:Connect(function()
             if Input.UserInputState ~= Enum.UserInputState.End then
                 return
             end
 
-            local IsLikelyDragging = tick() - Start > DragThreshold
-            if IsLikelyDragging then
-                return
+            if (Input.Position - StartPos).Magnitude <= MaxClickDistance then
+                Library:SafeCallback(Func, DraggableImageButton)
             end
-
-            Library:SafeCallback(Func, DraggableImageButton)
 
             if Changed and Changed.Connected then
                 Changed:Disconnect()
@@ -4966,11 +4958,18 @@ do
         )
 
         --// Color Menu \\--
+        local MapSize = Library.IsMobile and 140 or 200
+        local BarWidth = 16
+        local MenuWidth = MapSize + BarWidth + 6 + 12
+        if Info.Transparency then
+            MenuWidth += BarWidth + 6
+        end
+
         local ColorMenu
         local FooterCorner
         ColorMenu = Library:AddContextMenu(
             Holder,
-            UDim2.fromOffset(Info.Transparency and 256 or 234, 0),
+            UDim2.fromOffset(MenuWidth, 0),
             function()
                 return { 0.5, Holder.AbsoluteSize.Y + 1.5 }
             end,
@@ -5089,7 +5088,7 @@ do
 
         local ColorHolder = New("Frame", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, 0, 0, 200),
+            Size = UDim2.new(1, 0, 0, MapSize),
             Parent = ContentHolder,
         })
         New("UIListLayout", {
@@ -5102,7 +5101,7 @@ do
         local SatVipMap = New("ImageButton", {
             BackgroundColor3 = ColorPicker.Value,
             Image = CustomImageManager.GetAsset("SaturationMap"),
-            Size = UDim2.fromOffset(200, 200),
+            Size = UDim2.fromOffset(MapSize, MapSize),
             Parent = ColorHolder,
         })
 
@@ -5123,7 +5122,7 @@ do
 
         --// Hue
         local HueSelector = New("TextButton", {
-            Size = UDim2.fromOffset(16, 200),
+            Size = UDim2.fromOffset(BarWidth, MapSize),
             Text = "",
             Parent = ColorHolder,
         })
@@ -5149,7 +5148,7 @@ do
             TransparencySelector = New("ImageButton", {
                 Image = CustomImageManager.GetAsset("TransparencyTexture"),
                 ScaleType = Enum.ScaleType.Tile,
-                Size = UDim2.fromOffset(16, 200),
+                Size = UDim2.fromOffset(BarWidth, MapSize),
                 TileSize = UDim2.fromOffset(8, 8),
                 Parent = ColorHolder,
             })
@@ -5183,22 +5182,22 @@ do
         local ResizeGrabber
         if Info.Resizable then
             local BaseMapSize = 200
-            local BaseBarWidth = 16
+            local BaseBarWidth = BarWidth
             local BasePadding = 6
             local MinMapSize = 140
 
-            ColorPicker.MapWidth = BaseMapSize
-            ColorPicker.MapHeight = BaseMapSize
+            ColorPicker.MapWidth = MapSize
+            ColorPicker.MapHeight = MapSize
 
             local function GetBarWidth(MapWidth)
                 return math.clamp(math.floor((MapWidth / BaseMapSize) * BaseBarWidth + 0.5), 12, 24)
             end
 
             local function GetContentWidth(MapWidth)
-                local BarWidth = GetBarWidth(MapWidth)
-                local Width = MapWidth + BarWidth + BasePadding
+                local CurrentBarWidth = GetBarWidth(MapWidth)
+                local Width = MapWidth + CurrentBarWidth + BasePadding
                 if Info.Transparency then
-                    Width += (BarWidth + BasePadding)
+                    Width += (CurrentBarWidth + BasePadding)
                 end
 
                 return Width + 12
@@ -5241,16 +5240,16 @@ do
                     return
                 end
 
-                local BarWidth = GetBarWidth(NewWidth)
+                local CurrentBarWidth = GetBarWidth(NewWidth)
                 local CursorSize = math.clamp(math.floor((math.min(NewWidth, NewHeight) / BaseMapSize) * 6 + 0.5), 4, 10)
 
                 ColorHolder.Size = UDim2.new(1, 0, 0, NewHeight)
                 SatVipMap.Size = UDim2.fromOffset(NewWidth, NewHeight)
                 SatVibCursor.Size = UDim2.fromOffset(CursorSize, CursorSize)
-                HueSelector.Size = UDim2.new(0, BarWidth, 0, NewHeight)
+                HueSelector.Size = UDim2.new(0, CurrentBarWidth, 0, NewHeight)
 
                 if TransparencySelector then
-                    TransparencySelector.Size = UDim2.new(0, BarWidth, 0, NewHeight)
+                    TransparencySelector.Size = UDim2.new(0, CurrentBarWidth, 0, NewHeight)
                 end
 
                 ColorPicker.MapWidth = NewWidth

@@ -1,3 +1,14 @@
+## 31.09.2026
+
+```diff
+[changes]
++ ColorPickers use the smallest possible size on Mobile now
+
+[fixed]
++ Fixed notifications resizing incorrectly
++ Fixed Toggle and Lock buttons on mobile impossible to click
+```
+
 ## 25.08.2026
 
 ```diff
