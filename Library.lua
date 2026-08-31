@@ -4594,7 +4594,6 @@ do
                 Library:CreateButtonRipple(Button, Input)
             end)
 
-            Button.MouseEnter:Connect(function()
             table.insert(KeyPicker.Connections, Button.MouseEnter:Connect(function()
                 if KeyPicker.Mode == Mode then
                     return
@@ -5730,7 +5729,6 @@ do
                     Library:CreateButtonRipple(Button, Input)
                 end)
 
-                Button.MouseButton1Click:Connect(function()
                 table.insert(ColorPicker.Connections, Button.MouseButton1Click:Connect(function()
                     Library:SafeCallback(Func)
                     ContextMenu:Close()
@@ -6609,7 +6607,6 @@ do
                 )
             end)
 
-            Button.Base.MouseEnter:Connect(function()
             table.insert(Button.Connections, Button.Base.MouseEnter:Connect(function()
                 if Button.Disabled then
                     return
@@ -6631,8 +6628,6 @@ do
                 Button.Tween:Play()
             end))
 
-            Button.Base.MouseButton1Click:Connect(function()
-                if Button.Disabled then
             table.insert(Button.Connections, Button.Base.MouseButton1Click:Connect(function()
                 if Button.Disabled or Button.Locked then
                     return
@@ -6663,7 +6658,9 @@ do
 
                 Library:SetButtonText(Button.Base, "Are you sure?", function()
                     Button.Base.TextColor3 = Library.Scheme.AccentColor
-                    Library.Registry[Button.Base].TextColor3 = "AccentColor"
+                    if Library.Registry[Button.Base] then
+                        Library.Registry[Button.Base].TextColor3 = "AccentColor"
+                    end
                 end)
 
                 task.delay(0.5, function()
@@ -6681,7 +6678,7 @@ do
                         Library.Registry[Button.Base].TextColor3 = Button.Risky and "RedColor" or "FontColor"
                     end)
                 end)
-            end)
+            end))
         end
 
         Button.Base, Button.Stroke = CreateButton(Button)
