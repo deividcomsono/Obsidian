@@ -1,3 +1,21 @@
+## 31.08.2026
+
+```diff
+[features]
++ Tooltip support for tab buttons
+
+[changes]
++ ColorPickers use the smallest possible size on Mobile now
++ SetValue will now set the Value but will not run the Callbacks when the element is disabled
++ Search now switches to the tab with the most prominent match
+
+[fixed]
++ Fixed notifications resizing incorrectly
++ Fixed Toggle and Lock buttons on mobile impossible to click
++ Fixed KeyPickers and ColorPickers still able to be changed while disabled in the UI
++ Fixed KeyPickers and ColorPickers not updating visually if they are disabled or not
+```
+
 ## 25.08.2026
 
 ```diff
