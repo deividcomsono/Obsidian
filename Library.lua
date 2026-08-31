@@ -6333,6 +6333,8 @@ do
             Visible = Info.Visible,
 
             Tween = nil,
+            PendingDoubleClick = false,
+            DoubleClickStarted = nil,
             Type = "Button",
 
             Parent = Groupbox,
@@ -6387,7 +6389,13 @@ do
                     return
                 end
 
-                Library:CreateButtonRipple(Button.Base, Input, Button.Risky and "RedColor" or "FontColor")
+                task.spawn(
+                    Library.CreateButtonRipple,
+                    Library,
+                    Button.Base,
+                    Input,
+                    Button.Risky and "RedColor" or "FontColor"
+                )
             end)
 
             Button.Base.MouseEnter:Connect(function()
@@ -6412,35 +6420,53 @@ do
             end)
 
             Button.Base.MouseButton1Click:Connect(function()
-                if Button.Disabled or Button.Locked then
+                if Button.Disabled then
                     return
                 end
 
-                if Button.DoubleClick then
-                    Button.Locked = true
+                if not Button.DoubleClick then
+                    Library:SafeCallback(Button.Func)
+                    return
+                end
 
-                    Library:SetButtonText(Button.Base, "Are you sure?", function()
-                        Button.Base.TextColor3 = Library.Scheme.AccentColor
-                        Library.Registry[Button.Base].TextColor3 = "AccentColor"
-                    end)
+                local CurrentTime = os.clock()
 
-                    local Clicked = WaitForEvent(Button.Base.MouseButton1Click, 0.5)
+                if Button.PendingDoubleClick then
+                    Button.PendingDoubleClick = false
+                    Button.DoubleClickStarted = nil
 
                     Library:SetButtonText(Button.Base, Button.Text, function()
                         Button.Base.TextColor3 = Button.Risky and Library.Scheme.RedColor or Library.Scheme.FontColor
                         Library.Registry[Button.Base].TextColor3 = Button.Risky and "RedColor" or "FontColor"
                     end)
 
-                    if Clicked then
-                        Library:SafeCallback(Button.Func)
-                    end
-
-                    RunService.RenderStepped:Wait() --// Mouse Button fires without waiting (i hate roblox)
-                    Button.Locked = false
+                    Library:SafeCallback(Button.Func)
                     return
                 end
 
-                Library:SafeCallback(Button.Func)
+                Button.PendingDoubleClick = true
+                Button.DoubleClickStarted = CurrentTime
+
+                Library:SetButtonText(Button.Base, "Are you sure?", function()
+                    Button.Base.TextColor3 = Library.Scheme.AccentColor
+                    Library.Registry[Button.Base].TextColor3 = "AccentColor"
+                end)
+
+                task.delay(0.5, function()
+                    if Button.Destroyed
+                        or not Button.PendingDoubleClick
+                        or Button.DoubleClickStarted ~= CurrentTime then
+                        return
+                    end
+
+                    Button.PendingDoubleClick = false
+                    Button.DoubleClickStarted = nil
+
+                    Library:SetButtonText(Button.Base, Button.Text, function()
+                        Button.Base.TextColor3 = Button.Risky and Library.Scheme.RedColor or Library.Scheme.FontColor
+                        Library.Registry[Button.Base].TextColor3 = Button.Risky and "RedColor" or "FontColor"
+                    end)
+                end)
             end)
         end
 
