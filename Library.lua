@@ -4015,7 +4015,18 @@ do
             end
         end
 
+        local SlideForwardConn, SlideBackConn
         local CancelSlidingTweens = function()
+            if SlideForwardConn then
+                SlideForwardConn:Disconnect()
+                SlideForwardConn = nil
+            end
+
+            if SlideBackConn then
+                SlideBackConn:Disconnect()
+                SlideBackConn = nil
+            end
+
             if SlideForwardTween then
                 StopTween(SlideForwardTween, true)
                 SlideForwardTween = nil
@@ -4070,17 +4081,48 @@ do
             Parent = Picker,
         }); table.insert(Library.SpecificCorners, PickerCorner)
 
-        Picker.MouseEnter:Connect(function()
-            TweenService:Create(Picker, Library.TweenInfo, {
-                TextTransparency = 0,
-            }):Play()
-        end)
+        local PickerHoverTween = nil
 
-        Picker.MouseLeave:Connect(function()
-            TweenService:Create(Picker, Library.TweenInfo, {
-                TextTransparency = 0.4,
-            }):Play()
-        end)
+        local function ApplyPickerTextTransparency(Transparency: number)
+            StopTween(PickerHoverTween)
+            PickerHoverTween = nil
+
+            Picker.TextTransparency = Transparency
+            if SlidingLabel then
+                SlidingLabel.TextTransparency = Transparency
+            end
+        end
+
+        local function TweenPickerTextTransparency(Transparency: number)
+            StopTween(PickerHoverTween)
+
+            PickerHoverTween = TweenService:Create(Picker, Library.TweenInfo, {
+                TextTransparency = Transparency,
+            })
+            PickerHoverTween:Play()
+
+            if SlidingLabel then
+                TweenService:Create(SlidingLabel, Library.TweenInfo, {
+                    TextTransparency = Transparency,
+                }):Play()
+            end
+        end
+
+        table.insert(KeyPicker.Connections, Picker.MouseEnter:Connect(function()
+            if ParentObj.Disabled then
+                return
+            end
+
+            TweenPickerTextTransparency(0)
+        end))
+
+        table.insert(KeyPicker.Connections, Picker.MouseLeave:Connect(function()
+            if ParentObj.Disabled then
+                return
+            end
+
+            TweenPickerTextTransparency(0.4)
+        end))
 
         if IsForButton then
             local Holder = New("Frame", {
@@ -4179,14 +4221,14 @@ do
             end
 
             KeyPicker.DoClick = function(...) end --// make luau lsp shut up
-            Holder.MouseButton1Click:Connect(function()
+            table.insert(KeyPicker.Connections, Holder.MouseButton1Click:Connect(function()
                 if KeybindsToggle.Normal then
                     return
                 end
 
                 KeyPicker.Toggled = not KeyPicker.Toggled
                 KeyPicker:DoClick()
-            end)
+            end))
 
             KeybindsToggle.Holder = Holder
             KeybindsToggle.Label = Label
@@ -4314,11 +4356,11 @@ do
                 Button.TextTransparency = 0.5
             end
 
-            Button.MouseButton1Click:Connect(function()
+            table.insert(KeyPicker.Connections, Button.MouseButton1Click:Connect(function()
                 ModeButton:Select()
-            end)
+            end))
 
-            Button.MouseEnter:Connect(function()
+            table.insert(KeyPicker.Connections, Button.MouseEnter:Connect(function()
                 if KeyPicker.Mode == Mode then
                     return
                 end
@@ -4327,9 +4369,9 @@ do
                     BackgroundTransparency = 0.7,
                     TextTransparency = 0.1,
                 }):Play()
-            end)
+            end))
 
-            Button.MouseLeave:Connect(function()
+            table.insert(KeyPicker.Connections, Button.MouseLeave:Connect(function()
                 if KeyPicker.Mode == Mode then
                     return
                 end
@@ -4338,7 +4380,7 @@ do
                     BackgroundTransparency = 1,
                     TextTransparency = 0.5,
                 }):Play()
-            end)
+            end))
 
             if KeyPicker.Mode == Mode then
                 ModeButton:Select()
@@ -4427,8 +4469,16 @@ do
 
                             SlideForwardTween:Play()
 
-                            SlideForwardTween.Completed:Connect(HandleForwardTween)
-                            SlideBackTween.Completed:Connect(HandleBackTween)
+                            if SlideForwardConn then
+                                SlideForwardConn:Disconnect()
+                            end
+
+                            if SlideBackConn then
+                                SlideBackConn:Disconnect()
+                            end
+
+                            SlideForwardConn = SlideForwardTween.Completed:Connect(HandleForwardTween)
+                            SlideBackConn = SlideBackTween.Completed:Connect(HandleBackTween)
                         end
                     else
                         CancelSlidingTweens()
@@ -4466,7 +4516,7 @@ do
             KeyPicker:Display()
 
             Picker.Active = not Disabled
-            Picker.TextTransparency = Disabled and 0.8 or 0.4
+            ApplyPickerTextTransparency(Disabled and 0.8 or 0.4)
 
             if Disabled then
                 if MenuTable.Active then
@@ -4639,7 +4689,7 @@ do
             KeyPicker:Update()
         end
 
-        Picker.MouseButton1Click:Connect(function()
+        table.insert(KeyPicker.Connections, Picker.MouseButton1Click:Connect(function()
             if Picking or Library.IsPicking or ParentObj.Disabled then
                 return
             end
@@ -4790,14 +4840,15 @@ do
             until not IsInputDown(CurrentInput) or UserInputService:GetFocusedTextBox()
 
             SetPickingState(false)
-        end)
-        Picker.MouseButton2Click:Connect(function()
+        end))
+
+        table.insert(KeyPicker.Connections, Picker.MouseButton2Click:Connect(function()
             if ParentObj.Disabled then
                 return
             end
 
             MenuTable:Toggle()
-        end)
+        end))
 
         table.insert(KeyPicker.Connections, UserInputService.InputBegan:Connect(function(Input: InputObject)
             if Library.Unloaded then
@@ -4881,6 +4932,16 @@ do
 
         function KeyPicker:Destroy()
             KeyPicker.Destroyed = true
+
+            if SlideForwardConn then
+                SlideForwardConn:Disconnect()
+                SlideForwardConn = nil
+            end
+
+            if SlideBackConn then
+                SlideBackConn:Disconnect()
+                SlideBackConn = nil
+            end
 
             if KeyPicker.Connections then
                 for _, Connection in KeyPicker.Connections do
@@ -5425,22 +5486,22 @@ do
                     Parent = ContextMenu.Menu,
                 })
 
-                Button.MouseButton1Click:Connect(function()
+                table.insert(ColorPicker.Connections, Button.MouseButton1Click:Connect(function()
                     Library:SafeCallback(Func)
                     ContextMenu:Close()
-                end)
+                end))
 
-                Button.MouseEnter:Connect(function()
+                table.insert(ColorPicker.Connections, Button.MouseEnter:Connect(function()
                     TweenService:Create(Button, Library.TweenInfo, {
                         BackgroundTransparency = 0.7,
                     }):Play()
-                end)
+                end))
 
-                Button.MouseLeave:Connect(function()
+                table.insert(ColorPicker.Connections, Button.MouseLeave:Connect(function()
                     TweenService:Create(Button, Library.TweenInfo, {
                         BackgroundTransparency = 1,
                     }):Play()
-                end)
+                end))
             end
 
             CreateButton("Copy color", function()
@@ -5599,10 +5660,6 @@ do
 
             ColorPicker.Value = Color3.fromHSV(ColorPicker.Hue, ColorPicker.Sat, ColorPicker.Vib)
 
-            Holder.BackgroundColor3 = ColorPicker.Value
-            HolderStroke.Color = Library:GetDarkerColor(ColorPicker.Value)
-            HolderTransparency.ImageTransparency = (1 - ColorPicker.Transparency)
-
             SatVipMap.BackgroundColor3 = Color3.fromHSV(ColorPicker.Hue, 1, 1)
             if TransparencyColor then
                 TransparencyColor.BackgroundColor3 = ColorPicker.Value
@@ -5624,6 +5681,21 @@ do
             RefreshFooterInfo()
         end
 
+        local function ApplyHolderVisual(Disabled: boolean)
+            Holder.Active = not Disabled
+            HolderStroke.Transparency = Disabled and 0.5 or 0
+            Holder.BackgroundTransparency = Disabled and 0.5 or 0
+
+            if Disabled then
+                Holder.BackgroundColor3 = ColorPicker.Value:Lerp(Library.Scheme.BackgroundColor, 0.5)
+                HolderTransparency.ImageTransparency = math.clamp((1 - ColorPicker.Transparency) + 0.5, 0, 1)
+            else
+                Holder.BackgroundColor3 = ColorPicker.Value
+                HolderStroke.Color = Library:GetDarkerColor(ColorPicker.Value)
+                HolderTransparency.ImageTransparency = (1 - ColorPicker.Transparency)
+            end
+        end
+
         function ColorPicker:RunChanged()
             if ParentObj.Disabled then
                 return
@@ -5637,15 +5709,9 @@ do
             ColorPicker:Display()
 
             local Disabled = ParentObj.Disabled == true
-
-            Holder.Active = not Disabled
-            HolderStroke.Transparency = Disabled and 0.5 or 0
-            Holder.BackgroundTransparency = Disabled and 0.5 or 0
+            ApplyHolderVisual(Disabled)
 
             if Disabled then
-                Holder.BackgroundColor3 = ColorPicker.Value:Lerp(Library.Scheme.BackgroundColor, 0.5)
-                HolderTransparency.ImageTransparency = math.clamp((1 - ColorPicker.Transparency) + 0.5, 0, 1)
-
                 if ColorMenu.Active then
                     ColorMenu:Close()
                 end
@@ -6075,7 +6141,7 @@ do
             Label:Display()
 
             local Last = TextLabel.AbsoluteSize
-            TextLabel:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+            table.insert(Label.Connections, TextLabel:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
                 if TextLabel.AbsoluteSize == Last then
                     return
                 end
@@ -6084,7 +6150,7 @@ do
                 Last = TextLabel.AbsoluteSize
 
                 Groupbox:Resize()
-            end)
+            end))
         else
             New("UIListLayout", {
                 FillDirection = Enum.FillDirection.Horizontal,
@@ -6263,7 +6329,7 @@ do
         end
 
         local function InitEvents(Button)
-            Button.Base.MouseEnter:Connect(function()
+            table.insert(Button.Connections, Button.Base.MouseEnter:Connect(function()
                 if Button.Disabled then
                     return
                 end
@@ -6272,8 +6338,8 @@ do
                     TextTransparency = 0,
                 })
                 Button.Tween:Play()
-            end)
-            Button.Base.MouseLeave:Connect(function()
+            end))
+            table.insert(Button.Connections, Button.Base.MouseLeave:Connect(function()
                 if Button.Disabled then
                     return
                 end
@@ -6282,9 +6348,9 @@ do
                     TextTransparency = 0.4,
                 })
                 Button.Tween:Play()
-            end)
+            end))
 
-            Button.Base.MouseButton1Click:Connect(function()
+            table.insert(Button.Connections, Button.Base.MouseButton1Click:Connect(function()
                 if Button.Disabled or Button.Locked then
                     return
                 end
@@ -6312,7 +6378,7 @@ do
                 end
 
                 Library:SafeCallback(Button.Func)
-            end)
+            end))
         end
 
         Button.Base, Button.Stroke = CreateButton(Button)
@@ -6409,6 +6475,12 @@ do
             function SubButton:Destroy()
                 SubButton.Destroyed = true
 
+                if SubButton.Connections then
+                    for _, Connection in SubButton.Connections do
+                        Connection:Disconnect()
+                    end
+                end
+
                 if SubButton.TooltipTable then
                     SubButton.TooltipTable:Destroy()
                 end
@@ -6500,6 +6572,12 @@ do
 
         function Button:Destroy()
             Button.Destroyed = true
+
+            if Button.Connections then
+                for _, Connection in Button.Connections do
+                    Connection:Disconnect()
+                end
+            end
 
             if Button.TooltipTable then
                 Button.TooltipTable:Destroy()
@@ -7265,6 +7343,10 @@ do
         end))
 
         table.insert(Input.Connections, Box.FocusLost:Connect(function()
+            if Input.Disabled then
+                return
+            end
+
             Library.Registry[BoxStroke].Color = "OutlineColor"
             TweenService:Create(BoxStroke, Library.TweenInfo, {
                 Color = Library.Scheme.OutlineColor,
@@ -7633,6 +7715,10 @@ do
             end))
 
             table.insert(Slider.Connections, InputTextBox.Focused:Connect(function()
+                if Slider.Disabled then
+                    return
+                end
+
                 Library.Registry[InputTextBoxStroke].Color = "AccentColor"
                 TweenService:Create(InputTextBoxStroke, Library.TweenInfo, {
                     Color = Library.Scheme.AccentColor,
@@ -7640,6 +7726,10 @@ do
             end))
 
             table.insert(Slider.Connections, InputTextBox.FocusLost:Connect(function()
+                if Slider.Disabled then
+                    return
+                end
+
                 Library.Registry[InputTextBoxStroke].Color = "DarkColor"
                 TweenService:Create(InputTextBoxStroke, Library.TweenInfo, {
                     Color = Library.Scheme.DarkColor,
@@ -8407,7 +8497,7 @@ do
                 end
             end
 
-            Button.MouseButton1Click:Connect(function()
+            table.insert(Dropdown.Connections, Button.MouseButton1Click:Connect(function()
                 local Entry = Row.Entry
                 if not Entry or Entry.IsDisabled or DragSelecting then
                     return
@@ -8439,9 +8529,9 @@ do
 
                 Library:UpdateDependencyBoxes()
                 Dropdown:RunChanged()
-            end)
+            end))
 
-            Button.MouseEnter:Connect(function()
+            table.insert(Dropdown.Connections, Button.MouseEnter:Connect(function()
                 local Entry = Row.Entry
                 if not Entry or Entry.IsDisabled then
                     return
@@ -8463,9 +8553,9 @@ do
                         ImageTransparency = 0.25,
                     }):Play()
                 end
-            end)
+            end))
 
-            Button.MouseLeave:Connect(function()
+            table.insert(Dropdown.Connections, Button.MouseLeave:Connect(function()
                 local Entry = Row.Entry
                 if not Entry or Entry.IsDisabled then
                     return
@@ -8487,9 +8577,9 @@ do
                         ImageTransparency = 0.5,
                     }):Play()
                 end
-            end)
+            end))
 
-            Button.InputBegan:Connect(function(StartInput)
+            table.insert(Dropdown.Connections, Button.InputBegan:Connect(function(StartInput)
                 if not (Info.Multi and Dropdown.DragSelect and not Library.IsMobile) then
                     return
                 end
@@ -8544,7 +8634,7 @@ do
 
                 table.insert(Dropdown.Connections, DragInputEndedConn)
                 table.insert(Dropdown.Connections, DragInputChangedConn)
-            end)
+            end))
 
             return Row
         end
@@ -9663,13 +9753,13 @@ do
             end
         end
 
-        DepboxList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        table.insert(Depbox.Connections, DepboxList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
             if not Depbox.Visible then
                 return
             end
 
             Depbox:Resize()
-        end)
+        end))
 
         function Depbox:SetupDependencies(Dependencies)
             for _, Dependency in Dependencies do
@@ -9682,9 +9772,9 @@ do
             Depbox:Update()
         end
 
-        DepboxContainer:GetPropertyChangedSignal("Visible"):Connect(function()
+        table.insert(Depbox.Connections, DepboxContainer:GetPropertyChangedSignal("Visible"):Connect(function()
             Depbox:Resize()
-        end)
+        end))
 
         setmetatable(Depbox, BaseGroupbox)
 
