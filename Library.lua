@@ -891,6 +891,16 @@ function Library:UpdateDependencyBoxes()
     end
 end
 
+function Library:UpdateAddons(Parent)
+    if not Parent or not Parent.Addons then
+        return
+    end
+
+    for _, Addon in Parent.Addons do
+        Addon:Update()
+    end
+end
+
 local function CheckDepbox(Box, Search, ForceVisible: boolean?)
     local VisibleElements = 0
 
@@ -4337,6 +4347,25 @@ do
             ModeButtons[Mode] = ModeButton
         end
 
+        local SetPickingState = function(State, SkipUpdate: boolean?)
+            Picking = State
+            Library.IsPicking = State
+
+            if ParentObj then
+                ParentObj.AnyKeyPickerPicking = Picking
+            end
+
+            if IsForButton then
+                ToggleLabel.Visible = not Picking
+                LastDisplayText = nil
+                RunService.RenderStepped:Wait()
+            end
+
+            if SkipUpdate ~= true then
+                (KeyPicker :: any):Update()
+            end
+        end
+
         function KeyPicker:Display(PickerText)
             if Library.Unloaded then
                 return
@@ -4428,7 +4457,22 @@ do
         end
 
         function KeyPicker:Update()
+            local Disabled = ParentObj.Disabled == true
+
+            if Disabled and Picking then
+                SetPickingState(false, true)
+            end
+
             KeyPicker:Display()
+
+            Picker.Active = not Disabled
+            Picker.TextTransparency = Disabled and 0.8 or 0.4
+
+            if Disabled then
+                if MenuTable.Active then
+                    MenuTable:Close()
+                end
+            end
 
             if Info.NoUI then
                 return
@@ -4500,7 +4544,7 @@ do
         end
 
         function KeyPicker:DoClick()
-            if Picking then
+            if Picking or ParentObj.Disabled then
                 return
             end
 
@@ -4529,6 +4573,10 @@ do
         end
 
         function KeyPicker:RunChanged(IsKeyValid, KeyCode)
+            if ParentObj.Disabled then
+                return
+            end
+
             if IsKeyValid == nil or KeyCode == nil then
                 IsKeyValid, KeyCode = pcall(function()
                     if KeyPicker.Value == "None" then
@@ -4591,25 +4639,8 @@ do
             KeyPicker:Update()
         end
 
-        local SetPickingState = function(State)
-            Picking = State
-            Library.IsPicking = State
-
-            if ParentObj then
-                ParentObj.AnyKeyPickerPicking = Picking
-            end
-
-            if IsForButton then
-                ToggleLabel.Visible = not Picking
-                LastDisplayText = nil
-                RunService.RenderStepped:Wait()
-            end
-
-            KeyPicker:Update()
-        end
-
         Picker.MouseButton1Click:Connect(function()
-            if Picking or Library.IsPicking then
+            if Picking or Library.IsPicking or ParentObj.Disabled then
                 return
             end
 
@@ -4760,7 +4791,13 @@ do
 
             SetPickingState(false)
         end)
-        Picker.MouseButton2Click:Connect(MenuTable.Toggle)
+        Picker.MouseButton2Click:Connect(function()
+            if ParentObj.Disabled then
+                return
+            end
+
+            MenuTable:Toggle()
+        end)
 
         table.insert(KeyPicker.Connections, UserInputService.InputBegan:Connect(function(Input: InputObject)
             if Library.Unloaded then
@@ -4769,7 +4806,8 @@ do
 
             local IsMouse = IsMouseClickInput(Input)
             if
-                KeyPicker.Mode == "Always"
+                ParentObj.Disabled
+                or KeyPicker.Mode == "Always"
                 or KeyPicker.Value == "Unknown"
                 or KeyPicker.Value == "None"
                 or Picking
@@ -4816,7 +4854,8 @@ do
 
             local IsMouse = IsMouseClickInput(Input)
             if
-                KeyPicker.Value == "Unknown"
+                ParentObj.Disabled
+                or KeyPicker.Value == "Unknown"
                 or KeyPicker.Value == "None"
                 or Picking
                 or Library.IsPicking
@@ -4831,9 +4870,11 @@ do
 
         KeyPicker:Update()
 
-        if ParentObj.Addons then
-            table.insert(ParentObj.Addons, KeyPicker)
+        if not ParentObj.Addons then
+            ParentObj.Addons = {}
         end
+
+        table.insert(ParentObj.Addons, KeyPicker)
 
         KeyPicker.Default = KeyPicker.Value
         KeyPicker.DefaultModifiers = table.clone(KeyPicker.Modifiers or {})
@@ -5584,12 +5625,36 @@ do
         end
 
         function ColorPicker:RunChanged()
+            if ParentObj.Disabled then
+                return
+            end
+
             Library:SafeCallback(ColorPicker.Callback, ColorPicker.Value)
             Library:SafeCallback(ColorPicker.Changed, ColorPicker.Value)
         end
 
         function ColorPicker:Update()
             ColorPicker:Display()
+
+            local Disabled = ParentObj.Disabled == true
+
+            Holder.Active = not Disabled
+            HolderStroke.Transparency = Disabled and 0.5 or 0
+            Holder.BackgroundTransparency = Disabled and 0.5 or 0
+
+            if Disabled then
+                Holder.BackgroundColor3 = ColorPicker.Value:Lerp(Library.Scheme.BackgroundColor, 0.5)
+                HolderTransparency.ImageTransparency = math.clamp((1 - ColorPicker.Transparency) + 0.5, 0, 1)
+
+                if ColorMenu.Active then
+                    ColorMenu:Close()
+                end
+
+                if ContextMenu.Active then
+                    ContextMenu:Close()
+                end
+            end
+
             ColorPicker:RunChanged()
         end
 
@@ -5615,8 +5680,21 @@ do
             ColorPicker:Update()
         end
 
-        table.insert(ColorPicker.Connections, Holder.MouseButton1Click:Connect(ColorMenu.Toggle))
-        table.insert(ColorPicker.Connections, Holder.MouseButton2Click:Connect(ContextMenu.Toggle))
+        table.insert(ColorPicker.Connections, Holder.MouseButton1Click:Connect(function()
+            if ParentObj.Disabled then
+                return
+            end
+
+            ColorMenu:Toggle()
+        end))
+
+        table.insert(ColorPicker.Connections, Holder.MouseButton2Click:Connect(function()
+            if ParentObj.Disabled then
+                return
+            end
+
+            ContextMenu:Toggle()
+        end))
 
         table.insert(ColorPicker.Connections, SatVipMap.InputBegan:Connect(function(Input: InputObject)
             while IsDragInput(Input) and not ColorPicker.Destroyed do
@@ -5724,11 +5802,13 @@ do
             end))
         end
 
-        ColorPicker:Display()
+        ColorPicker:Update()
 
-        if ParentObj.Addons then
-            table.insert(ParentObj.Addons, ColorPicker)
+        if not ParentObj.Addons then
+            ParentObj.Addons = {}
         end
+
+        table.insert(ParentObj.Addons, ColorPicker)
 
         ColorPicker.Default = ColorPicker.Value
 
@@ -6290,6 +6370,7 @@ do
 
                 SubButton.Base.Active = not SubButton.Disabled
                 SubButton:UpdateColors()
+                Library:UpdateAddons(SubButton)
             end
 
             function SubButton:SetVisible(Visible: boolean)
@@ -6378,6 +6459,7 @@ do
 
             Button.Base.Active = not Button.Disabled
             Button:UpdateColors()
+            Library:UpdateAddons(Button)
         end
 
         function Button:SetVisible(Visible: boolean)
@@ -6585,15 +6667,15 @@ do
         end
 
         function Toggle:RunChanged()
+            if Toggle.Disabled then
+                return
+            end
+
             Library:SafeCallback(Toggle.Callback, Toggle.Value)
             Library:SafeCallback(Toggle.Changed, Toggle.Value)
         end
 
         function Toggle:SetValue(Value)
-            if Toggle.Disabled then
-                return
-            end
-
             Toggle.Value = Value
             Toggle:Display()
 
@@ -6604,7 +6686,9 @@ do
                 end
             end
 
-            Library:UpdateDependencyBoxes()
+            if not Toggle.Disabled then
+                Library:UpdateDependencyBoxes()
+            end
 
             if not Toggle.AnyKeyPickerPicking then
                 Toggle:RunChanged()
@@ -6618,14 +6702,12 @@ do
                 Toggle.TooltipTable.Disabled = Toggle.Disabled
             end
 
-            for _, Addon in Toggle.Addons do
-                if Addon.Type == "KeyPicker" and Addon.SyncToggleState then
-                    Addon:Update()
-                end
-            end
+            Library:UpdateAddons(Toggle)
 
             Button.Active = not Toggle.Disabled
             Toggle:Display()
+
+            Library:UpdateDependencyBoxes()
         end
 
         function Toggle:SetVisible(Visible: boolean)
@@ -6859,15 +6941,15 @@ do
         end
 
         function Toggle:RunChanged()
+            if Toggle.Disabled then
+                return
+            end
+
             Library:SafeCallback(Toggle.Callback, Toggle.Value)
             Library:SafeCallback(Toggle.Changed, Toggle.Value)
         end
 
         function Toggle:SetValue(Value)
-            if Toggle.Disabled then
-                return
-            end
-
             Toggle.Value = Value
             Toggle:Display()
 
@@ -6878,7 +6960,9 @@ do
                 end
             end
 
-            Library:UpdateDependencyBoxes()
+            if not Toggle.Disabled then
+                Library:UpdateDependencyBoxes()
+            end
 
             if not Toggle.AnyKeyPickerPicking then
                 Toggle:RunChanged()
@@ -6892,14 +6976,12 @@ do
                 Toggle.TooltipTable.Disabled = Toggle.Disabled
             end
 
-            for _, Addon in Toggle.Addons do
-                if Addon.Type == "KeyPicker" and Addon.SyncToggleState then
-                    Addon:Update()
-                end
-            end
+            Library:UpdateAddons(Toggle)
 
             Button.Active = not Toggle.Disabled
             Toggle:Display()
+
+            Library:UpdateDependencyBoxes()
         end
 
         function Toggle:SetVisible(Visible: boolean)
@@ -7083,6 +7165,10 @@ do
 
             Label.TextTransparency = Input.Disabled and 0.8 or 0
             Box.TextTransparency = Input.Disabled and 0.8 or 0
+            BoxStroke.Transparency = Input.Disabled and 0.5 or 0
+
+            Box.BackgroundColor3 = Input.Disabled and Library.Scheme.BackgroundColor or Library.Scheme.MainColor
+            Library.Registry[Box].BackgroundColor3 = Input.Disabled and "BackgroundColor" or "MainColor"
         end
 
         function Input:OnChanged(Func)
@@ -7090,6 +7176,10 @@ do
         end
 
         function Input:RunChanged()
+            if Input.Disabled then
+                return
+            end
+
             Library:SafeCallback(Input.Callback, Input.Value)
             Library:SafeCallback(Input.Changed, Input.Value)
         end
@@ -7116,9 +7206,7 @@ do
             Input.Value = Text
             Box.Text = Text
 
-            if not Input.Disabled then
-                Input:RunChanged()
-            end
+            Input:RunChanged()
         end
 
         function Input:SetDisabled(Disabled: boolean)
@@ -7199,6 +7287,7 @@ do
             Input.Default = Input.EmptyReset
         end
 
+        Input:UpdateColors()
         Options[Idx] = Input
 
         function Input:Destroy()
@@ -7436,15 +7525,15 @@ do
         end
 
         function Slider:RunChanged()
+            if Slider.Disabled then
+                return
+            end
+
             Library:SafeCallback(Slider.Callback, Slider.Value)
             Library:SafeCallback(Slider.Changed, Slider.Value)
         end
 
         function Slider:SetValue(Str)
-            if Slider.Disabled then
-                return
-            end
-
             local Num = tonumber(Str)
             if not Num or Num == Slider.Value then
                 return
@@ -8147,6 +8236,10 @@ do
         end
 
         function Dropdown:RunChanged()
+            if Dropdown.Disabled then
+                return
+            end
+
             Library:SafeCallback(Dropdown.Callback, Dropdown.Value)
             Library:SafeCallback(Dropdown.Changed, Dropdown.Value)
         end
@@ -8521,8 +8614,9 @@ do
 
             if not Dropdown.Disabled then
                 Library:UpdateDependencyBoxes()
-                Dropdown:RunChanged()
             end
+
+            Dropdown:RunChanged()
         end
 
         function Dropdown:SetValues(Values)
@@ -8547,6 +8641,9 @@ do
 
             if Changed and not Dropdown.Disabled then
                 Library:UpdateDependencyBoxes()
+            end
+
+            if Changed then
                 Dropdown:RunChanged()
             end
         end
@@ -8634,6 +8731,8 @@ do
             MenuTable:Close()
             DisplayButton.Active = not Dropdown.Disabled
             Dropdown:UpdateColors()
+
+            Library:UpdateDependencyBoxes()
         end
 
         function Dropdown:SetVisible(Visible: boolean)
@@ -9526,6 +9625,12 @@ do
                 local Element = Dependency[1]
                 local Value = Dependency[2]
 
+                if Element.Disabled then
+                    DepboxContainer.Visible = false
+                    Depbox.Visible = false
+                    return
+                end
+
                 if Element.Type == "Toggle" and Element.Value ~= Value then
                     DepboxContainer.Visible = false
                     Depbox.Visible = false
@@ -9688,6 +9793,12 @@ do
             for _, Dependency in DepGroupbox.Dependencies do
                 local Element = Dependency[1]
                 local Value = Dependency[2]
+
+                if Element.Disabled then
+                    DepGroupboxContainer.Visible = false
+                    DepGroupbox.Visible = false
+                    return
+                end
 
                 if Element.Type == "Toggle" and Element.Value ~= Value then
                     DepGroupboxContainer.Visible = false
