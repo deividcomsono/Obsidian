@@ -8155,6 +8155,7 @@ do
             local Y = math.clamp(ItemCount * ItemHeight, 0, Info.MaxVisibleDropdownItems * ItemHeight)
 
             MenuTable.Menu.CanvasSize = UDim2.fromOffset(0, ItemCount * ItemHeight)
+            MenuTable.Menu.ScrollBarThickness = (ItemCount * ItemHeight > Y) and 2 or 0
 
             MenuTable:SetSize(function()
                 return UDim2.fromOffset((DisplayContainer.AbsoluteSize.X / Library.DPIScale), Y)
