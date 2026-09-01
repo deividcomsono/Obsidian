@@ -128,7 +128,11 @@ local ThemeManager = {
         ["Material"] = {
             18,
             { FontColor = "eeffff", MainColor = "212121", AccentColor = "82aaff", BackgroundColor = "151515", OutlineColor = "424242", BackgroundImage = "" },
-        }
+        },
+        ["Bayonet"] = {
+            19,
+            { FontColor = "ffffff", MainColor = "191919", AccentColor = "fb4934", BackgroundColor = "0f0f0f", OutlineColor = "504945", BackgroundImage = "https://wallpapercave.com/wp/wp4943125.jpg" },
+        },
     }
 }
 
