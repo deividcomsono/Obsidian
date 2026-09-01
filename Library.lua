@@ -3606,10 +3606,6 @@ function Library:AddContextMenu(
                 Table:Close()
             end
         end)
-
-        task.defer(function()
-            print(string.format("[CM final] %s | DPIScale=%.3f | HolderAbsPos=%s HolderAbsSize=%s | MenuPos=%s MenuAbsPos=%s MenuAbsSize=%s | MenuParent=%s",Holder:GetFullName(),Library.DPIScale,tostring(Holder.AbsolutePosition), tostring(Holder.AbsoluteSize),tostring(Menu.Position), tostring(Menu.AbsolutePosition), tostring(Menu.AbsoluteSize),Menu.Parent and Menu.Parent:GetFullName() or "nil"))
-        end)
     end
 
     function Table:Close()
