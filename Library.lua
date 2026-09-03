@@ -230,6 +230,7 @@ local Library = {
     RotatingChevronTweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
     ButtonRippleTweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
     ButtonTextWipeTweenInfo = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+    DoubleClickConfirmTimeout = 1.5,
 
     Animations = {
         ToggleWindow = false,
@@ -1921,6 +1922,7 @@ function Library:CreateButtonRipple(Base: GuiButton, Input: InputObject, Color: 
 end
 
 local ActiveTextWipes = setmetatable({}, { __mode = "k" })
+local TextWipeGeneration = setmetatable({}, { __mode = "k" })
 
 local function GetTextWipeLabel(Base: TextButton): TextLabel
     local Mask = Base:FindFirstChild("__TextWipeMask")
@@ -1975,8 +1977,18 @@ function Library:SetButtonText(Base: TextButton, NewText: string, OnSwap: (() ->
         return
     end
 
+    local Generation = (TextWipeGeneration[Base] or 0) + 1
+    TextWipeGeneration[Base] = Generation
+
+    local Existing = ActiveTextWipes[Base]
+    if Existing then
+        StopTween(Existing, true)
+        ActiveTextWipes[Base] = nil
+    end
+
     if not (Library.Animations and Library.Animations.Button == true) then
         if Label then
+            Label.Position = UDim2.fromScale(0, 0)
             Label.Text = NewText
         else
             Base.Text = NewText
@@ -1990,12 +2002,6 @@ function Library:SetButtonText(Base: TextButton, NewText: string, OnSwap: (() ->
         Label = GetTextWipeLabel(Base)
     end
 
-    local Existing = ActiveTextWipes[Base]
-    if Existing then
-        StopTween(Existing, true)
-        ActiveTextWipes[Base] = nil
-    end
-
     Label.Position = UDim2.fromScale(0, 0)
 
     local WipeOut = TweenService:Create(Label, Library.ButtonTextWipeTweenInfo, {
@@ -2006,8 +2012,17 @@ function Library:SetButtonText(Base: TextButton, NewText: string, OnSwap: (() ->
     WipeOut:Play()
     WipeOut.Completed:Wait()
 
+    if TextWipeGeneration[Base] ~= Generation then
+        return
+    end
+
     if ActiveTextWipes[Base] == WipeOut then
         ActiveTextWipes[Base] = nil
+    end
+    pcall(WipeOut.Destroy, WipeOut)
+
+    if not Base.Parent then
+        return
     end
 
     Label.Text = NewText
@@ -2022,9 +2037,14 @@ function Library:SetButtonText(Base: TextButton, NewText: string, OnSwap: (() ->
     WipeIn:Play()
     WipeIn.Completed:Wait()
 
+    if TextWipeGeneration[Base] ~= Generation then
+        return
+    end
+
     if ActiveTextWipes[Base] == WipeIn then
         ActiveTextWipes[Base] = nil
     end
+    pcall(WipeIn.Destroy, WipeIn)
 end
 
 function Library:IsInsideFrame(ParentFrame: GuiObject, Frame: GuiObject)
@@ -6543,7 +6563,7 @@ do
 
             Tween = nil,
             PendingDoubleClick = false,
-            DoubleClickStarted = nil,
+            DoubleClickToken = 0,
             Type = "Button",
 
             Parent = Groupbox,
@@ -6628,6 +6648,15 @@ do
                 Button.Tween:Play()
             end))
 
+            local function RevertButtonText()
+                Library:SetButtonText(Button.Base, Button.Text, function()
+                    Button.Base.TextColor3 = Button.Risky and Library.Scheme.RedColor or Library.Scheme.FontColor
+                    if Library.Registry[Button.Base] then
+                        Library.Registry[Button.Base].TextColor3 = Button.Risky and "RedColor" or "FontColor"
+                    end
+                end)
+            end
+
             table.insert(Button.Connections, Button.Base.MouseButton1Click:Connect(function()
                 if Button.Disabled or Button.Locked then
                     return
@@ -6638,45 +6667,36 @@ do
                     return
                 end
 
-                local CurrentTime = os.clock()
-
                 if Button.PendingDoubleClick then
                     Button.PendingDoubleClick = false
-                    Button.DoubleClickStarted = nil
+                    Button.DoubleClickToken += 1
 
-                    Library:SetButtonText(Button.Base, Button.Text, function()
-                        Button.Base.TextColor3 = Button.Risky and Library.Scheme.RedColor or Library.Scheme.FontColor
-                        Library.Registry[Button.Base].TextColor3 = Button.Risky and "RedColor" or "FontColor"
-                    end)
+                    task.spawn(RevertButtonText)
 
                     Library:SafeCallback(Button.Func)
                     return
                 end
 
                 Button.PendingDoubleClick = true
-                Button.DoubleClickStarted = CurrentTime
+                Button.DoubleClickToken += 1
+                local Token = Button.DoubleClickToken
 
-                Library:SetButtonText(Button.Base, "Are you sure?", function()
+                task.spawn(Library.SetButtonText, Library, Button.Base, "Are you sure?", function()
                     Button.Base.TextColor3 = Library.Scheme.AccentColor
                     if Library.Registry[Button.Base] then
                         Library.Registry[Button.Base].TextColor3 = "AccentColor"
                     end
                 end)
 
-                task.delay(0.5, function()
+                task.delay(Library.DoubleClickConfirmTimeout or 1.5, function()
                     if Button.Destroyed
                         or not Button.PendingDoubleClick
-                        or Button.DoubleClickStarted ~= CurrentTime then
+                        or Button.DoubleClickToken ~= Token then
                         return
                     end
 
                     Button.PendingDoubleClick = false
-                    Button.DoubleClickStarted = nil
-
-                    Library:SetButtonText(Button.Base, Button.Text, function()
-                        Button.Base.TextColor3 = Button.Risky and Library.Scheme.RedColor or Library.Scheme.FontColor
-                        Library.Registry[Button.Base].TextColor3 = Button.Risky and "RedColor" or "FontColor"
-                    end)
+                    task.spawn(RevertButtonText)
                 end)
             end))
         end
@@ -6704,6 +6724,8 @@ do
                 Visible = Info.Visible,
 
                 Tween = nil,
+                PendingDoubleClick = false,
+                DoubleClickToken = 0,
                 Type = "SubButton",
             }
 
