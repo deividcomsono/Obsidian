@@ -1691,7 +1691,9 @@ Library.Floats = Floats
 Library.Overlay = Overlay
 
 --// Cursor
-local Cursor, CursorCustomImage
+local Cursor
+local InnerCross = {}
+local CursorCustomImage
 do
     Cursor = New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1710,14 +1712,14 @@ do
         ZIndex = 1,
         Parent = Cursor,
     })
-    New("Frame", {
+    table.insert(InnerCross, New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "WhiteColor",
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromScale(1, 1),
         ZIndex = 2,
         Parent = Cursor,
-    })
+    }))
 
     New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1727,14 +1729,14 @@ do
         ZIndex = 1,
         Parent = Cursor,
     })
-    New("Frame", {
+    table.insert(InnerCross, New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "WhiteColor",
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromOffset(1, 9),
         ZIndex = 2,
         Parent = Cursor,
-    })
+    }))
 
     CursorCustomImage = New("ImageLabel", {
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1802,8 +1804,24 @@ if OnlineFetchIcons and OnlineIcons then
 end
 
 --// Lib Functions \\--
+function Library:ResetCursorCross()
+    for _, Inner in InnerCross do
+        Inner.BackgroundColor3 = Library.Scheme.MainColor
+        Library.Registry[Inner].BackgroundColor3 = "MainColor"
+    end
+end
+
+function Library:ChangeCursorCrossColor(Color: Color3)
+    assert(typeof(Color) == "Color3", "Color3 expected.")
+    for _, Inner in InnerCross do
+        Inner.BackgroundColor3 = Color
+        Library.Registry[Inner].BackgroundColor3 = nil
+    end
+end
+
 function Library:ResetCursorIcon()
     CursorCustomImage.Visible = false
+    CursorCustomImage.ImageColor3 = Color3.new(1, 1, 1)
     CursorCustomImage.Size = UDim2.fromOffset(20, 20)
 end
 
@@ -1818,6 +1836,11 @@ function Library:ChangeCursorIcon(ImageId: string)
 
     CursorCustomImage.Visible = true
     Library:ApplyLucideIcon(CursorCustomImage, Icon)
+end
+
+function Library:ChangeCursorIconColor(Color: Color3)
+    assert(typeof(Color) == "Color3", "Color3 expected.")
+    CursorCustomImage.ImageColor3 = Color
 end
 
 function Library:ChangeCursorIconSize(Size: UDim2)
