@@ -439,7 +439,7 @@ local Templates = {
             CornerRadius = 0,
             Indicator = false,
             IndicatorWidth = 2,
-            IndicatorHeight = 28,
+            IndicatorHeight = 20,
         },
     },
     Groupbox = {
