@@ -1923,6 +1923,7 @@ end
 
 local ActiveTextWipes = setmetatable({}, { __mode = "k" })
 local TextWipeGeneration = setmetatable({}, { __mode = "k" })
+local TextWipeTarget = setmetatable({}, { __mode = "k" })
 
 local function GetTextWipeLabel(Base: TextButton): TextLabel
     local Mask = Base:FindFirstChild("__TextWipeMask")
@@ -1970,15 +1971,21 @@ end
 function Library:SetButtonText(Base: TextButton, NewText: string, OnSwap: (() -> ())?)
     local Mask = Base:FindFirstChild("__TextWipeMask")
     local Label = Mask and Mask:FindFirstChild("__TextWipeLabel")
-    local CurrentText = Label and Label.Text or Base.Text
 
-    if CurrentText == NewText then
+    local WasAnimating = ActiveTextWipes[Base] ~= nil
+    local EffectiveText = TextWipeTarget[Base]
+    if EffectiveText == nil then
+        EffectiveText = Label and Label.Text or Base.Text
+    end
+
+    if not WasAnimating and EffectiveText == NewText then
         Library:SafeCallback(OnSwap)
         return
     end
 
     local Generation = (TextWipeGeneration[Base] or 0) + 1
     TextWipeGeneration[Base] = Generation
+    TextWipeTarget[Base] = NewText
 
     local Existing = ActiveTextWipes[Base]
     if Existing then
