@@ -1815,6 +1815,25 @@ end
 --// Lib Functions \\--
 Library.Cursor = {}
 
+function Library.Cursor:ResetCross()
+    for _, Inner in InnerCross do
+        Library.Registry[Inner].BackgroundColor3 = "WhiteColor"
+        Inner.BackgroundColor3 = Library.Scheme.WhiteColor
+    end
+end
+
+function Library.Cursor:ResetIcon()
+    CursorCross.Visible = true
+    CursorCustomImage.Visible = false
+    CursorCustomImage.ImageColor3 = Color3.new(1, 1, 1)
+    CursorCustomImage.Size = UDim2.fromOffset(20, 20)
+end
+
+function Library.Cursor:ResetCursor()
+    Library.Cursor:ResetCross()
+    Library.Cursor:ResetIcon()
+end
+
 function Library.Cursor:ChangeCrossColor(Color: Color3)
     assert(typeof(Color) == "Color3", "Color3 expected.")
     for _, Inner in InnerCross do
@@ -1845,25 +1864,6 @@ end
 function Library.Cursor:ChangeIconSize(Size: UDim2)
     assert(typeof(Size) == "UDim2", "UDim2 expected.")
     CursorCustomImage.Size = Size
-end
-
-function Library.Cursor:ResetCross()
-    for _, Inner in InnerCross do
-        Library.Registry[Inner].BackgroundColor3 = "WhiteColor"
-        Inner.BackgroundColor3 = Library.Scheme.WhiteColor
-    end
-end
-
-function Library.Cursor:ResetIcon()
-    CursorCross.Visible = true
-    CursorCustomImage.Visible = false
-    CursorCustomImage.ImageColor3 = Color3.new(1, 1, 1)
-    CursorCustomImage.Size = UDim2.fromOffset(20, 20)
-end
-
-function Library.Cursor:ResetCursor()
-    Library.Cursor:ResetCross()
-    Library.Cursor:ResetIcon()
 end
 
 --// DEPRECATED
