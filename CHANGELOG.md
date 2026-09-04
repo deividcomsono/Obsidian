@@ -1,3 +1,23 @@
+## 04.09.2026
+
+```diff
+[features]
++ TabButtonsStyle for CreateWindow (Gap, Padding, CornerRadius, Indicator, IndicatorWidth, IndicatorHeight)
++ Library.Cursor:ChangeCrossColor(Color)
++ Library.Cursor:ResetCross()
++ Library.Cursor:ChangeIcon(ImageId)
++ Library.Cursor:ChangeIconColor(Color)
++ Library.Cursor:ChangeIconSize(Size)
++ Library.Cursor:ResetIcon()
++ Library.Cursor:ResetCursor()
+
+[changes]
++ Library:ChangeCursorCrossColor, ResetCursorCross, ChangeCursorIcon, ChangeCursorIconColor, ChangeCursorIconSize and ResetCursorIcon are deprecated; use Library.Cursor instead
+
+[fixed]
++ Fixed KeyPickers not updating visually when toggled from the keybind menu
+```
+
 ## 31.08.2026
 
 ```diff
