@@ -1045,9 +1045,21 @@ export type Library = {
         Rotation: number?
     ) -> (),
     Validate: (self: Library, Table: { [string]: any }, Template: { [string]: any }) -> { [string]: any },
-    ResetCursorIcon: (self: Library) -> (),
+    Cursor = {
+        ChangeCrossColor: (self: Library, Color: Color3) -> (),
+        ResetCross: (self: Library) -> (),
+        ChangeIcon: (self: Library, ImageId: string) -> (),
+        ChangeIconColor: (self: Library, Color: Color3) -> (),
+        ChangeIconSize: (self: Library, Size: UDim2) -> (),
+        ResetIcon: (self: Library) -> (),
+    }
+    ChangeCursorCrossColor: (self: Library, Color: Color3) -> (),
+    ResetCursorCross: (self: Library) -> (),
+    ResetCursorCross: (self: Library) -> (),
     ChangeCursorIcon: (self: Library, ImageId: string) -> (),
+    ChangeCursorIconColor: (self: Library, Color: Color3) -> (),
     ChangeCursorIconSize: (self: Library, Size: UDim2) -> (),
+    ResetCursorIcon: (self: Library) -> (),
     GetBetterColor: (self: Library, Color: Color3, Add: number) -> Color3,
     GetLighterColor: (self: Library, Color: Color3) -> Color3,
     GetDarkerColor: (self: Library, Color: Color3) -> Color3,
