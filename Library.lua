@@ -4296,6 +4296,7 @@ do
 
                 KeyPicker.Toggled = not KeyPicker.Toggled
                 KeyPicker:DoClick()
+                KeyPicker:Update()
             end))
 
             KeybindsToggle.Holder = Holder
@@ -4415,6 +4416,9 @@ do
                 Button.TextTransparency = 0
 
                 MenuTable:Close()
+                if KeyPicker.Update then
+                    KeyPicker:Update()
+                end
             end
 
             function ModeButton:Deselect()
@@ -4952,39 +4956,28 @@ do
                 HoldingKey = true
             end
 
-            if KeyPicker.Mode == "Toggle" then
-                if HoldingKey then
+            if HoldingKey then
+                if KeyPicker.Mode == "Toggle" then
                     KeyPicker.Toggled = not KeyPicker.Toggled
                     KeyPicker:DoClick()
-                end
-            elseif KeyPicker.Mode == "Press" then
-                if HoldingKey then
+                elseif KeyPicker.Mode == "Press" then
                     KeyPicker:DoClick()
+                elseif KeyPicker.Mode == "Hold" then
+                    InputChanged = Input.Changed:Connect(function()
+                        if KeyPicker:GetState() then
+                            return
+                        end
+
+                        KeyPicker:Update()
+                        if InputChanged and InputChanged.Connected then
+                            InputChanged:Disconnect()
+                            InputChanged = nil
+                        end
+                    end)
                 end
+
+                KeyPicker:Update()
             end
-
-            KeyPicker:Update()
-        end))
-
-        table.insert(KeyPicker.Connections, UserInputService.InputEnded:Connect(function(Input: InputObject)
-            if Library.Unloaded then
-                return
-            end
-
-            local IsMouse = IsMouseClickInput(Input)
-            if
-                ParentObj.Disabled
-                or KeyPicker.Value == "Unknown"
-                or KeyPicker.Value == "None"
-                or Picking
-                or Library.IsPicking
-                or UserInputService:GetFocusedTextBox()
-                or (IsMouse and Library.Toggled)
-            then
-                return
-            end
-
-            KeyPicker:Update()
         end))
 
         KeyPicker:Update()
