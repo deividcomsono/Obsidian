@@ -1195,6 +1195,14 @@ export type Library = {
             TabTransitionTime: number?,
             TabSwipeOffset: number?,
             TabSwipeFrom: ("left" | "right" | "top" | "bottom" | "auto" | string)?,
+            TabButtonsStyle: {
+                Gap: number?
+                Padding: number?
+                CornerRadius: number?,
+                Indicator: boolean?,
+                IndicatorWidth: number?,
+                IndicatorHeight: number?,
+            }?,
         }
     ) -> Window,
     Toggle: (self: Library, Value: boolean?) -> (),
