@@ -1823,23 +1823,6 @@ function Library.Cursor:ChangeCrossColor(Color: Color3)
     end
 end
 
---// DEPRECATED
-function Library:ChangeCursorCrossColor(Color: Color3)
-    Library.Cursor:ChangeCrossColor(Color)
-end
-
-function Library.Cursor:ResetCross()
-    for _, Inner in InnerCross do
-        Inner.BackgroundColor3 = Library.Scheme.MainColor
-        Library.Registry[Inner].BackgroundColor3 = "MainColor"
-    end
-end
-
---// DEPRECATED
-function Library:ResetCursorCross()
-    Library.Cursor:ResetCross()
-end
-
 function Library.Cursor:ChangeIcon(ImageId: string)
     if not ImageId or ImageId == "" then
         Library.Cursor:ResetIcon()
@@ -1854,19 +1837,9 @@ function Library.Cursor:ChangeIcon(ImageId: string)
     Library:ApplyLucideIcon(CursorCustomImage, Icon)
 end
 
---// DEPRECATED
-function Library:ChangeCursorIcon(ImageId: string)
-    Library.Cursor:ChangeIcon(ImageId)
-end
-
 function Library.Cursor:ChangeIconColor(Color: Color3)
     assert(typeof(Color) == "Color3", "Color3 expected.")
     CursorCustomImage.ImageColor3 = Color
-end
-
---// DEPRECATED
-function Library:ChangeCursorIconColor(Color: Color3)
-    Library.Cursor:ChangeIconColor(Color)
 end
 
 function Library.Cursor:ChangeIconSize(Size: UDim2)
@@ -1874,9 +1847,11 @@ function Library.Cursor:ChangeIconSize(Size: UDim2)
     CursorCustomImage.Size = Size
 end
 
---// DEPRECATED
-function Library:ChangeCursorIconSize(Size: UDim2)
-    Library.Cursor:ChangeIconSize(Size)
+function Library.Cursor:ResetCross()
+    for _, Inner in InnerCross do
+        Library.Registry[Inner].BackgroundColor3 = "WhiteColor"
+        Inner.BackgroundColor3 = Library.Scheme.WhiteColor
+    end
 end
 
 function Library.Cursor:ResetIcon()
@@ -1886,11 +1861,48 @@ function Library.Cursor:ResetIcon()
     CursorCustomImage.Size = UDim2.fromOffset(20, 20)
 end
 
---// DEPRECATED
-function Library:ResetCursorIcon()
+function Library.Cursor:ResetCursor()
+    Library.Cursor:ResetCross()
     Library.Cursor:ResetIcon()
 end
 
+--// DEPRECATED
+function Library:ChangeCursorCrossColor(Color: Color3)
+    warn("Obsidian:ChangeCursorCrossColor is deprecated, please use Obsidian.Cursor:ChangeCrossColor instead.")
+    Library.Cursor:ChangeCrossColor(Color)
+end
+
+--// DEPRECATED
+function Library:ResetCursorCross()
+    warn("Obsidian:ResetCursorCross is deprecated, please use Obsidian.Cursor:ResetCross instead.")
+    Library.Cursor:ResetCross()
+end
+
+--// DEPRECATED
+function Library:ChangeCursorIcon(ImageId: string)
+    warn("Obsidian:ChangeCursorIcon is deprecated, please use Obsidian.Cursor:ChangeIcon instead.")
+    Library.Cursor:ChangeIcon(ImageId)
+end
+
+--// DEPRECATED
+function Library:ChangeCursorIconColor(Color: Color3)
+    warn("Obsidian:ChangeCursorIconColor is deprecated, please use Obsidian.Cursor:ChangeIconColor instead.")
+    Library.Cursor:ChangeIconColor(Color)
+end
+
+--// DEPRECATED
+function Library:ChangeCursorIconSize(Size: UDim2)
+    warn("Obsidian:ChangeCursorIconSize is deprecated, please use Obsidian.Cursor:ChangeIconSize instead.")
+    Library.Cursor:ChangeIconSize(Size)
+end
+
+--// DEPRECATED
+function Library:ResetCursorIcon()
+    warn("Obsidian:ResetCursorIcon is deprecated, please use Obsidian.Cursor:ResetIcon instead.")
+    Library.Cursor:ResetIcon()
+end
+
+--// Colors \\--
 function Library:GetBetterColor(Color: Color3, Add: number): Color3
     Add = Add * (Library.IsLightTheme and -4 or 2)
     return Color3.fromRGB(
