@@ -436,12 +436,20 @@ local Templates = {
             KeyPicker = false,
             ColorPicker = false,
             Input = false,
-            Button = false
+            Button = false,
         },
 
         TabTransitionTime = 0.22,
         TabSwipeOffset = 26,
-        TabSwipeFrom = "bottom"
+        TabSwipeFrom = "bottom",
+        TabButtonsStyle = {
+            Gap = 0,
+            Padding = 0,
+            CornerRadius = 0,
+            Indicator = false,
+            IndicatorWidth = 2,
+            IndicatorHeight = 20,
+        },
     },
     Groupbox = {
         Side = 1,
@@ -1700,31 +1708,25 @@ Library.Floats = Floats
 Library.Overlay = Overlay
 
 --// Cursor
-local Cursor, CursorCustomImage
+local Cursor
+local CursorCross
+local InnerCross = {}
+local CursorCustomImage
 do
     Cursor = New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundTransparency = 1,
-        Size = UDim2.fromOffset(9, 1),
+        Size = UDim2.fromOffset(1, 1),
         Visible = false,
         ZIndex = 11000,
         Parent = ScreenGui,
     })
 
-    New("Frame", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundColor3 = "DarkColor",
+    CursorCross = New("Frame", {
+        AnchorPoint = Vector2.new(1, 1),
+        BackgroundTransparency = 1,
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.new(1, 2, 1, 2),
-        ZIndex = 1,
-        Parent = Cursor,
-    })
-    New("Frame", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundColor3 = "WhiteColor",
-        Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromScale(1, 1),
-        ZIndex = 2,
+        Size = UDim2.fromOffset(11, 11),
         Parent = Cursor,
     })
 
@@ -1732,18 +1734,35 @@ do
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "DarkColor",
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(3, 11),
+        Size = UDim2.new(1, 0, 0, 3),
         ZIndex = 1,
-        Parent = Cursor,
+        Parent = CursorCross,
     })
-    New("Frame", {
+    table.insert(InnerCross, New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "WhiteColor",
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(1, 9),
+        Size = UDim2.new(1, -2, 0, 1),
         ZIndex = 2,
-        Parent = Cursor,
+        Parent = CursorCross,
+    }))
+
+    New("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = "DarkColor",
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.new(0, 3, 1, 0),
+        ZIndex = 1,
+        Parent = CursorCross,
     })
+    table.insert(InnerCross, New("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = "WhiteColor",
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.new(0, 1, 1, -2),
+        ZIndex = 2,
+        Parent = CursorCross,
+    }))
 
     CursorCustomImage = New("ImageLabel", {
         AnchorPoint = Vector2.new(0.5, 0.5),
@@ -1811,29 +1830,96 @@ if OnlineFetchIcons and OnlineIcons then
 end
 
 --// Lib Functions \\--
-function Library:ResetCursorIcon()
+Library.Cursor = {}
+
+function Library.Cursor:ResetCross()
+    for _, Inner in InnerCross do
+        Library.Registry[Inner].BackgroundColor3 = "WhiteColor"
+        Inner.BackgroundColor3 = Library.Scheme.WhiteColor
+    end
+end
+
+function Library.Cursor:ResetIcon()
+    CursorCross.Visible = true
     CursorCustomImage.Visible = false
+    CursorCustomImage.ImageColor3 = Color3.new(1, 1, 1)
     CursorCustomImage.Size = UDim2.fromOffset(20, 20)
 end
 
-function Library:ChangeCursorIcon(ImageId: string)
+function Library.Cursor:ResetCursor()
+    Library.Cursor:ResetCross()
+    Library.Cursor:ResetIcon()
+end
+
+function Library.Cursor:ChangeCrossColor(Color: Color3)
+    assert(typeof(Color) == "Color3", "Color3 expected.")
+    for _, Inner in InnerCross do
+        Inner.BackgroundColor3 = Color
+        Library.Registry[Inner].BackgroundColor3 = nil
+    end
+end
+
+function Library.Cursor:ChangeIcon(ImageId: string)
     if not ImageId or ImageId == "" then
-        Library:ResetCursorIcon()
+        Library.Cursor:ResetIcon()
         return
     end
 
     local Icon = Library:GetCustomIcon(ImageId)
     assert(Icon, "Image must be a valid Roblox asset or a valid URL or a valid lucide icon.")
 
+    CursorCross.Visible = false
     CursorCustomImage.Visible = true
     Library:ApplyLucideIcon(CursorCustomImage, Icon)
 end
 
-function Library:ChangeCursorIconSize(Size: UDim2)
+function Library.Cursor:ChangeIconColor(Color: Color3)
+    assert(typeof(Color) == "Color3", "Color3 expected.")
+    CursorCustomImage.ImageColor3 = Color
+end
+
+function Library.Cursor:ChangeIconSize(Size: UDim2)
     assert(typeof(Size) == "UDim2", "UDim2 expected.")
     CursorCustomImage.Size = Size
 end
 
+--// DEPRECATED
+function Library:ChangeCursorCrossColor(Color: Color3)
+    warn("Obsidian:ChangeCursorCrossColor is deprecated, please use Obsidian.Cursor:ChangeCrossColor instead.")
+    Library.Cursor:ChangeCrossColor(Color)
+end
+
+--// DEPRECATED
+function Library:ResetCursorCross()
+    warn("Obsidian:ResetCursorCross is deprecated, please use Obsidian.Cursor:ResetCross instead.")
+    Library.Cursor:ResetCross()
+end
+
+--// DEPRECATED
+function Library:ChangeCursorIcon(ImageId: string)
+    warn("Obsidian:ChangeCursorIcon is deprecated, please use Obsidian.Cursor:ChangeIcon instead.")
+    Library.Cursor:ChangeIcon(ImageId)
+end
+
+--// DEPRECATED
+function Library:ChangeCursorIconColor(Color: Color3)
+    warn("Obsidian:ChangeCursorIconColor is deprecated, please use Obsidian.Cursor:ChangeIconColor instead.")
+    Library.Cursor:ChangeIconColor(Color)
+end
+
+--// DEPRECATED
+function Library:ChangeCursorIconSize(Size: UDim2)
+    warn("Obsidian:ChangeCursorIconSize is deprecated, please use Obsidian.Cursor:ChangeIconSize instead.")
+    Library.Cursor:ChangeIconSize(Size)
+end
+
+--// DEPRECATED
+function Library:ResetCursorIcon()
+    warn("Obsidian:ResetCursorIcon is deprecated, please use Obsidian.Cursor:ResetIcon instead.")
+    Library.Cursor:ResetIcon()
+end
+
+--// Colors \\--
 function Library:GetBetterColor(Color: Color3, Add: number): Color3
     Add = Add * (Library.IsLightTheme and -4 or 2)
     return Color3.fromRGB(
@@ -4335,6 +4421,7 @@ do
 
                 KeyPicker.Toggled = not KeyPicker.Toggled
                 KeyPicker:DoClick()
+                KeyPicker:Update()
             end))
 
             KeybindsToggle.Holder = Holder
@@ -4454,6 +4541,9 @@ do
                 Button.TextTransparency = 0
 
                 MenuTable:Close()
+                if KeyPicker.Update then
+                    KeyPicker:Update()
+                end
             end
 
             function ModeButton:Deselect()
@@ -5035,39 +5125,28 @@ do
                 HoldingKey = true
             end
 
-            if KeyPicker.Mode == "Toggle" then
-                if HoldingKey then
+            if HoldingKey then
+                if KeyPicker.Mode == "Toggle" then
                     KeyPicker.Toggled = not KeyPicker.Toggled
                     KeyPicker:DoClick()
-                end
-            elseif KeyPicker.Mode == "Press" then
-                if HoldingKey then
+                elseif KeyPicker.Mode == "Press" then
                     KeyPicker:DoClick()
+                elseif KeyPicker.Mode == "Hold" then
+                    InputChanged = Input.Changed:Connect(function()
+                        if KeyPicker:GetState() then
+                            return
+                        end
+
+                        KeyPicker:Update()
+                        if InputChanged and InputChanged.Connected then
+                            InputChanged:Disconnect()
+                            InputChanged = nil
+                        end
+                    end)
                 end
+
+                KeyPicker:Update()
             end
-
-            KeyPicker:Update()
-        end))
-
-        table.insert(KeyPicker.Connections, UserInputService.InputEnded:Connect(function(Input: InputObject)
-            if Library.Unloaded then
-                return
-            end
-
-            local IsMouse = IsMouseClickInput(Input)
-            if
-                ParentObj.Disabled
-                or KeyPicker.Value == "Unknown"
-                or KeyPicker.Value == "None"
-                or Picking
-                or Library.IsPicking
-                or UserInputService:GetFocusedTextBox()
-                or (IsMouse and Library.Toggled)
-            then
-                return
-            end
-
-            KeyPicker:Update()
         end))
 
         KeyPicker:Update()
@@ -10639,6 +10718,8 @@ function Library:CreateWindow(WindowInfo)
     end
     WindowInfo.CornerRadius = math.min(WindowInfo.CornerRadius, 20)
 
+    local TabButtonsStyle = WindowInfo.TabButtonsStyle
+
     --// Old Naming \\--
     if WindowInfo.Compact ~= nil then
         WindowInfo.SidebarCompacted = WindowInfo.Compact
@@ -10646,10 +10727,10 @@ function Library:CreateWindow(WindowInfo)
     if WindowInfo.SidebarMinWidth ~= nil then
         WindowInfo.MinSidebarWidth = WindowInfo.SidebarMinWidth
     end
-    WindowInfo.MinSidebarWidth = math.max(64, WindowInfo.MinSidebarWidth)
-    WindowInfo.SidebarCompactWidth = math.max(48, WindowInfo.SidebarCompactWidth)
+    WindowInfo.MinSidebarWidth = math.max(64 + TabButtonsStyle.Padding * 2, WindowInfo.MinSidebarWidth)
+    WindowInfo.SidebarCompactWidth = math.max(40 + TabButtonsStyle.Padding * 2, WindowInfo.SidebarCompactWidth)
     WindowInfo.SidebarCollapseThreshold = math.clamp(WindowInfo.SidebarCollapseThreshold, 0.1, 0.9)
-    WindowInfo.CompactWidthActivation = math.max(48, WindowInfo.CompactWidthActivation)
+    WindowInfo.CompactWidthActivation = math.max(40 + TabButtonsStyle.Padding * 2, WindowInfo.CompactWidthActivation)
     WindowInfo.SnapDistance = math.max(0, WindowInfo.SnapDistance)
     WindowInfo.SnapMargin = math.max(0, WindowInfo.SnapMargin)
 
@@ -11067,6 +11148,14 @@ function Library:CreateWindow(WindowInfo)
             Parent = MainFrame,
         })
         New("UIListLayout", {
+            Padding = UDim.new(0, TabButtonsStyle.Gap),
+            Parent = Tabs,
+        })
+        New("UIPadding", {
+            PaddingBottom = UDim.new(0, TabButtonsStyle.Padding),
+            PaddingLeft = UDim.new(0, TabButtonsStyle.Padding),
+            PaddingRight = UDim.new(0, TabButtonsStyle.Padding),
+            PaddingTop = UDim.new(0, TabButtonsStyle.Padding),
             Parent = Tabs,
         })
 
@@ -11410,6 +11499,7 @@ function Library:CreateWindow(WindowInfo)
         end
 
         local TabButton: TextButton
+        local TabIndicator
         local TabLabel
         local TabIcon
 
@@ -11427,14 +11517,39 @@ function Library:CreateWindow(WindowInfo)
                 LayoutOrder = Order,
                 Parent = Tabs,
             })
+            New("UICorner", {
+                CornerRadius = UDim.new(0, TabButtonsStyle.CornerRadius),
+                Parent = TabButton,
+            })
+
+            if TabButtonsStyle.Indicator then
+                TabIndicator = New("Frame", {
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    BackgroundColor3 = "AccentColor",
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, -2, 0.5, 0),
+                    Size = UDim2.fromOffset(TabButtonsStyle.IndicatorWidth, TabButtonsStyle.IndicatorHeight),
+                    Parent = TabButton,
+                })
+
+                New("UICorner", {
+                    CornerRadius = UDim.new(1, 0),
+                    Parent = TabIndicator,
+                })
+            end
+
+            local ButtonHolder = New("Frame", {
+                BackgroundTransparency = 1,
+                Size = UDim2.fromScale(1, 1),
+                Parent = TabButton,
+            })
             local ButtonPadding = New("UIPadding", {
                 PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
                 PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
                 PaddingRight = UDim.new(0, IsCompact and 6 or 12),
                 PaddingTop = UDim.new(0, IsCompact and 6 or 11),
-                Parent = TabButton,
+                Parent = ButtonHolder,
             })
-
             TabLabel = New("TextLabel", {
                 BackgroundTransparency = 1,
                 Position = UDim2.fromOffset(30, 0),
@@ -11444,7 +11559,7 @@ function Library:CreateWindow(WindowInfo)
                 TextTransparency = 0.5,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Visible = not IsCompact,
-                Parent = TabButton,
+                Parent = ButtonHolder,
             })
 
             if Icon then
@@ -11454,7 +11569,7 @@ function Library:CreateWindow(WindowInfo)
                     ScaleType = Enum.ScaleType.Fit,
                     Size = UDim2.fromScale(1, 1),
                     SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
-                    Parent = TabButton,
+                    Parent = ButtonHolder,
                 })
                 Library:ApplyLucideIcon(TabIcon, Icon)
             end
@@ -12558,6 +12673,11 @@ function Library:CreateWindow(WindowInfo)
             TweenService:Create(TabButton, Library.TweenInfo, {
                 BackgroundTransparency = 0,
             }):Play()
+            if TabIndicator then
+                TweenService:Create(TabIndicator, Library.TweenInfo, {
+                    BackgroundTransparency = 0,
+                }):Play()
+            end
             TweenService:Create(TabLabel, Library.TweenInfo, {
                 TextTransparency = 0,
             }):Play()
@@ -12585,6 +12705,12 @@ function Library:CreateWindow(WindowInfo)
             TweenService:Create(TabButton, Library.TweenInfo, {
                 BackgroundTransparency = 1,
             }):Play()
+
+            if TabIndicator then
+                TweenService:Create(TabIndicator, Library.TweenInfo, {
+                    BackgroundTransparency = 1,
+                }):Play()
+            end
 
             TweenService:Create(TabLabel, Library.TweenInfo, {
                 TextTransparency = 0.5,
@@ -12731,6 +12857,7 @@ function Library:CreateWindow(WindowInfo)
         Icon = Icon or "key"
 
         local TabButton: TextButton
+        local TabIndicator
         local TabLabel
         local TabIcon
 
@@ -12746,12 +12873,38 @@ function Library:CreateWindow(WindowInfo)
                 LayoutOrder = Order,
                 Parent = Tabs,
             })
+            New("UICorner", {
+                CornerRadius = UDim.new(0, TabButtonsStyle.CornerRadius),
+                Parent = TabButton,
+            })
+
+            if TabButtonsStyle.Indicator then
+                TabIndicator = New("Frame", {
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    BackgroundColor3 = "AccentColor",
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, -2, 0.5, 0),
+                    Size = UDim2.fromOffset(TabButtonsStyle.IndicatorWidth, TabButtonsStyle.IndicatorHeight),
+                    Parent = TabButton,
+                })
+
+                New("UICorner", {
+                    CornerRadius = UDim.new(1, 0),
+                    Parent = TabIndicator,
+                })
+            end
+
+            local ButtonHolder = New("Frame", {
+                BackgroundTransparency = 1,
+                Size = UDim2.fromScale(1, 1),
+                Parent = TabButton,
+            })
             local ButtonPadding = New("UIPadding", {
                 PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
                 PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
                 PaddingRight = UDim.new(0, IsCompact and 6 or 12),
                 PaddingTop = UDim.new(0, IsCompact and 6 or 11),
-                Parent = TabButton,
+                Parent = ButtonHolder,
             })
 
             TabLabel = New("TextLabel", {
@@ -12763,16 +12916,17 @@ function Library:CreateWindow(WindowInfo)
                 TextTransparency = 0.5,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Visible = not IsCompact,
-                Parent = TabButton,
+                Parent = ButtonHolder,
             })
 
             if Icon then
                 TabIcon = New("ImageLabel", {
                     ImageColor3 = Icon.Custom and "WhiteColor" or "AccentColor",
                     ImageTransparency = 0.5,
+                    ScaleType = Enum.ScaleType.Fit,
                     Size = UDim2.fromScale(1, 1),
                     SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
-                    Parent = TabButton,
+                    Parent = ButtonHolder,
                 })
                 Library:ApplyLucideIcon(TabIcon, Icon)
             end
@@ -12973,6 +13127,12 @@ function Library:CreateWindow(WindowInfo)
                 BackgroundTransparency = 0,
             }):Play()
 
+            if TabIndicator then
+                TweenService:Create(TabIndicator, Library.TweenInfo, {
+                    BackgroundTransparency = 0,
+                }):Play()
+            end
+
             TweenService:Create(TabLabel, Library.TweenInfo, {
                 TextTransparency = 0,
             }):Play()
@@ -13002,6 +13162,12 @@ function Library:CreateWindow(WindowInfo)
             TweenService:Create(TabButton, Library.TweenInfo, {
                 BackgroundTransparency = 1,
             }):Play()
+
+            if TabIndicator then
+                TweenService:Create(TabIndicator, Library.TweenInfo, {
+                    BackgroundTransparency = 1,
+                }):Play()
+            end
 
             TweenService:Create(TabLabel, Library.TweenInfo, {
                 TextTransparency = 0.5,
