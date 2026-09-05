@@ -1433,12 +1433,14 @@ function Library:SetDPIScale(DPIScale: number)
         UIScale.Scale = Library.DPIScale - (tonumber(Library.ScalesOffset[UIScale]) or 0)
     end
 
-    for _, Option in Options do
-        if Option.Type == "Dropdown" then
-            Option:RecalculateListSize()
-            Option:RefreshPool()
+    task.defer(function()
+        for _, Option in Options do
+            if Option.Type == "Dropdown" then
+                Option:RecalculateListSize()
+                Option:RefreshPool()
+            end
         end
-    end
+    end)
 
     for _, Notification in Library.Notifications do
         Notification:Resize()
@@ -3551,6 +3553,7 @@ function Library:AddContextMenu(
         Signal = nil,
 
         Size = Size,
+        Offset = Offset,
         AutoSizeY = List == 1,
 
         OpenCloseTween = nil,
@@ -3573,6 +3576,26 @@ function Library:AddContextMenu(
         })
     end
 
+    local function SetPosition()
+        local OffsetValue = typeof(Table.Offset) == "function" and Table.Offset() or Table.Offset
+
+        Menu.Position = UDim2.fromOffset(
+            math.floor(Holder.AbsolutePosition.X + OffsetValue[1]),
+            math.floor(Holder.AbsolutePosition.Y + OffsetValue[2])
+        )
+    end
+
+    local function SetSize()
+        local TargetSize = typeof(Table.Size) == "function" and Table.Size() or Table.Size
+
+        Menu.Size = UDim2.new(
+            TargetSize.X.Scale,
+            math.round(TargetSize.X.Offset),
+            TargetSize.Y.Scale,
+            math.round(TargetSize.Y.Offset)
+        )
+    end
+
     function Table:Open()
         if CurrentMenu == Table then
             return
@@ -3588,19 +3611,15 @@ function Library:AddContextMenu(
         Menu.Parent = nil
         Menu.Parent = TargetParent
 
-        if typeof(Offset) == "function" then
-            Menu.Position = UDim2.fromOffset(
-                math.floor(Holder.AbsolutePosition.X + Offset()[1]),
-                math.floor(Holder.AbsolutePosition.Y + Offset()[2])
-            )
-        else
-            Menu.Position = UDim2.fromOffset(
-                math.floor(Holder.AbsolutePosition.X + Offset[1]),
-                math.floor(Holder.AbsolutePosition.Y + Offset[2])
-            )
-        end
+        SetPosition()
 
         local TargetSize = typeof(Table.Size) == "function" and Table.Size() or Table.Size
+        TargetSize = UDim2.new(
+            TargetSize.X.Scale,
+            math.round(TargetSize.X.Offset),
+            TargetSize.Y.Scale,
+            math.round(TargetSize.Y.Offset)
+        )
 
         if typeof(ActiveCallback) == "function" then
             Library:SafeCallback(ActiveCallback, true)
@@ -3644,22 +3663,18 @@ function Library:AddContextMenu(
 
             Tween:Play()
         else
-            Menu.Size = TargetSize
+            SetSize()
             Menu.Visible = true
         end
 
-        Table.Signal = Holder:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-            if typeof(Offset) == "function" then
-                Menu.Position = UDim2.fromOffset(
-                    math.floor(Holder.AbsolutePosition.X + Offset()[1]),
-                    math.floor(Holder.AbsolutePosition.Y + Offset()[2])
-                )
-            else
-                Menu.Position = UDim2.fromOffset(
-                    math.floor(Holder.AbsolutePosition.X + Offset[1]),
-                    math.floor(Holder.AbsolutePosition.Y + Offset[2])
-                )
+        Table.SizeSignal = Holder:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+            if not Table.AutoSizeY then
+                SetSize()
             end
+        end)
+
+        Table.Signal = Holder:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
+            SetPosition()
 
             local HolderAllowed = Library:IsInsideFrame(Library.WindowContainer, Holder)
             if not HolderAllowed then
@@ -3687,6 +3702,11 @@ function Library:AddContextMenu(
         if Table.Signal then
             Table.Signal:Disconnect()
             Table.Signal = nil
+        end
+
+        if Table.SizeSignal then
+            Table.SizeSignal:Disconnect()
+            Table.SizeSignal = nil
         end
 
         Table.Active = false
@@ -3745,7 +3765,12 @@ function Library:AddContextMenu(
 
     function Table:SetSize(Size)
         Table.Size = Size
-        Menu.Size = typeof(Size) == "function" and Size() or Size
+        SetSize()
+    end
+
+    function Table:SetPosition(Offset)
+        Table.Offset = Offset
+        SetPosition()
     end
 
     function Table:Destroy()
@@ -8181,14 +8206,21 @@ do
             return ValueImage
         end
 
+        local function GetAlignedWidth()
+            local Left = math.floor(DisplayContainer.AbsolutePosition.X + 0.5)
+            local Right = math.floor(DisplayContainer.AbsolutePosition.X + 0.5 + DisplayContainer.AbsoluteSize.X)
+
+            return (Right - Left) / Library.DPIScale
+        end
+
         local MenuTable
         MenuTable = Library:AddContextMenu(
             DisplayContainer,
             function()
-                return UDim2.fromOffset((DisplayContainer.AbsoluteSize.X / Library.DPIScale), 0)
+                return UDim2.fromOffset(GetAlignedWidth(), 0)
             end,
             function()
-                return { 0.5, DisplayContainer.AbsoluteSize.Y + 1.5 }
+                return { 0.5, DisplayContainer.AbsoluteSize.Y + 1 }
             end,
             2,
             function(Active: boolean)
@@ -8234,9 +8266,10 @@ do
             local Y = math.clamp(ItemCount * ItemHeight, 0, Info.MaxVisibleDropdownItems * ItemHeight)
 
             MenuTable.Menu.CanvasSize = UDim2.fromOffset(0, ItemCount * ItemHeight)
+            MenuTable.Menu.ScrollBarThickness = (ItemCount * ItemHeight > Y) and 2 or 0
 
             MenuTable:SetSize(function()
-                return UDim2.fromOffset((DisplayContainer.AbsoluteSize.X / Library.DPIScale), Y)
+                return UDim2.fromOffset(GetAlignedWidth(), Y)
             end)
         end
 
