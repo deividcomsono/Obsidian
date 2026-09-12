@@ -1714,7 +1714,7 @@ do
     })
 
     CursorCross = New("Frame", {
-        AnchorPoint = Vector2.new(1, 1),
+        AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundTransparency = 1,
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromOffset(11, 11),
@@ -4674,10 +4674,6 @@ do
                 end
             end
 
-            if Info.NoUI then
-                return
-            end
-
             if KeyPicker.Mode == "Toggle" and ParentObj.Type == "Toggle" and ParentObj.Disabled then
                 KeybindsToggle:SetVisibility(false)
                 return
@@ -4688,6 +4684,10 @@ do
 
             if KeyPicker.SyncToggleState and ParentObj.Value ~= State then
                 ParentObj:SetValue(State)
+            end
+
+            if Info.NoUI then
+                return
             end
 
             if KeybindsToggle.Loaded then
