@@ -225,6 +225,9 @@ local Library = {
     WindowAnimationInfo = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
     DropdownTransitionInfo = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
     KeyPickerTransitionInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+    ColorPickerTransitionInfo = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+    InputTransitionInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+    ButtonTransitionInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 
     GroupboxTweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
     RotatingChevronTweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
@@ -234,7 +237,10 @@ local Library = {
         TabSwitch = false,
         Groupbox = false,
         Dropdown = false,
-        KeyPicker = false
+        KeyPicker = false,
+        ColorPicker = false,
+        Input = false,
+        Button = false
     },
 
     --// States \\--
@@ -428,6 +434,9 @@ local Templates = {
             Groupbox = false,
             Dropdown = false,
             KeyPicker = false,
+            ColorPicker = false,
+            Input = false,
+            Button = false,
         },
 
         TabTransitionTime = 0.22,
@@ -3449,7 +3458,7 @@ function Library:AddContextMenu(
     ActiveCallback: (Active: boolean) -> ()?,
     IgnoreCornerRadius: boolean?,
     SpecificCornersOnly: ("top" | "bottom" | "no_left" | "no_top_left")?, -- stupid way of doing this
-    AnimationType: ("Dropdown" | "KeyPicker" | "none")?
+    AnimationType: ("Dropdown" | "KeyPicker" | "ColorPicker" | "none")?
 )
     local Menu
     local HolderGui = Holder:FindFirstAncestorOfClass("ScreenGui")
@@ -3615,7 +3624,7 @@ function Library:AddContextMenu(
         if IsAnimated == true then
             local OpenSize = TargetSize
             if Table.AutoSizeY then
-                local FullHeight = Menu.AbsoluteSize.Y
+                local FullHeight = Menu.AbsoluteSize.Y / Library.DPIScale
 
                 Menu.AutomaticSize = Enum.AutomaticSize.None
                 OpenSize = UDim2.new(TargetSize.X.Scale, TargetSize.X.Offset, 0, FullHeight)
@@ -4139,6 +4148,9 @@ do
 
         local SlideForwardTween
         local SlideBackTween
+        local WipeTween
+        local Hovering = false
+        local KeyTransitioning = false
         local HandleForwardTween = function(State)
             if State ~= Enum.PlaybackState.Completed then
                 return
@@ -4227,6 +4239,41 @@ do
             Parent = Picker,
         }); table.insert(Library.SpecificCorners, PickerCorner)
 
+        Picker.MouseEnter:Connect(function()
+            Hovering = true
+
+            if KeyTransitioning then
+                return
+            end
+
+            if WipeTween then
+                StopTween(WipeTween, true)
+            end
+
+            local HoverTween = TweenService:Create(Picker, Library.TweenInfo, {
+                TextTransparency = 0,
+            })
+            WipeTween = HoverTween
+            HoverTween:Play()
+        end)
+
+        Picker.MouseLeave:Connect(function()
+            Hovering = false
+
+            if KeyTransitioning then
+                return
+            end
+
+            if WipeTween then
+                StopTween(WipeTween, true)
+            end
+
+            local HoverTween = TweenService:Create(Picker, Library.TweenInfo, {
+                TextTransparency = 0.4,
+            })
+            WipeTween = HoverTween
+            HoverTween:Play()
+        end)
         local PickerHoverTween = nil
 
         local function ApplyPickerTextTransparency(Transparency: number)
@@ -4651,8 +4698,58 @@ do
                     Picker.TextSize,
                     ToggleLabel.AbsoluteSize.X
                 )
-                Picker.Text = DisplayText
-                Picker.Size = IsForButton and UDim2.new(0, X + 9, 1, 0) or UDim2.fromOffset((X + 9), (Y + 4))
+
+                local ApplyText = function()
+                    Picker.Text = DisplayText
+                    Picker.Size = IsForButton and UDim2.new(0, X + 9, 1, 0) or UDim2.fromOffset((X + 9), (Y + 4))
+                end
+
+                local IsAnimated = Library.Animations and Library.Animations.KeyPicker == true
+                if IsAnimated and Picker.Text ~= DisplayText then
+                    if WipeTween then
+                        StopTween(WipeTween, true)
+                        WipeTween = nil
+                    end
+
+                    KeyTransitioning = true
+
+                    local WipeInfo = Library.KeyPickerTransitionInfo or TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+                    local WipeOut = TweenService:Create(Picker, WipeInfo, { TextTransparency = 1 })
+                    WipeTween = WipeOut
+
+                    local OutConnection; OutConnection = Library:GiveSignal(WipeOut.Completed:Once(function()
+                        if OutConnection then
+                            OutConnection:Disconnect()
+                        end
+
+                        if WipeTween ~= WipeOut then
+                            return
+                        end
+
+                        ApplyText()
+
+                        local WipeIn = TweenService:Create(Picker, WipeInfo, { TextTransparency = Hovering and 0 or 0.4 })
+                        WipeTween = WipeIn
+                        WipeIn:Play()
+
+                        local InConnection; InConnection = Library:GiveSignal(WipeIn.Completed:Once(function()
+                            if InConnection then
+                                InConnection:Disconnect()
+                            end
+
+                            if WipeTween == WipeIn then
+                                WipeTween = nil
+                            end
+
+                            KeyTransitioning = false
+                        end))
+                    end))
+
+                    WipeOut:Play()
+                else
+                    ApplyText()
+                end
             end
         end
 
@@ -4845,13 +4942,7 @@ do
             end
 
             SetPickingState(true)
-
-            if IsForButton and SlideOverflow then
-                KeyPicker:Display("...")
-            else
-                Picker.Text = "..."
-                Picker.Size = IsForButton and UDim2.new(0, 29, 1, 0) or UDim2.fromOffset(29, 18)
-            end
+            KeyPicker:Display("...")
 
             -- Wait for any input --
             local ActiveModifiers = {}
@@ -5237,7 +5328,7 @@ do
                     FooterCorner.BottomLeftRadius = Half
                     FooterCorner.BottomRightRadius = Half
                 end
-            end, false, "no_top_left")
+            end, false, "no_top_left", "ColorPicker")
         ColorMenu.List.Padding = UDim.new(0, 0)
         ColorPicker.ColorMenu = ColorMenu
 
@@ -5267,6 +5358,7 @@ do
             BackgroundColor3 = function()
                 return Library:GetBetterColor(Library.Scheme.BackgroundColor, 4)
             end,
+            ClipsDescendants = true,
             Size = UDim2.new(1, 0, 0, FooterHeight),
             Parent = ColorMenu.Menu,
         })
@@ -5458,8 +5550,8 @@ do
                 local ViewportSize = Camera.ViewportSize
                 local ScreenMargin = 12
 
-                local MaxWidth = ViewportSize.X - ColorMenu.Menu.AbsolutePosition.X - ScreenMargin
-                local MaxHeight = ViewportSize.Y - ColorMenu.Menu.AbsolutePosition.Y - ScreenMargin - FixedVerticalOverhead
+                local MaxWidth = (ViewportSize.X - ColorMenu.Menu.AbsolutePosition.X - ScreenMargin) / Library.DPIScale
+                local MaxHeight = (ViewportSize.Y - ColorMenu.Menu.AbsolutePosition.Y - ScreenMargin) / Library.DPIScale - FixedVerticalOverhead
 
                 while NewWidth > MinMapSize and GetContentWidth(NewWidth) > MaxWidth do
                     NewWidth -= 4
@@ -5472,7 +5564,7 @@ do
                 return NewWidth, NewHeight
             end
 
-            local function UpdateColorMenuSize(NewWidth, NewHeight)
+            local function UpdateColorMenuSize(NewWidth, NewHeight, BaseOverhead)
                 NewWidth = math.max(MinMapSize, math.floor(NewWidth + 0.5))
                 NewHeight = math.max(MinMapSize, math.floor(NewHeight + 0.5))
                 NewWidth, NewHeight = ClampToViewport(NewWidth, NewHeight)
@@ -5495,14 +5587,20 @@ do
 
                 ColorPicker.MapWidth = NewWidth
                 ColorPicker.MapHeight = NewHeight
-                ColorMenu:SetSize(UDim2.new(0, GetContentWidth(NewWidth), 0, 0))
+
+                local ContentWidth = GetContentWidth(NewWidth)
+                if BaseOverhead then
+                    ColorMenu:SetSize(UDim2.new(0, ContentWidth, 0, math.floor(BaseOverhead + NewHeight + 0.5)))
+                else
+                    ColorMenu:SetSize(UDim2.new(0, ContentWidth, 0, 0))
+                end
             end
 
             ResizeGrabber = New("TextButton", {
-                AnchorPoint = Vector2.new(1, 0),
+                AnchorPoint = Vector2.new(1, 1),
                 BackgroundTransparency = 1,
-                Position = UDim2.new(1, -Library.CornerRadius / 4, 0, 0),
-                Size = UDim2.fromScale(1, 1),
+                Position = UDim2.new(1, -Library.CornerRadius / 4, 0.95, 0),
+                Size = UDim2.fromScale(0.8, 0.8),
                 SizeConstraint = Enum.SizeConstraint.RelativeYY,
                 Text = "",
                 Parent = FooterBackground,
@@ -5519,18 +5617,28 @@ do
             end
 
             table.insert(ColorPicker.Connections, ResizeGrabber.InputBegan:Connect(function(Input: InputObject)
+                if not IsDragInput(Input) then
+                    return
+                end
+
                 Library.CantDragForced = true
                 local StartMouse = Vector2.new(Mouse.X, Mouse.Y)
                 local StartWidth = ColorPicker.MapWidth
                 local StartHeight = ColorPicker.MapHeight
 
+                local BaseOverhead = (ColorMenu.Menu.AbsoluteSize.Y / Library.DPIScale) - StartHeight
+                ColorMenu.Menu.AutomaticSize = Enum.AutomaticSize.None
+
                 while IsDragInput(Input) and not ColorPicker.Destroyed do
-                    local Delta = Vector2.new(Mouse.X, Mouse.Y) - StartMouse
-                    UpdateColorMenuSize(StartWidth + Delta.X, StartHeight + Delta.Y)
+                    local Delta = (Vector2.new(Mouse.X, Mouse.Y) - StartMouse) / Library.DPIScale
+                    UpdateColorMenuSize(StartWidth + Delta.X, StartHeight + Delta.Y, BaseOverhead)
 
                     RunService.RenderStepped:Wait()
                 end
 
+                if not ColorPicker.Destroyed then
+                    ColorMenu.Menu.AutomaticSize = Enum.AutomaticSize.Y
+                end
                 Library.CantDragForced = false
             end))
         end
