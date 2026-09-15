@@ -6776,6 +6776,7 @@ do
 
             Callback = Info.Callback,
             Changed = Info.Changed,
+            ChangedCallbacks = {},
 
             Risky = Info.Risky,
             Disabled = Info.Disabled,
@@ -6880,7 +6881,7 @@ do
         end
 
         function Toggle:OnChanged(Func)
-            Toggle.Changed = Func
+            table.insert(Toggle.ChangedCallbacks, Func)
         end
 
         function Toggle:RunChanged()
@@ -6890,6 +6891,10 @@ do
 
             Library:SafeCallback(Toggle.Callback, Toggle.Value)
             Library:SafeCallback(Toggle.Changed, Toggle.Value)
+
+            for _, Func in Toggle.ChangedCallbacks do
+                Library:SafeCallback(Func, Toggle.Value)
+            end
         end
 
         function Toggle:SetValue(Value)
@@ -7034,6 +7039,7 @@ do
 
             Callback = Info.Callback,
             Changed = Info.Changed,
+            ChangedCallbacks = {},
 
             Risky = Info.Risky,
             Disabled = Info.Disabled,
@@ -7154,7 +7160,7 @@ do
         end
 
         function Toggle:OnChanged(Func)
-            Toggle.Changed = Func
+            table.insert(Toggle.ChangedCallbacks, Func)
         end
 
         function Toggle:RunChanged()
@@ -7164,6 +7170,10 @@ do
 
             Library:SafeCallback(Toggle.Callback, Toggle.Value)
             Library:SafeCallback(Toggle.Changed, Toggle.Value)
+
+            for _, Func in Toggle.ChangedCallbacks do
+                Library:SafeCallback(Func, Toggle.Value)
+            end
         end
 
         function Toggle:SetValue(Value)
@@ -7316,6 +7326,7 @@ do
 
             Callback = Info.Callback,
             Changed = Info.Changed,
+            ChangedCallbacks = {},
             VerifyValue = Info.VerifyValue,
 
             Disabled = Info.Disabled,
@@ -7389,7 +7400,7 @@ do
         end
 
         function Input:OnChanged(Func)
-            Input.Changed = Func
+            table.insert(Input.ChangedCallbacks, Func)
         end
 
         function Input:RunChanged()
@@ -7399,6 +7410,10 @@ do
 
             Library:SafeCallback(Input.Callback, Input.Value)
             Library:SafeCallback(Input.Changed, Input.Value)
+
+            for _, Func in Input.ChangedCallbacks do
+                Library:SafeCallback(Func, Input.Value)
+            end
         end
 
         function Input:SetValue(Text)
@@ -7570,6 +7585,7 @@ do
 
             Callback = Info.Callback,
             Changed = Info.Changed,
+            ChangedCallbacks = {},
 
             Disabled = Info.Disabled,
             Visible = Info.Visible,
@@ -7726,7 +7742,7 @@ do
         end
 
         function Slider:OnChanged(Func)
-            Slider.Changed = Func
+            table.insert(Slider.ChangedCallbacks, Func)
         end
 
         function Slider:SetMax(Value)
@@ -7752,6 +7768,10 @@ do
 
             Library:SafeCallback(Slider.Callback, Slider.Value)
             Library:SafeCallback(Slider.Changed, Slider.Value)
+
+            for _, Func in Slider.ChangedCallbacks do
+                Library:SafeCallback(Func, Slider.Value)
+            end
         end
 
         function Slider:SetValue(Str)
@@ -8030,6 +8050,7 @@ do
 
             Callback = Info.Callback,
             Changed = Info.Changed,
+            ChangedCallbacks = {},
 
             Disabled = Info.Disabled,
             Visible = Info.Visible,
@@ -8309,7 +8330,7 @@ do
         end
 
         function Dropdown:OnChanged(Func)
-            Dropdown.Changed = Func
+            table.insert(Dropdown.ChangedCallbacks, Func)
         end
 
         function Dropdown:GetActiveValues(ReturnCount)
@@ -8471,6 +8492,10 @@ do
 
             Library:SafeCallback(Dropdown.Callback, Dropdown.Value)
             Library:SafeCallback(Dropdown.Changed, Dropdown.Value)
+
+            for _, Func in Dropdown.ChangedCallbacks do
+                Library:SafeCallback(Func, Dropdown.Value)
+            end
         end
 
         local function StopDragSelect()
