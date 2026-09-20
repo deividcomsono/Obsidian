@@ -702,6 +702,7 @@ export type Groupbox = BaseGroupbox & {
     PopOutFloat: Frame?,
     PopOutPlaceholder: Frame?,
     PopOutMaxHeight: number?,
+    PopOutWidth: number?,
     BoxHolder: Frame,
     Holder: Frame,
     Container: Frame,
@@ -717,6 +718,7 @@ export type Groupbox = BaseGroupbox & {
     TogglePoppedOut: (self: Groupbox) -> (),
     RefreshPopOutPlaceholder: (self: Groupbox) -> (),
     SetMaxPopOutHeight: (self: Groupbox, Height: number?) -> (),
+    SetPopOutWidth: (self: Groupbox, Width: number?) -> (),
 }
 
 export type SubTab = BaseGroupbox & {
@@ -741,6 +743,7 @@ export type Tabbox = {
     PopOutFloat: Frame?,
     PopOutPlaceholder: Frame?,
     PopOutMaxHeight: number?,
+    PopOutWidth: number?,
     ActiveTab: SubTab?,
     BoxHolder: Frame,
     Holder: Frame,
@@ -754,6 +757,7 @@ export type Tabbox = {
     TogglePoppedOut: (self: Tabbox) -> (),
     RefreshPopOutPlaceholder: (self: Tabbox) -> (),
     SetMaxPopOutHeight: (self: Tabbox, Height: number?) -> (),
+    SetPopOutWidth: (self: Tabbox, Width: number?) -> (),
 }
 
 export type Tab = {
@@ -783,6 +787,7 @@ export type Tab = {
             DisableCollapsing: boolean?,
             PopOut: boolean?,
             MaxPopOutHeight: number?,
+            PopOutWidth: number?,
         }
     ) -> Groupbox,
     AddLeftGroupbox: (
@@ -801,7 +806,7 @@ export type Tab = {
         Collapsed: boolean?,
         DisableCollapsing: boolean?
     ) -> Groupbox,
-    AddTabbox: (self: Tab, Info: { Side: number | string, Name: string?, PopOut: boolean?, MaxPopOutHeight: number? }) -> Tabbox,
+    AddTabbox: (self: Tab, Info: { Side: number | string, Name: string?, PopOut: boolean?, MaxPopOutHeight: number?, PopOutWidth: number? }) -> Tabbox,
     AddLeftTabbox: (self: Tab, Name: string?) -> Tabbox,
     AddRightTabbox: (self: Tab, Name: string?) -> Tabbox,
     Hover: (self: Tab, Hovering: boolean) -> (),

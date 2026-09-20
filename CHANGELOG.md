@@ -4,6 +4,7 @@
 [features]
 + KeepDisabledValuePosition for Dropdown (keeps DisabledValues in their Values order instead of moving them to the end)
 + SetMaxPopOutHeight(MaxHeight: number) for popout groupboxes and tabboxes
++ SetPopOutWidth(Width: number) for popout groupboxes and tabboxes
 + KeyPicker:SetMenuVisibility(Visible: boolean)
 
 [fixed]

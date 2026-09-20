@@ -452,12 +452,14 @@ local Templates = {
         DisableCollapsing = false,
         PopOut = true,
         MaxPopOutHeight = nil,
+        PopOutWidth = nil,
     },
     Tabbox = {
         Side = 1,
         Name = nil,
         PopOut = true,
         MaxPopOutHeight = nil,
+        PopOutWidth = nil,
     },
     Dialog = {
         Title = "Dialog",
@@ -2558,18 +2560,21 @@ function Library:MakeBoxPopOut(Box: any, Options: {
     Before: (() -> ())?,
     After: (() -> ())?,
     MaxPopOutHeight: number?,
+    PopOutWidth: number?,
 })
     Box.PoppedOut = false
     Box.PopOutEnabled = Options.Enabled ~= false
     Box.PopOutFloat = nil
     Box.PopOutPlaceholder = nil
     Box.PopOutMaxHeight = if typeof(Options.MaxPopOutHeight) == "number" then Options.MaxPopOutHeight else nil
+    Box.PopOutWidth = if typeof(Options.PopOutWidth) == "number" then Options.PopOutWidth else nil
 
     if not Box.PopOutEnabled then
         function Box:SetPoppedOut(_Value: boolean, _SetPoppedOut: UDim2) end
         function Box:TogglePoppedOut() end
         function Box:RefreshPopOutPlaceholder() end
         function Box:SetMaxPopOutHeight(_Height: number?) end
+        function Box:SetPopOutWidth(_Width: number?) end
         return
     end
 
@@ -2595,6 +2600,34 @@ function Library:MakeBoxPopOut(Box: any, Options: {
     local DragDidMove = false
 
     --// UI Handler
+    local function GetPopOutWidth(): number
+        if typeof(Box.PopOutWidth) == "number" then
+            return math.max(50, math.floor(Box.PopOutWidth + 0.5))
+        end
+
+        if typeof(Box.PopOutDockedWidth) == "number" then
+            return math.max(50, math.floor(Box.PopOutDockedWidth + 0.5))
+        end
+
+        local Width = Holder.AbsoluteSize.X / Library.DPIScale
+        if Width < 50 then
+            Width = 200
+        end
+
+        return math.max(50, math.floor(Width + 0.5))
+    end
+
+    local function ApplyPopOutWidth()
+        if not (Box.PoppedOut and Float) then
+            return
+        end
+
+        Float.Size = UDim2.fromOffset(GetPopOutWidth(), Float.Size.Y.Offset)
+        if Box.Resize then
+            Box:Resize()
+        end
+    end
+
     local function RaiseFloat()
         if not Float or not Floats then
             return
@@ -2709,10 +2742,13 @@ function Library:MakeBoxPopOut(Box: any, Options: {
                 return
             end
 
-            local Width = Holder.AbsoluteSize.X / Library.DPIScale
-            if Width < 50 then
-                Width = 200
+            local DockedWidth = Holder.AbsoluteSize.X / Library.DPIScale
+            if DockedWidth < 50 then
+                DockedWidth = 200
             end
+            Box.PopOutDockedWidth = math.max(50, math.floor(DockedWidth + 0.5))
+
+            local Width = GetPopOutWidth()
 
             local AbsolutePosition = Holder.AbsolutePosition
             Placeholder = CreatePlaceholder()
@@ -2804,7 +2840,9 @@ function Library:MakeBoxPopOut(Box: any, Options: {
 
         Box.PopOutFloat = nil
         Box.PopOutPlaceholder = nil
+        Box.PopOutDockedWidth = nil
         Box.PoppedOut = false
+
         table.clear(HandledChildren)
         table.clear(OriginalParents)
         table.clear(OriginalLayoutOrders)
@@ -2828,6 +2866,16 @@ function Library:MakeBoxPopOut(Box: any, Options: {
         if Box.PoppedOut and Box.Resize then
             Box:Resize()
         end
+    end
+
+    function Box:SetPopOutWidth(Width: number?)
+        if Width ~= nil then
+            assert(typeof(Width) == "number", "Width must be a number or nil")
+            assert(Width >= 0, "Width must be higher than 0")
+        end
+
+        Box.PopOutWidth = Width
+        ApplyPopOutWidth()
     end
 
     --// Drag Handler
@@ -12161,6 +12209,7 @@ function Library:CreateWindow(WindowInfo)
             Library:MakeBoxPopOut(Tabbox, {
                 Enabled = Info.PopOut ~= false,
                 MaxPopOutHeight = Info.MaxPopOutHeight,
+                PopOutWidth = Info.PopOutWidth,
 
                 Header = TabboxButtons,
                 Children = function()
@@ -12520,6 +12569,7 @@ function Library:CreateWindow(WindowInfo)
             Library:MakeBoxPopOut(Groupbox, {
                 Enabled = Info.PopOut ~= false,
                 MaxPopOutHeight = Info.MaxPopOutHeight,
+                PopOutWidth = Info.PopOutWidth,
 
                 Header = GroupboxTop,
                 Children = function()
