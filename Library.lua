@@ -28,6 +28,7 @@ local Buttons = {}
 local Toggles = {}
 local Options = {}
 local Tooltips = {}
+local RejoiningPlayers = {}
 
 local BaseURL = "https://raw.githubusercontent.com/deividcomsono/Obsidian/refs/heads/main/"
 local CustomImageManager = {}
@@ -14600,9 +14601,23 @@ local function OnPlayerChange()
     end
 
     local PlayerList, ExcludedPlayerList = GetPlayers(), GetPlayers(true)
+
     for _, Dropdown in Options do
         if Dropdown.Type == "Dropdown" and Dropdown.SpecialType == "Player" then
             Dropdown:SetValues(Dropdown.ExcludeLocalPlayer and ExcludedPlayerList or PlayerList)
+        end
+    end
+
+    -- People join/leave fairly fast on most games, so this should never grow to
+    -- such an insane amount where it'd be considered a "memory leak"
+    -- So it's preferable to having a loop constantly running
+    local now = os.clock()
+    for userId, data in RejoiningPlayers do 
+        if now - data.LeftAt >= 300 then
+            table.clear(data.Dropdowns)
+            table.clear(data)
+
+            RejoiningPlayers[userId] = nil
         end
     end
 end
@@ -14620,8 +14635,41 @@ local function OnTeamChange()
     end
 end
 
-Library:GiveSignal(Players.PlayerAdded:Connect(OnPlayerChange))
-Library:GiveSignal(Players.PlayerRemoving:Connect(OnPlayerChange))
+Library:GiveSignal(Players.PlayerAdded:Connect(function(player)
+    OnPlayerChange()
+
+    local RejoinedPlayerData = RejoiningPlayers[player.UserId]
+    if RejoinedPlayerData then
+        for _, Dropdown in RejoinedPlayerData.Dropdowns do 
+            Dropdown:SetValue(player)
+        end
+
+        table.clear(RejoinedPlayerData.Dropdowns)
+        table.clear(RejoinedPlayerData)
+
+        RejoiningPlayers[player.UserId] = nil
+    end
+end))
+
+Library:GiveSignal(Players.PlayerRemoving:Connect(function(player)
+    local data = {
+        ["Dropdowns"] = { },
+        ["LeftAt"] = os.clock(),
+    }
+
+    RejoiningPlayers[player.UserId] = data
+
+    for _, Dropdown in Options do 
+        if Dropdown.Type == "Dropdown" and Dropdown.SpecialType == "Player" then
+            local Value = Dropdown.Value
+            if Value == player or (Dropdown.Multi and Value[player]) then
+                table.insert(data.Dropdowns, Dropdown)
+            end
+        end
+    end
+
+    OnPlayerChange()
+end))
 
 Library:GiveSignal(Teams.ChildAdded:Connect(OnTeamChange))
 Library:GiveSignal(Teams.ChildRemoved:Connect(OnTeamChange))
