@@ -172,6 +172,7 @@ export type DropdownInfo = {
     Multi: boolean?,
     DragSelect: boolean?,
     MaxVisibleDropdownItems: number?,
+    KeepDisabledValuePosition: boolean?,
     SpecialType: "Player" | "Team"?,
     ExcludeLocalPlayer: boolean?,
     EnablePlayerImages: boolean?,
@@ -277,6 +278,7 @@ export type KeyPicker = {
     Clicked: () -> (),
     Type: "KeyPicker",
     Menu: ContextMenu,
+    MenuVisible: boolean,
 
     Display: (self: KeyPicker) -> (),
     Update: (self: KeyPicker) -> (),
@@ -286,6 +288,7 @@ export type KeyPicker = {
     DoClick: (self: KeyPicker) -> (),
     SetValue: (self: KeyPicker, Data: { string }) -> (),
     SetText: (self: KeyPicker, Text: string) -> (),
+    SetMenuVisibility: (self: KeyPicker, Visible: boolean) -> (),
     Destroy: (self: KeyPicker) -> (),
 }
 
@@ -488,6 +491,7 @@ export type Dropdown = {
     ValueImages: { [any]: string }?,
     Multi: boolean,
     DragSelect: boolean,
+    KeepDisabledValuePosition: boolean,
     SpecialType: "Player" | "Team"?,
     ExcludeLocalPlayer: boolean?,
     EnablePlayerImages: boolean?,
@@ -697,6 +701,7 @@ export type Groupbox = BaseGroupbox & {
     PopOutEnabled: boolean,
     PopOutFloat: Frame?,
     PopOutPlaceholder: Frame?,
+    PopOutMaxHeight: number?,
     BoxHolder: Frame,
     Holder: Frame,
     Container: Frame,
@@ -711,6 +716,7 @@ export type Groupbox = BaseGroupbox & {
     SetPoppedOut: (self: Groupbox, Value: boolean, FloatPosition: UDim2?) -> (),
     TogglePoppedOut: (self: Groupbox) -> (),
     RefreshPopOutPlaceholder: (self: Groupbox) -> (),
+    SetMaxPopOutHeight: (self: Groupbox, Height: number?) -> (),
 }
 
 export type SubTab = BaseGroupbox & {
@@ -734,6 +740,7 @@ export type Tabbox = {
     PopOutEnabled: boolean,
     PopOutFloat: Frame?,
     PopOutPlaceholder: Frame?,
+    PopOutMaxHeight: number?,
     ActiveTab: SubTab?,
     BoxHolder: Frame,
     Holder: Frame,
@@ -746,6 +753,7 @@ export type Tabbox = {
     SetPoppedOut: (self: Tabbox, Value: boolean, FloatPosition: UDim2?) -> (),
     TogglePoppedOut: (self: Tabbox) -> (),
     RefreshPopOutPlaceholder: (self: Tabbox) -> (),
+    SetMaxPopOutHeight: (self: Tabbox, Height: number?) -> (),
 }
 
 export type Tab = {
@@ -774,6 +782,7 @@ export type Tab = {
             Collapsed: boolean?,
             DisableCollapsing: boolean?,
             PopOut: boolean?,
+            MaxPopOutHeight: number?,
         }
     ) -> Groupbox,
     AddLeftGroupbox: (
@@ -792,7 +801,7 @@ export type Tab = {
         Collapsed: boolean?,
         DisableCollapsing: boolean?
     ) -> Groupbox,
-    AddTabbox: (self: Tab, Info: { Side: number | string, Name: string?, PopOut: boolean? }) -> Tabbox,
+    AddTabbox: (self: Tab, Info: { Side: number | string, Name: string?, PopOut: boolean?, MaxPopOutHeight: number? }) -> Tabbox,
     AddLeftTabbox: (self: Tab, Name: string?) -> Tabbox,
     AddRightTabbox: (self: Tab, Name: string?) -> Tabbox,
     Hover: (self: Tab, Hovering: boolean) -> (),

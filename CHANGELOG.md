@@ -1,3 +1,16 @@
+## 20.09.2026
+
+```diff
+[features]
++ KeepDisabledValuePosition for Dropdown (keeps DisabledValues in their Values order instead of moving them to the end)
++ SetMaxPopOutHeight(MaxHeight: number) for popout groupboxes and tabboxes
++ KeyPicker:SetMenuVisibility(Visible: boolean)
+
+[fixed]
++ Fixed text and UI elements sizing incorrectly at different DPI scales or screen resolutions
++ Fixed dropdown arrows overlapping the footer when scrolling
+```
+
 ## 04.09.2026
 
 ```diff
