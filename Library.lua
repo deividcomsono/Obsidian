@@ -4367,7 +4367,7 @@ do
         end
 
         table.insert(KeyPicker.Connections, Picker.MouseEnter:Connect(function()
-            if ParentObj.Disabled then
+            if ParentObj.Disabled or KeyPicker.Disabled then
                 return
             end
 
@@ -4375,7 +4375,7 @@ do
         end))
 
         table.insert(KeyPicker.Connections, Picker.MouseLeave:Connect(function()
-            if ParentObj.Disabled then
+            if ParentObj.Disabled or KeyPicker.Disabled then
                 return
             end
 
