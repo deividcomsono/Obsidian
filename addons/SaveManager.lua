@@ -427,6 +427,7 @@ function SaveManager:RefreshConfigList()
         return {}
     end
 
+    pcall(makefolder, SettingsPath)
     local SuccessList, Files = pcall(listfiles, SettingsPath)
     if not (SuccessList and typeof(Files) == "table") then
         SaveManager.Library:Notify(string.format("Failed to load config list: %s", tostring(Files)))

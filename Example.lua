@@ -495,6 +495,7 @@ DropdownGroupBox:AddDropdown("MyDisabledDropdown", {
 DropdownGroupBox:AddDropdown("MyDisabledValueDropdown", {
 	Values = { "This", "is", "a", "dropdown", "with", "disabled", "value" },
 	DisabledValues = { "disabled" }, -- Disabled Values that are unclickable
+	-- KeepDisabledValuePosition = true, -- keep disabled entries in Values order (default moves them to the end)
 	Default = 1, -- number index of the value / string
 	Multi = false, -- true / false, allows multiple choices to be selected
 
