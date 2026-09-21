@@ -283,6 +283,7 @@ function ThemeManager:ReloadCustomThemes()
         return {}
     end
 
+    pcall(makefolder, SettingsPath)
     local SuccessList, Files = pcall(listfiles, SettingsPath)
     if not (SuccessList and typeof(Files) == "table") then
         ThemeManager.Library:Notify(string.format("Failed to load theme list: %s", tostring(Files)))
