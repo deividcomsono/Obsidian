@@ -4312,13 +4312,8 @@ do
                 Position = UDim2.new(0, 0, 0, 0),
                 Text = KeyPicker.Value,
                 TextSize = 14,
-                FontFace = Picker.FontFace,
                 TextXAlignment = Enum.TextXAlignment.Center,
                 Parent = Picker,
-            })
-
-            Library:AddToRegistry(SlidingLabel, {
-                TextColor3 = "FontColor",
             })
         end
 
@@ -11210,15 +11205,25 @@ function Library:CreateWindow(WindowInfo)
         end
 
         --// Bottom Bar \\--
+        local BottomClip = New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundTransparency = 1,
+            ClipsDescendants = true,
+            Position = UDim2.fromScale(0, 1),
+            Size = UDim2.new(1, 0, 0, 20),
+            ZIndex = 3,
+            Parent = MainFrame,
+        })
+
         BottomBackground = New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
             BackgroundColor3 = function()
                 return Library:GetBetterColor(Library.Scheme.BackgroundColor, 4)
             end,
             Position = UDim2.fromScale(0, 1),
-            Size = UDim2.new(1, 0, 0, 20),
+            Size = UDim2.new(1, 0, 0, math.max(20, WindowInfo.CornerRadius * 2)),
             ZIndex = 3,
-            Parent = MainFrame
+            Parent = BottomClip,
         })
         Library:MakeLine(MainFrame, {
             AnchorPoint = Vector2.new(0, 1),
@@ -11467,6 +11472,7 @@ function Library:CreateWindow(WindowInfo)
             ResizeButton.Position = UDim2.new(1, -Radius / 4, 0, 0)
         end
         if BottomBackgroundCorner then
+            BottomBackground.Size = UDim2.new(1, 0, 0, math.max(20, Radius * 2))
             BottomBackgroundCorner.BottomLeftRadius = RadiusUDim
             BottomBackgroundCorner.BottomRightRadius = RadiusUDim
         end
