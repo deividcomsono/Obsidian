@@ -4312,13 +4312,8 @@ do
                 Position = UDim2.new(0, 0, 0, 0),
                 Text = KeyPicker.Value,
                 TextSize = 14,
-                FontFace = Picker.FontFace,
                 TextXAlignment = Enum.TextXAlignment.Center,
                 Parent = Picker,
-            })
-
-            Library:AddToRegistry(SlidingLabel, {
-                TextColor3 = "FontColor",
             })
         end
 
