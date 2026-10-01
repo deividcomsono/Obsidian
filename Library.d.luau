@@ -106,6 +106,7 @@ export type ButtonInfo = {
     Text: string,
     Func: (FromKeyPicker: boolean?) -> (),
     DoubleClick: boolean?,
+    Icon: string?,
     Tooltip: string?,
     DisabledTooltip: string?,
     Risky: boolean?,
@@ -341,6 +342,7 @@ export type Button = {
     Text: string,
     Func: (FromKeyPicker: boolean?) -> (),
     DoubleClick: boolean?,
+    Icon: string?,
     Tooltip: string?,
     DisabledTooltip: string?,
     TooltipTable: Tooltip?,
@@ -351,6 +353,8 @@ export type Button = {
     Type: "Button",
     Base: TextButton,
     Stroke: UIStroke,
+    Label: TextLabel,
+    IconImage: ImageLabel?,
     Holder: Frame,
     SubButton: SubButton?,
     Parent: BaseGroupbox,
@@ -360,6 +364,7 @@ export type Button = {
     SetDisabled: (self: Button, Disabled: boolean) -> (),
     SetVisible: (self: Button, Visible: boolean) -> (),
     SetText: (self: Button, Text: string) -> (),
+    SetIcon: (self: Button, Icon: string?) -> (),
     Destroy: (self: Button) -> (),
 }
 
@@ -367,6 +372,7 @@ export type SubButton = {
     Text: string,
     Func: (FromKeyPicker: boolean?) -> (),
     DoubleClick: boolean?,
+    Icon: string?,
     Tooltip: string?,
     DisabledTooltip: string?,
     TooltipTable: Tooltip?,
@@ -377,11 +383,14 @@ export type SubButton = {
     Type: "SubButton",
     Base: TextButton,
     Stroke: UIStroke,
+    Label: TextLabel,
+    IconImage: ImageLabel?,
 
     UpdateColors: (self: SubButton) -> (),
     SetDisabled: (self: SubButton, Disabled: boolean) -> (),
     SetVisible: (self: SubButton, Visible: boolean) -> (),
     SetText: (self: SubButton, Text: string) -> (),
+    SetIcon: (self: SubButton, Icon: string?) -> (),
     Destroy: (self: SubButton) -> (),
 }
 
@@ -722,6 +731,7 @@ export type Groupbox = BaseGroupbox & {
 }
 
 export type SubTab = BaseGroupbox & {
+    Type: "SubTab",
     ButtonHolder: TextButton,
     Container: Frame,
     Tab: Tab,
@@ -748,7 +758,7 @@ export type Tabbox = {
     BoxHolder: Frame,
     Holder: Frame,
     Tabs: { [string]: SubTab },
-    ParentBox: Groupbox?,
+    ParentBox: (Groupbox | SubTab)?,
 
     AddTab: (self: Tabbox, Name: string, IconName: string?) -> (SubTab, number),
     Resize: (self: Tabbox) -> (),
