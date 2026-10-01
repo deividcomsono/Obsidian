@@ -1,3 +1,20 @@
+## 28.09.2026
+
+```diff
+[features]
++ Icon, SetIcon for Buttons and SubButtons
++ AddTabbox for Tabbox tabs (SubTab:AddTabbox)
+
+[changes]
++ Tabbox tabs now have Type "SubTab"
++ Tabbox.ParentBox can now be a Groupbox or a SubTab
++ Button and SubButton text moved from Base to a new Label (TextLabel), Base.Text is now empty
+
+[fixed]
++ Fixed window footer growing thicker with CornerRadius
++ Fixed tab buttons scrollbar being visible on higher DPI scales
+```
+
 ## 20.09.2026
 
 ```diff
