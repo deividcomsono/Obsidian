@@ -1029,6 +1029,32 @@ function SyncPopOutVisibility(Box: any)
     Box.PopOutFloat.Visible = Box.BoxHolder.Visible ~= false and Box.Visible ~= false
 end
 
+local function RegisterPopOutClone(Source: Instance, Clone: Instance)
+    local SourceProps = Library.Registry[Source]
+    if SourceProps then
+        local CloneProps = {}
+        for Property, Index in SourceProps do
+            if Property ~= "FontFace" then
+                CloneProps[Property] = Index
+            end
+        end
+        if next(CloneProps) then
+            Library.Registry[Clone] = CloneProps
+        end
+
+        local FontLabel = Clone:FindFirstChild("__IconFont")
+        if FontLabel and FontLabel:IsA("TextLabel") and SourceProps.ImageColor3 then
+            Library.Registry[FontLabel] = { TextColor3 = SourceProps.ImageColor3 }
+        end
+    end
+
+    local SourceChildren = Source:GetChildren()
+    local CloneChildren = Clone:GetChildren()
+    for Index = 1, math.min(#SourceChildren, #CloneChildren) do
+        RegisterPopOutClone(SourceChildren[Index], CloneChildren[Index])
+    end
+end
+
 local function DimPopOutClone(Root: GuiObject)
     for _, Descendant in Root:QueryDescendants("TextLabel, TextButton, TextBox") do
         Descendant.TextTransparency = math.max(Descendant.TextTransparency, 0.45)
@@ -1036,6 +1062,12 @@ local function DimPopOutClone(Root: GuiObject)
 
     for _, Descendant in Root:QueryDescendants("ImageLabel, ImageButton") do
         Descendant.ImageTransparency = math.max(Descendant.ImageTransparency, 0.45)
+
+        local FontLabel = Descendant:FindFirstChild("__IconFont")
+        if FontLabel and FontLabel:IsA("TextLabel") then
+            FontLabel.TextColor3 = Descendant.ImageColor3
+            FontLabel.TextTransparency = math.max(FontLabel.TextTransparency, 0.45)
+        end
     end
 
     for _, Descendant in Root:QueryDescendants("GuiButton") do
@@ -1488,11 +1520,14 @@ type Icon = {
     IconName: string,
     ImageRectOffset: Vector2,
     ImageRectSize: Vector2,
+    FontFace: Font?,
+    Text: string?,
 }
 
 type IconModule = {
     Icons: { string },
     GetAsset: (Name: string) -> Icon?,
+    GetFontAsset: ((Name: string) -> { FontFace: Font, Text: string }?)?,
 }
 
 local FetchIcons = false
@@ -1504,8 +1539,21 @@ function Library:GetIcon(IconName: string)
     end
 
     local Success, Icon = pcall(Icons.GetAsset, IconName)
-    if not Success then
+    if not Success or not Icon then
         return
+    end
+
+    local FontSuccess, FontIcon = false, nil
+    if Icons.GetFontAsset then
+        FontSuccess, FontIcon = pcall(Icons.GetFontAsset, IconName)
+    end
+
+    if FontSuccess and FontIcon and FontIcon.FontFace and FontIcon.Text then
+        local Merged = table.clone(Icon)
+        Merged.FontFace = FontIcon.FontFace
+        Merged.Text = FontIcon.Text
+
+        return Merged
     end
 
     return Icon
@@ -1541,21 +1589,6 @@ function Library:GetCustomIcon(IconName: string): any
     end
 
     return nil
-end
-
-function Library:ApplyLucideIcon(ImageGui: any, Icon: any, Rotation: number?)
-    if not ImageGui or not Icon then
-        return
-    end
-
-    if not (ImageGui:IsA("ImageLabel") or ImageGui:IsA("ImageButton")) then
-        return
-    end
-
-    ImageGui.Image = Icon.Url or ImageGui.Image
-    ImageGui.ImageRectOffset = Icon.ImageRectOffset or ImageGui.ImageRectOffset 
-    ImageGui.ImageRectSize = Icon.ImageRectSize or ImageGui.ImageRectSize
-    ImageGui.Rotation = Rotation or ImageGui.Rotation
 end
 
 function Library:Validate(Table: { [string]: any }, Template: { [string]: any }): { [string]: any }
@@ -1617,6 +1650,95 @@ local function New(ClassName: string, Properties: { [string]: any }): any
     end
 
     return Instance
+end
+
+function Library:ApplyLucideIcon(ImageGui: any, Icon: any, Rotation: number?)
+    if not ImageGui or not Icon then
+        return
+    end
+
+    if not (ImageGui:IsA("ImageLabel") or ImageGui:IsA("ImageButton")) then
+        return
+    end
+
+    ImageGui.Rotation = Rotation or ImageGui.Rotation
+
+    local FontLabel = ImageGui:FindFirstChild("__IconFont")
+    if Icon.FontFace and Icon.Text then
+        if not FontLabel then
+            FontLabel = New("TextLabel", {
+                Name = "__IconFont",
+                BackgroundTransparency = 1,
+                Size = UDim2.fromScale(1, 1),
+                RichText = false,
+                TextScaled = false,
+                TextXAlignment = Enum.TextXAlignment.Center,
+                TextYAlignment = Enum.TextYAlignment.Center,
+                Parent = ImageGui,
+            })
+            Library:RemoveFromRegistry(FontLabel)
+
+            local SyncLabel = function()
+                if not FontLabel.Parent then
+                    return
+                end
+
+                FontLabel.TextColor3 = ImageGui.ImageColor3
+                FontLabel.TextTransparency = ImageGui.ImageTransparency
+            end
+
+            local SyncTextSize = function()
+                if not FontLabel.Parent then
+                    return
+                end
+
+                local Absolute = ImageGui.AbsoluteSize
+                local Side = math.min(Absolute.X, Absolute.Y) / Library.DPIScale
+                FontLabel.TextSize = math.max(1, math.floor(Side + 0.5))
+            end
+
+            SyncLabel()
+            SyncTextSize()
+
+            ImageGui:GetPropertyChangedSignal("ImageColor3"):Connect(SyncLabel)
+            ImageGui:GetPropertyChangedSignal("ImageTransparency"):Connect(SyncLabel)
+            ImageGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(SyncTextSize)
+        else
+            Library:RemoveFromRegistry(FontLabel)
+        end
+
+        FontLabel.FontFace = Icon.FontFace
+        FontLabel.Text = Icon.Text
+        FontLabel.TextScaled = false
+        FontLabel.TextWrapped = false
+        FontLabel.TextXAlignment = Enum.TextXAlignment.Center
+        FontLabel.TextYAlignment = Enum.TextYAlignment.Center
+        FontLabel.TextColor3 = ImageGui.ImageColor3
+        FontLabel.TextTransparency = ImageGui.ImageTransparency
+
+        local Absolute = ImageGui.AbsoluteSize
+        local Side = math.min(Absolute.X, Absolute.Y) / Library.DPIScale
+        if Side > 0 then
+            FontLabel.TextSize = math.max(1, math.floor(Side + 0.5))
+        else
+            local OffsetSize = ImageGui.Size
+            FontLabel.TextSize = math.max(1, math.floor(math.min(OffsetSize.X.Offset, OffsetSize.Y.Offset) + 0.5))
+        end
+
+        FontLabel.Visible = true
+        ImageGui.ClipsDescendants = true
+        ImageGui.Image = ""
+        return
+    end
+
+    if FontLabel then
+        Library:RemoveFromRegistry(FontLabel)
+        FontLabel:Destroy()
+    end
+
+    ImageGui.Image = Icon.Url or ImageGui.Image
+    ImageGui.ImageRectOffset = Icon.ImageRectOffset or ImageGui.ImageRectOffset
+    ImageGui.ImageRectSize = Icon.ImageRectSize or ImageGui.ImageRectSize
 end
 
 --// Main Instances \\-
@@ -1831,7 +1953,7 @@ end
 
 local OnlineFetchIcons, OnlineIcons = pcall(function()
     return (loadstring(
-        game:HttpGet("https://raw.githubusercontent.com/mstudio45/lucide-roblox-direct/refs/heads/main/source.lua")
+        game:HttpGet("https://raw.githubusercontent.com/notpoiu/lucide-roblox-direct/refs/heads/main/source.lua")
     ) :: () -> IconModule)()
 end)
 if OnlineFetchIcons and OnlineIcons then
@@ -2676,6 +2798,7 @@ function Library:MakeBoxPopOut(Box: any, Options: {
 
         PlaceholderHeader = Header:Clone()
         PlaceholderHeader.Parent = Frame
+        RegisterPopOutClone(Header, PlaceholderHeader)
         DimPopOutClone(PlaceholderHeader)
 
         if PopOutIcon then
@@ -2710,6 +2833,7 @@ function Library:MakeBoxPopOut(Box: any, Options: {
 
         PlaceholderHeader = Header:Clone()
         PlaceholderHeader.Parent = Placeholder
+        RegisterPopOutClone(Header, PlaceholderHeader)
         DimPopOutClone(PlaceholderHeader)
     end
 
@@ -4321,13 +4445,8 @@ do
                 Position = UDim2.new(0, 0, 0, 0),
                 Text = KeyPicker.Value,
                 TextSize = 14,
-                FontFace = Picker.FontFace,
                 TextXAlignment = Enum.TextXAlignment.Center,
                 Parent = Picker,
-            })
-
-            Library:AddToRegistry(SlidingLabel, {
-                TextColor3 = "FontColor",
             })
         end
 
@@ -6498,6 +6617,7 @@ do
                 Info.Text = Params.Text or ""
                 Info.Func = Params.Func or Params.Callback or function() end
                 Info.DoubleClick = Params.DoubleClick
+                Info.Icon = Params.Icon or Params.IconName
 
                 Info.Tooltip = Params.Tooltip
                 Info.DisabledTooltip = Params.DisabledTooltip
@@ -6510,6 +6630,7 @@ do
                 Info.Text = First or ""
                 Info.Func = Second or function() end
                 Info.DoubleClick = false
+                Info.Icon = nil
 
                 Info.Tooltip = nil
                 Info.DisabledTooltip = nil
@@ -6534,6 +6655,7 @@ do
             Text = Info.Text,
             Func = Info.Func,
             DoubleClick = Info.DoubleClick,
+            Icon = Info.Icon,
 
             Tooltip = Info.Tooltip,
             DisabledTooltip = Info.DisabledTooltip,
@@ -6542,6 +6664,13 @@ do
             Risky = Info.Risky,
             Disabled = Info.Disabled,
             Visible = Info.Visible,
+            Locked = false,
+
+            Base = nil,
+            Stroke = nil,
+            Content = nil,
+            Label = nil,
+            IconImage = nil,
 
             Tween = nil,
             Type = "Button",
@@ -6562,14 +6691,43 @@ do
             Parent = Holder,
         })
 
+        local function ApplyButtonIcon(Button, IconName)
+            local Content = Button.Content
+            if not Content then
+                return
+            end
+
+            local ParsedIcon = Library:GetCustomIcon(IconName)
+            if ParsedIcon then
+                local ColorKey = Button.Risky and "RedColor" or (ParsedIcon.Custom and "WhiteColor" or "FontColor")
+
+                if not Button.IconImage then
+                    Button.IconImage = New("ImageLabel", {
+                        BackgroundTransparency = 1,
+                        ImageColor3 = ColorKey,
+                        LayoutOrder = 0,
+                        Size = UDim2.fromOffset(14, 14),
+                        Parent = Content,
+                    })
+                else
+                    Button.IconImage.ImageColor3 = Library.Scheme[ColorKey]
+                    Library.Registry[Button.IconImage].ImageColor3 = ColorKey
+                end
+
+                Button.IconImage.ImageTransparency = Button.Disabled and 0.8 or 0.4
+                Button.IconImage.Visible = true
+                Library:ApplyLucideIcon(Button.IconImage, ParsedIcon)
+            elseif Button.IconImage then
+                Button.IconImage.Visible = false
+            end
+        end
+
         local function CreateButton(Button)
             local Base = New("TextButton", {
                 Active = not Button.Disabled,
                 BackgroundColor3 = Button.Disabled and "BackgroundColor" or "MainColor",
                 Size = UDim2.fromScale(1, 1),
-                Text = Button.Text,
-                TextSize = 14,
-                TextTransparency = 0.4,
+                Text = "",
                 Visible = Button.Visible,
                 Parent = Holder,
             })
@@ -6588,6 +6746,46 @@ do
                 })
             )
 
+            local Content = New("Frame", {
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                AutomaticSize = Enum.AutomaticSize.X,
+                BackgroundTransparency = 1,
+                Position = UDim2.fromScale(0.5, 0.5),
+                Size = UDim2.fromOffset(0, 16),
+                Parent = Base,
+            })
+            New("UIListLayout", {
+                FillDirection = Enum.FillDirection.Horizontal,
+                HorizontalAlignment = Enum.HorizontalAlignment.Center,
+                VerticalAlignment = Enum.VerticalAlignment.Center,
+                Padding = UDim.new(0, 6),
+                Parent = Content,
+            })
+            New("UIPadding", {
+                PaddingLeft = UDim.new(0, 8),
+                PaddingRight = UDim.new(0, 8),
+                Parent = Content,
+            })
+
+            Button.Content = Content
+            Button.Label = New("TextLabel", {
+                AutomaticSize = Enum.AutomaticSize.X,
+                BackgroundTransparency = 1,
+                LayoutOrder = 1,
+                Size = UDim2.fromOffset(0, 16),
+                Text = Button.Text,
+                TextSize = 14,
+                TextTransparency = Button.Disabled and 0.8 or 0.4,
+                Parent = Content,
+            })
+
+            if Button.Risky then
+                Button.Label.TextColor3 = Library.Scheme.RedColor
+                Library.Registry[Button.Label].TextColor3 = "RedColor"
+            end
+
+            ApplyButtonIcon(Button, Button.Icon)
+
             return Base, Stroke
         end
 
@@ -6597,20 +6795,32 @@ do
                     return
                 end
 
-                Button.Tween = TweenService:Create(Button.Base, Library.TweenInfo, {
+                Button.Tween = TweenService:Create(Button.Label, Library.TweenInfo, {
                     TextTransparency = 0,
                 })
                 Button.Tween:Play()
+
+                if Button.IconImage and Button.IconImage.Visible then
+                    TweenService:Create(Button.IconImage, Library.TweenInfo, {
+                        ImageTransparency = 0,
+                    }):Play()
+                end
             end))
             table.insert(Button.Connections, Button.Base.MouseLeave:Connect(function()
                 if Button.Disabled then
                     return
                 end
 
-                Button.Tween = TweenService:Create(Button.Base, Library.TweenInfo, {
+                Button.Tween = TweenService:Create(Button.Label, Library.TweenInfo, {
                     TextTransparency = 0.4,
                 })
                 Button.Tween:Play()
+
+                if Button.IconImage and Button.IconImage.Visible then
+                    TweenService:Create(Button.IconImage, Library.TweenInfo, {
+                        ImageTransparency = 0.4,
+                    }):Play()
+                end
             end))
 
             table.insert(Button.Connections, Button.Base.MouseButton1Click:Connect(function()
@@ -6621,21 +6831,31 @@ do
                 if Button.DoubleClick then
                     Button.Locked = true
 
-                    Button.Base.Text = "Are you sure?"
-                    Button.Base.TextColor3 = Library.Scheme.AccentColor
-                    Library.Registry[Button.Base].TextColor3 = "AccentColor"
+                    local IconWasVisible = false
+                    if Button.IconImage then
+                        IconWasVisible = Button.IconImage.Visible
+                        Button.IconImage.Visible = false
+                    end
+
+                    Button.Label.Text = "Are you sure?"
+                    Button.Label.TextColor3 = Library.Scheme.AccentColor
+                    Library.Registry[Button.Label].TextColor3 = "AccentColor"
 
                     local Clicked = WaitForEvent(Button.Base.MouseButton1Click, 0.5)
 
-                    Button.Base.Text = Button.Text
-                    Button.Base.TextColor3 = Button.Risky and Library.Scheme.RedColor or Library.Scheme.FontColor
-                    Library.Registry[Button.Base].TextColor3 = Button.Risky and "RedColor" or "FontColor"
+                    Button.Label.Text = Button.Text
+                    Button.Label.TextColor3 = Button.Risky and Library.Scheme.RedColor or Library.Scheme.FontColor
+                    Library.Registry[Button.Label].TextColor3 = Button.Risky and "RedColor" or "FontColor"
+
+                    if Button.IconImage then
+                        Button.IconImage.Visible = IconWasVisible
+                    end
 
                     if Clicked then
                         Library:SafeCallback(Button.Func)
                     end
 
-                    RunService.RenderStepped:Wait() --// Mouse Button fires without waiting (i hate roblox)
+                    RunService.RenderStepped:Wait()
                     Button.Locked = false
                     return
                 end
@@ -6657,6 +6877,7 @@ do
                 Text = Info.Text,
                 Func = Info.Func,
                 DoubleClick = Info.DoubleClick,
+                Icon = Info.Icon,
 
                 Tooltip = Info.Tooltip,
                 DisabledTooltip = Info.DisabledTooltip,
@@ -6665,6 +6886,13 @@ do
                 Risky = Info.Risky,
                 Disabled = Info.Disabled,
                 Visible = Info.Visible,
+                Locked = false,
+
+                Base = nil,
+                Stroke = nil,
+                Content = nil,
+                Label = nil,
+                IconImage = nil,
 
                 Tween = nil,
                 Type = "SubButton",
@@ -6681,10 +6909,13 @@ do
 
                 StopTween(SubButton.Tween)
 
-                SubButton.Base.BackgroundColor3 = SubButton.Disabled and Library.Scheme.BackgroundColor
-                    or Library.Scheme.MainColor
-                SubButton.Base.TextTransparency = SubButton.Disabled and 0.8 or 0.4
+                SubButton.Base.BackgroundColor3 = SubButton.Disabled and Library.Scheme.BackgroundColor or Library.Scheme.MainColor
+                SubButton.Label.TextTransparency = SubButton.Disabled and 0.8 or 0.4
                 SubButton.Stroke.Transparency = SubButton.Disabled and 0.5 or 0
+
+                if SubButton.IconImage and SubButton.IconImage.Visible then
+                    SubButton.IconImage.ImageTransparency = SubButton.Disabled and 0.8 or 0.4
+                end
 
                 Library.Registry[SubButton.Base].BackgroundColor3 = SubButton.Disabled and "BackgroundColor"
                     or "MainColor"
@@ -6711,18 +6942,18 @@ do
 
             function SubButton:SetText(Text: string)
                 SubButton.Text = Text
-                SubButton.Base.Text = Text
+                SubButton.Label.Text = Text
+            end
+
+            function SubButton:SetIcon(Icon: string?)
+                SubButton.Icon = Icon
+                ApplyButtonIcon(SubButton, Icon)
             end
 
             if typeof(SubButton.Tooltip) == "string" or typeof(SubButton.DisabledTooltip) == "string" then
                 SubButton.TooltipTable =
                     Library:AddTooltip(SubButton.Tooltip, SubButton.DisabledTooltip, SubButton.Base)
                 SubButton.TooltipTable.Disabled = SubButton.Disabled
-            end
-
-            if SubButton.Risky then
-                SubButton.Base.TextColor3 = Library.Scheme.RedColor
-                Library.Registry[SubButton.Base].TextColor3 = "RedColor"
             end
 
             SubButton:UpdateColors()
@@ -6777,10 +7008,13 @@ do
 
             StopTween(Button.Tween)
 
-            Button.Base.BackgroundColor3 = Button.Disabled and Library.Scheme.BackgroundColor
-                or Library.Scheme.MainColor
-            Button.Base.TextTransparency = Button.Disabled and 0.8 or 0.4
+            Button.Base.BackgroundColor3 = Button.Disabled and Library.Scheme.BackgroundColor or Library.Scheme.MainColor
+            Button.Label.TextTransparency = Button.Disabled and 0.8 or 0.4
             Button.Stroke.Transparency = Button.Disabled and 0.5 or 0
+
+            if Button.IconImage and Button.IconImage.Visible then
+                Button.IconImage.ImageTransparency = Button.Disabled and 0.8 or 0.4
+            end
 
             Library.Registry[Button.Base].BackgroundColor3 = Button.Disabled and "BackgroundColor" or "MainColor"
         end
@@ -6806,17 +7040,17 @@ do
 
         function Button:SetText(Text: string)
             Button.Text = Text
-            Button.Base.Text = Text
+            Button.Label.Text = Text
+        end
+
+        function Button:SetIcon(Icon: string?)
+            Button.Icon = Icon
+            ApplyButtonIcon(Button, Icon)
         end
 
         if typeof(Button.Tooltip) == "string" or typeof(Button.DisabledTooltip) == "string" then
             Button.TooltipTable = Library:AddTooltip(Button.Tooltip, Button.DisabledTooltip, Button.Base)
             Button.TooltipTable.Disabled = Button.Disabled
-        end
-
-        if Button.Risky then
-            Button.Base.TextColor3 = Library.Scheme.RedColor
-            Library.Registry[Button.Base].TextColor3 = "RedColor"
         end
 
         Button:UpdateColors()
@@ -9605,6 +9839,7 @@ do
         ImageProperties.ImageRectSize = Icon.ImageRectSize
 
         local ImageLabel = New("ImageLabel", ImageProperties)
+        Library:ApplyLucideIcon(ImageLabel, Icon)
 
         function Image:SetHeight(Height: number)
             assert(Height > 0, "Height must be greater than 0.")
@@ -10501,6 +10736,7 @@ function Library:Notify(...)
             ZIndex = 6,
             Parent = Holder,
         })
+        Library:ApplyLucideIcon(CloseButton, CloseIcon)
 
         CloseButton.MouseEnter:Connect(function()
             TweenService:Create(CloseButton, Library.TweenInfo, {
@@ -10912,6 +11148,7 @@ function Library:CreateWindow(WindowInfo)
     local BackgroundImage
     local HasBackgroundImage = false
     local BottomBackground
+    local BottomBackgroundCorner
     local FooterLabel
     local TopBar
     local WindowSnapConfig = {
@@ -11073,6 +11310,8 @@ function Library:CreateWindow(WindowInfo)
             Size = UDim2.new(0, X, 1, 0),
             Text = WindowInfo.Title,
             TextSize = 20,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            TextYAlignment = Enum.TextYAlignment.Center,
             Parent = TitleHolder,
         })
 
@@ -11212,15 +11451,25 @@ function Library:CreateWindow(WindowInfo)
         end
 
         --// Bottom Bar \\--
+        local BottomClip = New("Frame", {
+            AnchorPoint = Vector2.new(0, 1),
+            BackgroundTransparency = 1,
+            ClipsDescendants = true,
+            Position = UDim2.fromScale(0, 1),
+            Size = UDim2.new(1, 0, 0, 20),
+            ZIndex = 3,
+            Parent = MainFrame,
+        })
+
         BottomBackground = New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
             BackgroundColor3 = function()
                 return Library:GetBetterColor(Library.Scheme.BackgroundColor, 4)
             end,
             Position = UDim2.fromScale(0, 1),
-            Size = UDim2.new(1, 0, 0, 20 + WindowInfo.CornerRadius),
+            Size = UDim2.new(1, 0, 0, math.max(20, WindowInfo.CornerRadius * 2)),
             ZIndex = 3,
-            Parent = MainFrame
+            Parent = BottomClip,
         })
         Library:MakeLine(MainFrame, {
             AnchorPoint = Vector2.new(0, 1),
@@ -11237,13 +11486,13 @@ function Library:CreateWindow(WindowInfo)
             ZIndex = 4,
             Parent = MainFrame,
         })
-        table.insert(
-            Library.Corners,
-            New("UICorner", {
-                CornerRadius = UDim.new(0, WindowInfo.CornerRadius),
-                Parent = BottomBackground,
-            })
-        )
+        BottomBackgroundCorner = New("UICorner", {
+            TopLeftRadius = UDim.new(0, 0),
+            TopRightRadius = UDim.new(0, 0),
+            BottomLeftRadius = UDim.new(0, WindowInfo.CornerRadius),
+            BottomRightRadius = UDim.new(0, WindowInfo.CornerRadius),
+            Parent = BottomBackground,
+        })
 
         --// Footer \\-
         FooterLabel = New("TextLabel", {
@@ -11291,6 +11540,7 @@ function Library:CreateWindow(WindowInfo)
             BackgroundColor3 = "BackgroundColor",
             CanvasSize = UDim2.fromScale(0, 0),
             Position = UDim2.fromOffset(0, 49),
+            ScrollBarImageTransparency = 1,
             ScrollBarThickness = 0,
             Size = UDim2.new(0, InitialLeftWidth, 1, -70),
             Parent = MainFrame,
@@ -11464,8 +11714,14 @@ function Library:CreateWindow(WindowInfo)
         Library.CornerRadius = Radius
         WindowInfo.CornerRadius = Radius
 
-        ResizeButton.Position = UDim2.new(1, -Radius / 4, 0, 0)
-        BottomBackground.Size = UDim2.new(1, 0, 0, 20 + Radius)
+        if ResizeButton then
+            ResizeButton.Position = UDim2.new(1, -Radius / 4, 0, 0)
+        end
+        if BottomBackgroundCorner then
+            BottomBackground.Size = UDim2.new(1, 0, 0, math.max(20, Radius * 2))
+            BottomBackgroundCorner.BottomLeftRadius = RadiusUDim
+            BottomBackgroundCorner.BottomRightRadius = RadiusUDim
+        end
 
         for _, Menu in Library.ContextMenus do
             if Menu.Destroyed then
@@ -12015,6 +12271,7 @@ function Library:CreateWindow(WindowInfo)
         local function AddTabbox(self, Info)
             Info = Library:Validate(Info, Templates.Tabbox)
             local ParentObj = self
+            local IsNested = ParentObj.Type == "Groupbox" or ParentObj.Type == "SubTab"
 
             if typeof(Info.Side) == "string" then
                 local lowerSide = string.lower(Info.Side)
@@ -12029,7 +12286,7 @@ function Library:CreateWindow(WindowInfo)
                 AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundTransparency = 1,
                 Size = UDim2.fromScale(1, 0),
-                Parent = if ParentObj.Type == "Groupbox" then ParentObj.Container else (Info.Side == 1 and TabLeft or TabRight),
+                Parent = if IsNested then ParentObj.Container else (Info.Side == 1 and TabLeft or TabRight),
             })
             New("UIListLayout", {
                 Padding = UDim.new(0, 6),
@@ -12088,7 +12345,7 @@ function Library:CreateWindow(WindowInfo)
                 Holder = TabboxHolder,
                 Tabs = {},
 
-                ParentBox = if ParentObj.Type == "Groupbox" then ParentObj else nil,
+                ParentBox = if IsNested then ParentObj else nil,
             }
 
             function Tabbox:UpdateCorners()
@@ -12202,6 +12459,7 @@ function Library:CreateWindow(WindowInfo)
                 })
 
                 local Tab = {
+                    Type = "SubTab",
                     Name = Name,
 
                     Connections = {},
@@ -12267,7 +12525,7 @@ function Library:CreateWindow(WindowInfo)
                     end
 
                     TabboxHolder.Size = UDim2.new(1, 0, 0, ContentSize + 35)
-                    if ParentObj.Type == "Groupbox" then
+                    if IsNested then
                         ParentObj:Resize()
                     end
                 end
@@ -12316,6 +12574,7 @@ function Library:CreateWindow(WindowInfo)
 
                 Button.MouseButton1Click:Connect(Tab.Show)
 
+                Tab.AddTabbox = AddTabbox
                 setmetatable(Tab, BaseGroupbox)
 
                 Tabbox.Tabs[TabStoringIndex] = Tab
@@ -12338,7 +12597,7 @@ function Library:CreateWindow(WindowInfo)
                     if Tabbox.ActiveTab then
                         Tabbox.ActiveTab:Resize()
                     end
-                    if ParentObj.Type == "Groupbox" then
+                    if IsNested then
                         ParentObj:Resize()
                     end
                 end,
@@ -14335,6 +14594,8 @@ function Library:CreateLoading(LoadingInfo)
         Size = UDim2.new(0, TitleX, 1, 0),
         Text = LoadingInfo.Title,
         TextSize = 20,
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        TextYAlignment = Enum.TextYAlignment.Center,
         Parent = TitleHolder,
     })
 
