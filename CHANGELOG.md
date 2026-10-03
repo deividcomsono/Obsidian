@@ -1,3 +1,15 @@
+## 03.10.2026
+
+```diff
+[changes]
++ Switched Lucide icons to use a font
++ Window and loading titles truncate with ellipsis when too long
+
+[fixed]
++ Fixed groupbox and tabbox icon accent colors not updating while popped out
++ Fixed window title icon being not being properly positioned
+```
+
 ## 28.09.2026
 
 ```diff
