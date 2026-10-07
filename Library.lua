@@ -11166,30 +11166,6 @@ function Library:CreateWindow(WindowInfo)
             SettingsContainer = SettingsContainer,
         }
 
-        local function PositionSettingsPanel()
-            local Scale = Library.DPIScale
-            local Pos = KeybindFrame.AbsolutePosition
-            local Size = KeybindFrame.AbsoluteSize
-            local SettingsSize = SettingsFrame.AbsoluteSize
-            local Viewport = workspace.CurrentCamera.ViewportSize
-
-            local Sides = {
-                Vector2.new(Pos.X + Size.X + 8, Pos.Y),
-                Vector2.new(Pos.X - SettingsSize.X - 8, Pos.Y),
-                Vector2.new(Pos.X, Pos.Y + Size.Y + 8),
-                Vector2.new(Pos.X, Pos.Y - SettingsSize.Y - 8),
-            }
-
-            for _, Side in Sides do
-                if Side.X >= 0 and Side.Y >= 0 and Side.X + SettingsSize.X <= Viewport.X and Side.Y + SettingsSize.Y <= Viewport.Y then
-                    PositionDraggable(SettingsFrame, UDim2.fromOffset(Side.X / Scale, Side.Y / Scale))
-                    return
-                end
-            end
-
-            PositionDraggable(SettingsFrame, UDim2.fromOffset(Sides[1].X / Scale, Sides[1].Y / Scale))
-        end
-
         function KeybindMenu:RefreshSettings()
             for _, Child in SettingsContainer:GetChildren() do
                 if Child:IsA("GuiObject") and not Child:IsA("UIListLayout") and not Child:IsA("UIPadding") then
@@ -11297,9 +11273,25 @@ function Library:CreateWindow(WindowInfo)
 
             KeybindMenu.SettingsOpen = Open
             SettingsFrame.Visible = Open
+
             if Open then
                 KeybindMenu:RefreshSettings()
-                PositionSettingsPanel()
+
+                local Scale = Library.DPIScale
+                local Pos = KeybindFrame.AbsolutePosition
+                local Size = KeybindFrame.AbsoluteSize
+                local SettingsSize = SettingsFrame.AbsoluteSize
+                local Viewport = workspace.CurrentCamera.ViewportSize
+                local X = (Pos.X + Size.X) / Scale + 8
+                if Pos.X + Size.X + 8 + SettingsSize.X > Viewport.X then
+                    X = (Pos.X - SettingsSize.X) / Scale - 8
+                end
+
+                PositionDraggable(SettingsFrame, UDim2.fromOffset(X, Pos.Y / Scale))
+                SettingsFrame.Position = UDim2.fromOffset(
+                    math.clamp(SettingsFrame.Position.X.Offset, 0, math.max(0, (Viewport.X - SettingsFrame.AbsoluteSize.X) / Scale)),
+                    math.clamp(SettingsFrame.Position.Y.Offset, 0, math.max(0, (Viewport.Y - SettingsFrame.AbsoluteSize.Y) / Scale))
+                )
             end
         end
 
