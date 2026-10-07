@@ -273,6 +273,8 @@ export type KeyPicker = {
     Toggled: boolean,
     Mode: "Always" | "Toggle" | "Hold" | "Press",
     SyncToggleState: boolean,
+    NoUI: boolean,
+    Idx: string | number,
     Callback: (Toggled: boolean) -> (),
     ChangedCallback: (Key: Enum.KeyCode | Enum.UserInputType) -> (),
     Changed: (Key: Enum.KeyCode | Enum.UserInputType) -> (),
@@ -291,6 +293,24 @@ export type KeyPicker = {
     SetText: (self: KeyPicker, Text: string) -> (),
     SetMenuVisibility: (self: KeyPicker, Visible: boolean) -> (),
     Destroy: (self: KeyPicker) -> (),
+}
+
+export type KeybindMenu = {
+    VisibilityControl: boolean,
+    Collapsed: boolean,
+    SettingsOpen: boolean,
+    Frame: Frame?,
+    Container: Frame?,
+    SettingsFrame: Frame?,
+    SettingsContainer: Frame?,
+
+    SetCollapsed: (self: KeybindMenu, Collapsed: boolean) -> (),
+    ToggleCollapsed: (self: KeybindMenu) -> (),
+    SetSettingsOpen: (self: KeybindMenu, Open: boolean) -> (),
+    ToggleSettings: (self: KeybindMenu) -> (),
+    SetVisibilityControl: (self: KeybindMenu, Enabled: boolean) -> (),
+    RefreshSettings: (self: KeybindMenu) -> (),
+    Destroy: (self: KeybindMenu) -> (),
 }
 
 export type ColorPicker = {
@@ -1003,6 +1023,7 @@ export type Library = {
     DependencyBoxes: { [number]: DependencyBox | DependencyGroupbox },
     KeybindFrame: Frame?,
     KeybindContainer: Frame?,
+    KeybindMenu: KeybindMenu?,
     KeybindToggles: { [number]: KeybindToggle },
     Notifications: { [GuiObject]: Notification },
     ToggleKeybind: Enum.KeyCode,
