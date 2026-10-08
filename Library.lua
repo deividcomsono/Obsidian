@@ -195,6 +195,7 @@ local Library = {
     KeybindFrame = nil,
     KeybindContainer = nil,
     KeybindToggles = {},
+    KeybindMenu = nil,
 
     --// Notifications \\--
     Notifications = {},
@@ -1937,7 +1938,7 @@ do
 end
 
 --// Icons \\--
-local CheckIcon, ArrowIcon, ResizeIcon, KeyIcon, MoveIcon, PopOutIcon, CloseIcon
+local CheckIcon, ArrowIcon, ResizeIcon, KeyIcon, MoveIcon, PopOutIcon, CloseIcon, SettingsIcon
 function Library:SetIconModule(module: IconModule)
     FetchIcons = true
     Icons = module
@@ -1949,6 +1950,7 @@ function Library:SetIconModule(module: IconModule)
     MoveIcon = Library:GetIcon("move")
     PopOutIcon = Library:GetIcon("square-arrow-down-left")
     CloseIcon = Library:GetIcon("x")
+    SettingsIcon = Library:GetIcon("settings")
 end
 
 local OnlineFetchIcons, OnlineIcons = pcall(function()
@@ -3470,7 +3472,7 @@ function Library:AddDraggableMenu(Name: string)
     )
     Library:AddOutline(Holder)
 
-    Library:MakeLine(Holder, {
+    local DividerLine = Library:MakeLine(Holder, {
         Position = UDim2.fromOffset(0, 34),
         Size = UDim2.new(1, 0, 0, 1),
     })
@@ -3483,7 +3485,7 @@ function Library:AddDraggableMenu(Name: string)
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = Holder,
     })
-    New("UIPadding", {
+    local LabelPadding = New("UIPadding", {
         PaddingLeft = UDim.new(0, 12),
         PaddingRight = UDim.new(0, 12),
         Parent = Label,
@@ -3515,7 +3517,7 @@ function Library:AddDraggableMenu(Name: string)
 
     PositionDraggable(Holder, Holder.Position)
 
-    return Holder, Container
+    return Holder, Container, Label, DividerLine, LabelPadding
 end
 
 function Library:AddDraggableImageButton(...)
@@ -4216,6 +4218,7 @@ do
             Mode = Info.Mode,
             SyncToggleState = Info.SyncToggleState,
 
+            NoUI = Info.NoUI == true,
             MenuVisible = Info.NoUI ~= true,
 
             Callback = Info.Callback,
@@ -4224,6 +4227,7 @@ do
             Clicked = Info.Clicked,
 
             Type = "KeyPicker",
+            Idx = Idx,
         }
 
         if KeyPicker.Mode == "Press" then
@@ -5159,8 +5163,14 @@ do
         end
 
         function KeyPicker:SetText(Text)
+            KeyPicker.Text = Text
             KeybindsToggle:SetText(Text)
             KeyPicker:Update()
+
+            local KeybindMenu = Library.KeybindMenu
+            if KeybindMenu and KeybindMenu.SettingsOpen then
+                KeybindMenu:RefreshSettings()
+            end
         end
 
         function KeyPicker:SetMenuVisibility(Visible: boolean)
@@ -5168,6 +5178,11 @@ do
 
             KeyPicker.MenuVisible = Visible
             KeyPicker:Update()
+
+            local KeybindMenu = Library.KeybindMenu
+            if KeybindMenu and KeybindMenu.SettingsOpen then
+                KeybindMenu:RefreshSettings()
+            end
         end
 
         table.insert(KeyPicker.Connections, Picker.MouseButton1Click:Connect(function()
@@ -5450,9 +5465,19 @@ do
             end
 
             Options[Idx] = nil
+
+            local KeybindMenu = Library.KeybindMenu
+            if KeybindMenu and KeybindMenu.SettingsOpen then
+                KeybindMenu:RefreshSettings()
+            end
         end
 
         Options[Idx] = KeyPicker
+
+        local KeybindMenu = Library.KeybindMenu
+        if KeybindMenu and KeybindMenu.SettingsOpen then
+            KeybindMenu:RefreshSettings()
+        end
 
         return self
     end
@@ -9905,12 +9930,22 @@ do
         local Box = New("Frame", {
             AnchorPoint = Vector2.new(0, 1),
             BackgroundColor3 = "MainColor",
-            BorderColor3 = "OutlineColor",
-            BorderSizePixel = 1,
             BackgroundTransparency = Image.BackgroundTransparency,
+            ClipsDescendants = true,
             Position = UDim2.fromScale(0, 1),
             Size = UDim2.fromScale(1, 1),
             Parent = Holder,
+        })
+        table.insert(
+            Library.Corners,
+            New("UICorner", {
+                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                Parent = Box,
+            })
+        )
+        New("UIStroke", {
+            Color = "OutlineColor",
+            Parent = Box,
         })
 
         New("UIPadding", {
@@ -10483,6 +10518,9 @@ do
 
         function DepGroupbox:Resize()
             DepGroupboxContainer.Size = UDim2.new(1, 0, 0, (DepGroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 18)
+            if Groupbox.RefreshBoxHolderLayout then
+                Groupbox.RefreshBoxHolderLayout()
+            end
         end
 
         function DepGroupbox:Update(CancelSearch)
@@ -10594,6 +10632,10 @@ function Library:SetFont(FontFace)
 
     Library.Scheme.Font = FontFace
     Library:UpdateColorsUsingRegistry()
+
+    if Library.Window and Library.Window.RefreshTitleSize then
+        Library.Window:RefreshTitleSize()
+    end
 end
 
 function Library:SetBackgroundImage(Image: string | number)
@@ -11151,12 +11193,257 @@ function Library:CreateWindow(WindowInfo)
     local InitialLeftWidth = math.ceil(WindowInfo.Size.X.Offset * 0.3)
     local IsCompact = WindowInfo.SidebarCompacted
     local LastExpandedWidth = InitialLeftWidth
+    local RefreshWindowTitleSize
 
     do
-        Library.KeybindFrame, Library.KeybindContainer = Library:AddDraggableMenu("Keybinds")
-        Library.KeybindFrame.AnchorPoint = Vector2.new(0, 0.5)
-        Library.KeybindFrame.Position = UDim2.new(0, 6, 0.5, 0)
-        Library.KeybindFrame.Visible = false
+        local KeybindFrame, KeybindContainer, _, KeybindDivider, KeybindLabelPadding = Library:AddDraggableMenu("Keybinds")
+        KeybindFrame.AnchorPoint = Vector2.new(0, 0.5)
+        KeybindFrame.Position = UDim2.new(0, 6, 0.5, 0)
+        KeybindFrame.Visible = false
+        KeybindLabelPadding.PaddingRight = UDim.new(0, 34)
+
+        local HeaderButtons = New("Frame", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundTransparency = 1,
+            Position = UDim2.new(1, -8, 0, 17),
+            Size = UDim2.fromOffset(0, 22),
+            ZIndex = 2,
+            Parent = KeybindFrame,
+        })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            HorizontalAlignment = Enum.HorizontalAlignment.Right,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Padding = UDim.new(0, 4),
+            Parent = HeaderButtons,
+        })
+
+        local SettingsButton = New("ImageButton", {
+            AutoButtonColor = false,
+            BackgroundTransparency = 1,
+            ImageColor3 = "FontColor",
+            LayoutOrder = 1,
+            Size = UDim2.fromOffset(18, 18),
+            Visible = false,
+            ZIndex = 2,
+            Parent = HeaderButtons,
+        })
+        if SettingsIcon then
+            Library:ApplyLucideIcon(SettingsButton, SettingsIcon)
+        end
+
+        local CollapseButton = New("ImageButton", {
+            AutoButtonColor = false,
+            BackgroundTransparency = 1,
+            ImageColor3 = "FontColor",
+            LayoutOrder = 2,
+            Size = UDim2.fromOffset(18, 18),
+            ZIndex = 2,
+            Parent = HeaderButtons,
+        })
+        if ArrowIcon then
+            Library:ApplyLucideIcon(CollapseButton, ArrowIcon, 180)
+        end
+
+        local SettingsFrame, SettingsContainer, _, _, SettingsLabelPadding = Library:AddDraggableMenu("Visible Keybinds")
+        SettingsFrame.Visible = false
+        SettingsLabelPadding.PaddingRight = UDim.new(0, 34)
+
+        local CloseSettingsButton = New("ImageButton", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            AutoButtonColor = false,
+            BackgroundTransparency = 1,
+            ImageColor3 = "FontColor",
+            Position = UDim2.new(1, -8, 0, 17),
+            Size = UDim2.fromOffset(18, 18),
+            ZIndex = 2,
+            Parent = SettingsFrame,
+        })
+        if CloseIcon then
+            Library:ApplyLucideIcon(CloseSettingsButton, CloseIcon)
+        end
+
+        local KeybindMenu = {
+            VisibilityControl = false,
+            Collapsed = false,
+            SettingsOpen = false,
+            Frame = KeybindFrame,
+            Container = KeybindContainer,
+            SettingsFrame = SettingsFrame,
+            SettingsContainer = SettingsContainer,
+        }
+
+        function KeybindMenu:RefreshSettings()
+            for _, Child in SettingsContainer:GetChildren() do
+                if Child:IsA("GuiObject") and not Child:IsA("UIListLayout") and not Child:IsA("UIPadding") then
+                    Child:Destroy()
+                end
+            end
+
+            for Idx, Option in Options do
+                if Option.Type ~= "KeyPicker" or Option.NoUI == true then
+                    continue
+                end
+
+                local Holder = New("TextButton", {
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 16),
+                    Text = "",
+                    Parent = SettingsContainer,
+                })
+
+                local Visible = Option.MenuVisible ~= false
+                New("TextLabel", {
+                    AutomaticSize = Enum.AutomaticSize.X,
+                    BackgroundTransparency = 1,
+                    Position = UDim2.fromOffset(22, 0),
+                    Size = UDim2.fromScale(0, 1),
+                    Text = ("[%s] %s (%s)"):format(
+                        Option.DisplayValue or Option.Value or "None",
+                        Option.Text or tostring(Idx),
+                        Option.Mode or "Toggle"
+                    ),
+                    TextSize = 14,
+                    TextTransparency = Visible and 0 or 0.5,
+                    Parent = Holder,
+                })
+
+                local Checkbox = New("Frame", {
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    BackgroundColor3 = "MainColor",
+                    Position = UDim2.fromScale(0, 0.5),
+                    Size = UDim2.fromOffset(14, 14),
+                    Parent = Holder,
+                })
+                table.insert(
+                    Library.Corners,
+                    New("UICorner", {
+                        CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                        Parent = Checkbox,
+                    })
+                )
+                New("UIStroke", {
+                    Color = "OutlineColor",
+                    Parent = Checkbox,
+                })
+
+                local CheckImage = New("ImageLabel", {
+                    ImageColor3 = "FontColor",
+                    ImageTransparency = Visible and 0 or 1,
+                    Position = UDim2.fromOffset(2, 2),
+                    Size = UDim2.new(1, -4, 1, -4),
+                    Parent = Checkbox,
+                })
+                if CheckIcon then
+                    Library:ApplyLucideIcon(CheckImage, CheckIcon)
+                end
+
+                Holder.MouseButton1Click:Connect(function()
+                    local Picker = Options[Idx]
+                    if not (Picker and Picker.Type == "KeyPicker" and Picker.SetMenuVisibility) then
+                        return
+                    end
+
+                    Picker:SetMenuVisibility(Picker.MenuVisible == false)
+                end)
+            end
+        end
+
+        function KeybindMenu:SetCollapsed(Collapsed: boolean)
+            Collapsed = Collapsed == true
+            KeybindMenu.Collapsed = Collapsed
+
+            KeybindContainer.Visible = not Collapsed
+            KeybindDivider.Visible = not Collapsed
+
+            if Collapsed then
+                local Width = math.max(160, KeybindFrame.AbsoluteSize.X / Library.DPIScale)
+                KeybindFrame.AutomaticSize = Enum.AutomaticSize.None
+                KeybindFrame.Size = UDim2.fromOffset(Width, 34)
+                CollapseButton.Rotation = 0
+            else
+                KeybindFrame.AutomaticSize = Enum.AutomaticSize.XY
+                KeybindFrame.Size = UDim2.fromOffset(0, 0)
+                CollapseButton.Rotation = 180
+            end
+        end
+
+        function KeybindMenu:ToggleCollapsed()
+            KeybindMenu:SetCollapsed(not KeybindMenu.Collapsed)
+        end
+
+        function KeybindMenu:SetSettingsOpen(Open: boolean)
+            Open = Open == true
+            if Open and not KeybindMenu.VisibilityControl then
+                return
+            end
+
+            KeybindMenu.SettingsOpen = Open
+            SettingsFrame.Visible = Open
+
+            if Open then
+                KeybindMenu:RefreshSettings()
+
+                local Scale = Library.DPIScale
+                local Pos = KeybindFrame.AbsolutePosition
+                local Size = KeybindFrame.AbsoluteSize
+                local SettingsSize = SettingsFrame.AbsoluteSize
+                local Viewport = workspace.CurrentCamera.ViewportSize
+                local X = (Pos.X + Size.X) / Scale + 8
+                if Pos.X + Size.X + 8 + SettingsSize.X > Viewport.X then
+                    X = (Pos.X - SettingsSize.X) / Scale - 8
+                end
+
+                PositionDraggable(SettingsFrame, UDim2.fromOffset(X, Pos.Y / Scale))
+                SettingsFrame.Position = UDim2.fromOffset(
+                    math.clamp(SettingsFrame.Position.X.Offset, 0, math.max(0, (Viewport.X - SettingsFrame.AbsoluteSize.X) / Scale)),
+                    math.clamp(SettingsFrame.Position.Y.Offset, 0, math.max(0, (Viewport.Y - SettingsFrame.AbsoluteSize.Y) / Scale))
+                )
+            end
+        end
+
+        function KeybindMenu:ToggleSettings()
+            KeybindMenu:SetSettingsOpen(not KeybindMenu.SettingsOpen)
+        end
+
+        function KeybindMenu:SetVisibilityControl(Enabled: boolean)
+            Enabled = Enabled == true
+            KeybindMenu.VisibilityControl = Enabled
+            SettingsButton.Visible = Enabled
+            KeybindLabelPadding.PaddingRight = UDim.new(0, Enabled and 56 or 34)
+
+            if not Enabled then
+                KeybindMenu:SetSettingsOpen(false)
+            end
+        end
+
+        function KeybindMenu:Destroy()
+            local DraggableIndex = table.find(Library.DraggableElements, SettingsFrame)
+            if DraggableIndex then
+                table.remove(Library.DraggableElements, DraggableIndex)
+            end
+
+            SettingsFrame:Destroy()
+            KeybindMenu.SettingsFrame = nil
+            KeybindMenu.SettingsContainer = nil
+            KeybindMenu.SettingsOpen = false
+            Library.KeybindMenu = nil
+        end
+
+        SettingsButton.MouseButton1Click:Connect(function()
+            KeybindMenu:ToggleSettings()
+        end)
+        CollapseButton.MouseButton1Click:Connect(function()
+            KeybindMenu:ToggleCollapsed()
+        end)
+        CloseSettingsButton.MouseButton1Click:Connect(function()
+            KeybindMenu:SetSettingsOpen(false)
+        end)
+
+        Library.KeybindFrame = KeybindFrame
+        Library.KeybindContainer = KeybindContainer
+        Library.KeybindMenu = KeybindMenu
 
         MainFrame = New("TextButton", {
             BackgroundColor3 = function()
@@ -11289,21 +11576,28 @@ function Library:CreateWindow(WindowInfo)
             })
         end
 
-        local X = Library:GetTextBounds(
-            WindowInfo.Title,
-            Library.Scheme.Font,
-            20,
-            (TitleHolder.AbsoluteSize.X / Library.DPIScale) - (WindowInfo.Icon and WindowInfo.IconSize.X.Offset + 6 or 0) - 12
-        )
         WindowTitle = New("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(0, X, 1, 0),
+            Size = UDim2.fromOffset(0, 0),
             Text = WindowInfo.Title,
             TextSize = 20,
             TextTruncate = Enum.TextTruncate.AtEnd,
+            TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Center,
             Parent = TitleHolder,
         })
+
+        RefreshWindowTitleSize = function()
+            local IconWidth = 0
+            if WindowIcon and WindowIcon.Visible then
+                IconWidth = WindowIcon.Size.X.Offset + 6
+            end
+
+            local MaxWidth = math.max(0, (TitleHolder.AbsoluteSize.X / Library.DPIScale) - IconWidth - 12)
+            local NaturalWidth = Library:GetTextBounds(WindowTitle.Text, Library.Scheme.Font, WindowTitle.TextSize)
+            WindowTitle.Size = UDim2.new(0, math.min(NaturalWidth, MaxWidth), 1, 0)
+        end
+        RefreshWindowTitleSize()
 
         --// Top Right Bar \\--
         RightWrapper = New("Frame", {
@@ -11588,6 +11882,11 @@ function Library:CreateWindow(WindowInfo)
 
         WindowTitle.Text = title
         WindowInfo.Title = title
+        RefreshWindowTitleSize()
+    end
+
+    function Window:RefreshTitleSize()
+        RefreshWindowTitleSize()
     end
 
     function Window:SetBackgroundImage(Image: string)
@@ -11845,6 +12144,8 @@ function Library:CreateWindow(WindowInfo)
         if WindowInfo.EnableCompacting then
             ApplyCompact()
         end
+    
+        RefreshWindowTitleSize()
         if not IsCompact then
             LastExpandedWidth = Width
         end
@@ -12426,12 +12727,14 @@ function Library:CreateWindow(WindowInfo)
                 })
 
                 local Container = New("ScrollingFrame", {
-                    AutomaticCanvasSize = Enum.AutomaticSize.Y,
+                    AutomaticCanvasSize = Enum.AutomaticSize.None,
                     BackgroundTransparency = 1,
                     BorderSizePixel = 0,
-                    CanvasSize = UDim2.fromScale(0, 0),
+                    CanvasSize = UDim2.fromOffset(0, 0),
                     Position = UDim2.fromOffset(0, 35),
+                    ScrollBarImageTransparency = 1,
                     ScrollBarThickness = 0,
+                    ScrollingEnabled = false,
                     Size = UDim2.new(1, 0, 1, -35),
                     Visible = false,
                     Parent = TabboxHolder,
@@ -12510,11 +12813,16 @@ function Library:CreateWindow(WindowInfo)
                     end
 
                     local ContentSize = (List.AbsoluteContentSize.Y / Library.DPIScale) + 14
+                    local FrameSize = ContentSize
                     if Tabbox.PoppedOut then
-                        ContentSize = math.min(ContentSize, GetPopOutBodyMaxHeight(Tabbox, 35))
+                        FrameSize = math.min(ContentSize, GetPopOutBodyMaxHeight(Tabbox, 35))
                     end
 
-                    TabboxHolder.Size = UDim2.new(1, 0, 0, ContentSize + 35)
+                    local NeedsScroll = ContentSize > FrameSize + 1
+                    Container.CanvasSize = UDim2.fromOffset(0, if NeedsScroll then ContentSize else 0)
+                    Container.ScrollingEnabled = NeedsScroll
+                    TabboxHolder.Size = UDim2.new(1, 0, 0, FrameSize + 35)
+
                     if IsNested then
                         ParentObj:Resize()
                     end
@@ -12660,7 +12968,7 @@ function Library:CreateWindow(WindowInfo)
                 Size = UDim2.fromScale(1, 0),
                 Parent = (Info.Side == 1) and TabLeft or TabRight,
             })
-            New("UIListLayout", {
+            local BoxHolderList = New("UIListLayout", {
                 Padding = UDim.new(0, 6),
                 Parent = BoxHolder,
             })
@@ -12792,12 +13100,14 @@ function Library:CreateWindow(WindowInfo)
                 })
 
                 GroupboxContainer = New("ScrollingFrame", {
-                    AutomaticCanvasSize = Enum.AutomaticSize.Y,
+                    AutomaticCanvasSize = Enum.AutomaticSize.None,
                     BackgroundTransparency = 1,
                     BorderSizePixel = 0,
-                    CanvasSize = UDim2.fromScale(0, 0),
+                    CanvasSize = UDim2.fromOffset(0, 0),
                     LayoutOrder = 2,
+                    ScrollBarImageTransparency = 1,
                     ScrollBarThickness = 0,
+                    ScrollingEnabled = false,
                     Size = UDim2.fromScale(1, 0),
                     Parent = GroupboxHolder,
                 })
@@ -12839,6 +13149,13 @@ function Library:CreateWindow(WindowInfo)
             local ResizeTween
             local CollapseArrowTween
 
+            local function RefreshBoxHolderLayout()
+                BoxHolder.AutomaticSize = Enum.AutomaticSize.None
+                BoxHolder.Size = UDim2.new(1, 0, 0, BoxHolderList.AbsoluteContentSize.Y / Library.DPIScale + 8)
+                BoxHolder.AutomaticSize = Enum.AutomaticSize.Y
+            end
+            Groupbox.RefreshBoxHolderLayout = RefreshBoxHolderLayout
+
             function Groupbox:Resize()
                 if ResizeTween then
                     StopTween(ResizeTween, true)
@@ -12846,10 +13163,15 @@ function Library:CreateWindow(WindowInfo)
                 end
 
                 local TopSize = (GroupboxTop.AbsoluteSize.Y / Library.DPIScale)
-                local ContainerSize = (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 14
+                local ContentSize = (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 14
+                local ContainerSize = ContentSize
                 if Groupbox.PoppedOut then
                     ContainerSize = math.min(ContainerSize, GetPopOutBodyMaxHeight(Groupbox, TopSize + 1))
                 end
+
+                local NeedsScroll = ContentSize > ContainerSize + 1
+                GroupboxContainer.CanvasSize = UDim2.fromOffset(0, if NeedsScroll then ContentSize else 0)
+                GroupboxContainer.ScrollingEnabled = NeedsScroll
 
                 local TargetSize = UDim2.new(1, 0, 0, if Groupbox.Collapsed then TopSize else (TopSize + 1 + ContainerSize))
                 GroupboxContainer.Size = UDim2.new(1, 0, 0, ContainerSize)
@@ -12869,11 +13191,14 @@ function Library:CreateWindow(WindowInfo)
                             StopTween(ResizeTween, true)
                             ResizeTween = nil
                         end
+
+                        RefreshBoxHolderLayout()
                     end))
 
                     Tween:Play()
                 else
                     GroupboxHolder.Size = TargetSize
+                    RefreshBoxHolderLayout()
                 end
             end
 
@@ -14573,18 +14898,19 @@ function Library:CreateLoading(LoadingInfo)
         })
     end
 
-    local TitleX = Library:GetTextBounds(
-        LoadingInfo.Title,
-        Library.Scheme.Font,
-        20,
-        (TitleHolder.AbsoluteSize.X / Library.DPIScale) - (LoadingInfo.Icon and (LoadingInfo.IconSize.X.Offset + 6) or 0) - 12
+    local LoadingIconWidth = LoadingInfo.Icon and (LoadingInfo.IconSize.X.Offset + 6) or 0
+    local LoadingMaxWidth = math.max(0, (TitleHolder.AbsoluteSize.X / Library.DPIScale) - LoadingIconWidth - 12)
+    local LoadingTitleWidth = math.min(
+        Library:GetTextBounds(LoadingInfo.Title, Library.Scheme.Font, 20),
+        LoadingMaxWidth
     )
     local _WindowTitle = New("TextLabel", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(0, TitleX, 1, 0),
+        Size = UDim2.new(0, LoadingTitleWidth, 1, 0),
         Text = LoadingInfo.Title,
         TextSize = 20,
         TextTruncate = Enum.TextTruncate.AtEnd,
+        TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Center,
         Parent = TitleHolder,
     })
@@ -15187,6 +15513,10 @@ function Library:Unload()
         Library.ActiveLoading:Destroy()
     end
 
+    if Library.KeybindMenu then
+        Library.KeybindMenu:Destroy()
+    end
+
     if ScreenGui then
         ScreenGui:Destroy()
     end
@@ -15226,6 +15556,7 @@ function Library:Unload()
     Library.WindowContainer = nil
     Library.KeybindFrame = nil
     Library.KeybindContainer = nil
+    Library.KeybindMenu = nil
 
     getgenv().Library = nil
 end

@@ -732,6 +732,13 @@ MenuGroup:AddToggle("KeybindMenuOpen", {
 		Library.KeybindFrame.Visible = value
 	end,
 })
+MenuGroup:AddToggle("KeybindMenuVisibilityControl", {
+	Default = false,
+	Text = "Keybind Menu Visibility",
+	Callback = function(value)
+		Library.KeybindMenu:SetVisibilityControl(value)
+	end,
+})
 MenuGroup:AddToggle("ShowCustomCursor", {
 	Text = "Custom Cursor",
 	Default = Library.ShowCustomCursor,
