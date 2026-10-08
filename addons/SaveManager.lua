@@ -457,11 +457,32 @@ function SaveManager:SaveJSON(ConfigName)
         name = ConfigName or "",
 
         objects = {},
-        keybindMenu = if Library.KeybindFrame then {
-            visible = Library.KeybindFrame.Visible,
-            position = SpecialValueParser.UDim2.Encode(Library.KeybindFrame.Position)
-        } else nil
+        keybindMenu = nil,
     }
+
+    if Library.KeybindFrame then
+        local Hidden = {}
+        for Index, Option in Library.Options do
+            if Option.Type == "KeyPicker" and Option.NoUI ~= true and Option.MenuVisible == false then
+                Hidden[Index] = true
+            end
+        end
+
+        local KeybindMenu = Library.KeybindMenu
+        local SettingsPosition = nil
+        if KeybindMenu and KeybindMenu.SettingsFrame then
+            SettingsPosition = SpecialValueParser.UDim2.Encode(KeybindMenu.SettingsFrame.Position)
+        end
+
+        CurrentData.keybindMenu = {
+            visible = Library.KeybindFrame.Visible,
+            position = SpecialValueParser.UDim2.Encode(Library.KeybindFrame.Position),
+            collapsed = if KeybindMenu then KeybindMenu.Collapsed == true else false,
+            settingsOpen = false,
+            settingsPosition = SettingsPosition,
+            hidden = Hidden,
+        }
+    end
 
     --// Toggles
     for Index, Toggle in Library.Toggles do
@@ -577,10 +598,33 @@ function SaveManager:LoadJSON(Content: string)
 
         Library.KeybindFrame.Visible = IsVisible
         Library.KeybindFrame.Position = Position or Library.KeybindFrame.Position
-        
+
         local KeybindMenuToggle = Library.Options and Library.Options.KeybindMenuOpen
         if KeybindMenuToggle then
             KeybindMenuToggle:SetValue(IsVisible)
+        end
+
+        local KeybindMenu = Library.KeybindMenu
+        if KeybindMenu then
+            if KeybindMenu.SetCollapsed then
+                KeybindMenu:SetCollapsed(KeybindFrameData.collapsed == true)
+            end
+
+            if typeof(KeybindFrameData.hidden) == "table" then
+                for Index, Option in Library.Options do
+                    if Option.Type ~= "KeyPicker" or Option.NoUI == true or not Option.SetMenuVisibility then
+                        continue
+                    end
+
+                    Option:SetMenuVisibility(KeybindFrameData.hidden[Index] ~= true)
+                end
+            end
+
+            local SettingsPosition = SpecialValueParser.UDim2.Decode(KeybindFrameData.settingsPosition)
+            if SettingsPosition and KeybindMenu.SettingsFrame then
+                KeybindMenu.SettingsFrame.Position = SettingsPosition
+            end
+            KeybindMenu:SetSettingsOpen(false)
         end
     end
 
