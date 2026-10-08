@@ -1,3 +1,18 @@
+## 07.10.2026
+
+```diff
+[features]
++ Library.KeybindMenu (SetCollapsed, ToggleCollapsed, SetVisibilityControl, SetSettingsOpen, ToggleSettings, RefreshSettings)
++ Collapse for the Keybind Menu
++ Visibility settings panel for the Keybind Menu
+
+[fixed]
++ Fixed AddImage not having rounded corners
++ Fixed groupbox and tabbox scrollbars appearing incorrectly at DPI scales below 100%
++ Fixed position of other boxes and gaps under groupboxes and dependency boxes that are created to be collapsed from the start
++ Fixed window and loading titles truncating too early or leaving a huge gap before the icon
+```
+
 ## 03.10.2026
 
 ```diff
