@@ -3376,28 +3376,18 @@ function Library:AddDraggableButton(...)
     end
     Library:AddOutline(Button)
 
-    local MaxClickDistance = ExcludeDragging and 12 or math.huge
+    local PressPosition
     Button.InputBegan:Connect(function(Input: InputObject)
-        if not IsClickInput(Input) then
+        if IsMouseInput(Input) then
+            PressPosition = Button.AbsolutePosition
+        end
+    end)
+    Button.Activated:Connect(function()
+        if PressPosition and (Button.AbsolutePosition - PressPosition).Magnitude > 10 then
             return
         end
 
-        local StartPos = Input.Position
-        local Changed
-        Changed = Input.Changed:Connect(function()
-            if Input.UserInputState ~= Enum.UserInputState.End then
-                return
-            end
-
-            if (Input.Position - StartPos).Magnitude <= MaxClickDistance then
-                Library:SafeCallback(Func, DraggableButton)
-            end
-
-            if Changed and Changed.Connected then
-                Changed:Disconnect()
-                Changed = nil
-            end
-        end)
+        Library:SafeCallback(Func, DraggableButton)
     end)
 
     function DraggableButton:SetText(Text: string)
@@ -3407,7 +3397,9 @@ function Library:AddDraggableButton(...)
         Button.Size = UDim2.fromOffset(X * 2, Y * 2)
     end
 
-    Library:MakeDraggable(Button, Button, true)
+    if not ExcludeDragging then
+        Library:MakeDraggable(Button, Button, true)
+    end
     DraggableButton:SetText(Text)
     DraggableButton.Button = Button
 
@@ -3572,28 +3564,18 @@ function Library:AddDraggableImageButton(...)
     end
     Library:AddOutline(Button)
 
-    local MaxClickDistance = ExcludeDragging and 12 or math.huge
+    local PressPosition
     Button.InputBegan:Connect(function(Input: InputObject)
-        if not IsClickInput(Input) then
+        if IsMouseInput(Input) then
+            PressPosition = Button.AbsolutePosition
+        end
+    end)
+    Button.Activated:Connect(function()
+        if PressPosition and (Button.AbsolutePosition - PressPosition).Magnitude > 10 then
             return
         end
 
-        local StartPos = Input.Position
-        local Changed
-        Changed = Input.Changed:Connect(function()
-            if Input.UserInputState ~= Enum.UserInputState.End then
-                return
-            end
-
-            if (Input.Position - StartPos).Magnitude <= MaxClickDistance then
-                Library:SafeCallback(Func, DraggableImageButton)
-            end
-
-            if Changed and Changed.Connected then
-                Changed:Disconnect()
-                Changed = nil
-            end
-        end)
+        Library:SafeCallback(Func, DraggableImageButton)
     end)
 
     function DraggableImageButton:SetIcon(NewIcon: string)
@@ -3611,7 +3593,9 @@ function Library:AddDraggableImageButton(...)
         Button.Size = UDim2.fromOffset(IconSize + 12, IconSize + 12)
     end
 
-    Library:MakeDraggable(Button, Button, true)
+    if not ExcludeDragging then
+        Library:MakeDraggable(Button, Button, true)
+    end
     DraggableImageButton:SetIcon(Icon)
     DraggableImageButton.Button = Button
 
@@ -11277,20 +11261,19 @@ function Library:CreateWindow(WindowInfo)
             if Open then
                 KeybindMenu:RefreshSettings()
 
-                local Scale = Library.DPIScale
-                local Pos = KeybindFrame.AbsolutePosition
+                local Bounds = Floats.AbsoluteSize
+                local Pos = KeybindFrame.AbsolutePosition - Floats.AbsolutePosition
                 local Size = KeybindFrame.AbsoluteSize
                 local SettingsSize = SettingsFrame.AbsoluteSize
-                local Viewport = workspace.CurrentCamera.ViewportSize
-                local X = (Pos.X + Size.X) / Scale + 8
-                if Pos.X + Size.X + 8 + SettingsSize.X > Viewport.X then
-                    X = (Pos.X - SettingsSize.X) / Scale - 8
+
+                local X = Pos.X + Size.X + 8
+                if X + SettingsSize.X > Bounds.X then
+                    X = Pos.X - SettingsSize.X - 8
                 end
 
-                PositionDraggable(SettingsFrame, UDim2.fromOffset(X, Pos.Y / Scale))
                 SettingsFrame.Position = UDim2.fromOffset(
-                    math.clamp(SettingsFrame.Position.X.Offset, 0, math.max(0, (Viewport.X - SettingsFrame.AbsoluteSize.X) / Scale)),
-                    math.clamp(SettingsFrame.Position.Y.Offset, 0, math.max(0, (Viewport.Y - SettingsFrame.AbsoluteSize.Y) / Scale))
+                    math.clamp(X, 0, math.max(0, Bounds.X - SettingsSize.X)),
+                    math.clamp(Pos.Y, 0, math.max(0, Bounds.Y - SettingsSize.Y))
                 )
             end
         end
@@ -14558,12 +14541,12 @@ function Library:CreateWindow(WindowInfo)
     if Library.IsMobile then
         local ToggleButton = Library:AddDraggableButton("Toggle", function()
             Library:Toggle()
-        end, true, true)
+        end, true)
 
         local LockButton = Library:AddDraggableButton("Lock", function(self)
             Library.CantDragForced = not Library.CantDragForced
             self:SetText(Library.CantDragForced and "Unlock" or "Lock")
-        end, true, true)
+        end, true)
 
         if WindowInfo.MobileButtonsSide == "Right" then
             ToggleButton.Button.AnchorPoint = Vector2.new(1, 0)
