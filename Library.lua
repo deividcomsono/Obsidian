@@ -7147,6 +7147,7 @@ do
 
             Callback = Info.Callback,
             Changed = Info.Changed,
+            ChangedCallbacks = {},
 
             Risky = Info.Risky,
             Disabled = Info.Disabled,
@@ -7254,6 +7255,19 @@ do
             Toggle.Changed = Func
         end
 
+        function Toggle:AddOnChanged(Func)
+            table.insert(Toggle.ChangedCallbacks, Func)
+
+            return {
+                Disconnect = function()
+                    local Index = table.find(Toggle.ChangedCallbacks, Func)
+                    if Index then
+                        table.remove(Toggle.ChangedCallbacks, Index)
+                    end
+                end,
+            }
+        end
+
         function Toggle:RunChanged()
             if Toggle.Disabled then
                 return
@@ -7261,6 +7275,10 @@ do
 
             Library:SafeCallback(Toggle.Callback, Toggle.Value)
             Library:SafeCallback(Toggle.Changed, Toggle.Value)
+
+            for _, Func in Toggle.ChangedCallbacks do
+                Library:SafeCallback(Func, Toggle.Value)
+            end
         end
 
         function Toggle:SetValue(Value)
@@ -7405,6 +7423,7 @@ do
 
             Callback = Info.Callback,
             Changed = Info.Changed,
+            ChangedCallbacks = {},
 
             Risky = Info.Risky,
             Disabled = Info.Disabled,
@@ -7528,6 +7547,19 @@ do
             Toggle.Changed = Func
         end
 
+        function Toggle:AddOnChanged(Func)
+            table.insert(Toggle.ChangedCallbacks, Func)
+
+            return {
+                Disconnect = function()
+                    local Index = table.find(Toggle.ChangedCallbacks, Func)
+                    if Index then
+                        table.remove(Toggle.ChangedCallbacks, Index)
+                    end
+                end,
+            }
+        end
+
         function Toggle:RunChanged()
             if Toggle.Disabled then
                 return
@@ -7535,6 +7567,10 @@ do
 
             Library:SafeCallback(Toggle.Callback, Toggle.Value)
             Library:SafeCallback(Toggle.Changed, Toggle.Value)
+
+            for _, Func in Toggle.ChangedCallbacks do
+                Library:SafeCallback(Func, Toggle.Value)
+            end
         end
 
         function Toggle:SetValue(Value)
@@ -7687,6 +7723,7 @@ do
 
             Callback = Info.Callback,
             Changed = Info.Changed,
+            ChangedCallbacks = {},
             VerifyValue = Info.VerifyValue,
 
             Disabled = Info.Disabled,
@@ -7763,6 +7800,19 @@ do
             Input.Changed = Func
         end
 
+        function Input:AddOnChanged(Func)
+            table.insert(Input.ChangedCallbacks, Func)
+
+            return {
+                Disconnect = function()
+                    local Index = table.find(Input.ChangedCallbacks, Func)
+                    if Index then
+                        table.remove(Input.ChangedCallbacks, Index)
+                    end
+                end,
+            }
+        end
+
         function Input:RunChanged()
             if Input.Disabled then
                 return
@@ -7770,6 +7820,10 @@ do
 
             Library:SafeCallback(Input.Callback, Input.Value)
             Library:SafeCallback(Input.Changed, Input.Value)
+
+            for _, Func in Input.ChangedCallbacks do
+                Library:SafeCallback(Func, Input.Value)
+            end
         end
 
         function Input:SetValue(Text)
@@ -7941,6 +7995,7 @@ do
 
             Callback = Info.Callback,
             Changed = Info.Changed,
+            ChangedCallbacks = {},
 
             Disabled = Info.Disabled,
             Visible = Info.Visible,
@@ -8100,6 +8155,19 @@ do
             Slider.Changed = Func
         end
 
+        function Slider:AddOnChanged(Func)
+            table.insert(Slider.ChangedCallbacks, Func)
+
+            return {
+                Disconnect = function()
+                    local Index = table.find(Slider.ChangedCallbacks, Func)
+                    if Index then
+                        table.remove(Slider.ChangedCallbacks, Index)
+                    end
+                end,
+            }
+        end
+
         function Slider:SetMax(Value)
             assert(Value > Slider.Min, "Max value cannot be less than the current min value.")
 
@@ -8123,6 +8191,10 @@ do
 
             Library:SafeCallback(Slider.Callback, Slider.Value)
             Library:SafeCallback(Slider.Changed, Slider.Value)
+
+            for _, Func in Slider.ChangedCallbacks do
+                Library:SafeCallback(Func, Slider.Value)
+            end
         end
 
         function Slider:SetValue(Str)
@@ -8402,6 +8474,7 @@ do
 
             Callback = Info.Callback,
             Changed = Info.Changed,
+            ChangedCallbacks = {},
 
             Disabled = Info.Disabled,
             Visible = Info.Visible,
@@ -8684,6 +8757,19 @@ do
             Dropdown.Changed = Func
         end
 
+        function Dropdown:AddOnChanged(Func)
+            table.insert(Dropdown.ChangedCallbacks, Func)
+
+            return {
+                Disconnect = function()
+                    local Index = table.find(Dropdown.ChangedCallbacks, Func)
+                    if Index then
+                        table.remove(Dropdown.ChangedCallbacks, Index)
+                    end
+                end,
+            }
+        end
+
         function Dropdown:GetActiveValues(ReturnCount)
             local Table = {}
 
@@ -8851,6 +8937,10 @@ do
 
             Library:SafeCallback(Dropdown.Callback, Dropdown.Value)
             Library:SafeCallback(Dropdown.Changed, Dropdown.Value)
+
+            for _, Func in Dropdown.ChangedCallbacks do
+                Library:SafeCallback(Func, Dropdown.Value)
+            end
         end
 
         local function StopDragSelect()
