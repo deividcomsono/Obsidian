@@ -10522,6 +10522,13 @@ function Library:SetFont(FontFace)
     Library.Scheme.Font = FontFace
     Library:UpdateColorsUsingRegistry()
 
+    for _, Label in Labels do
+        if Label.DoesWrap then
+            Label:Display()
+            Label.Parent:Resize()
+        end
+    end
+
     if Library.Window and Library.Window.RefreshTitleSize then
         Library.Window:RefreshTitleSize()
     end
