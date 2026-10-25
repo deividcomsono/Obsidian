@@ -232,6 +232,7 @@ local Library = {
     ButtonRippleTweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
     ButtonTextWipeTweenInfo = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
     DoubleClickConfirmTimeout = 1.5,
+    SliderTweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 
     Animations = {
         ToggleWindow = false,
@@ -241,7 +242,8 @@ local Library = {
         KeyPicker = false,
         ColorPicker = false,
         Input = false,
-        Button = false
+        Button = false,
+        Slider = false,
     },
 
     --// States \\--
@@ -435,6 +437,7 @@ local Templates = {
             Groupbox = false,
             Dropdown = false,
             KeyPicker = false,
+            Slider = false,
         },
 
         TabTransitionTime = 0.22,
@@ -609,6 +612,8 @@ local Templates = {
         Mode = "Toggle",
         Modes = { "Always", "Toggle", "Hold" },
         SyncToggleState = false,
+        NoUI = false,
+        Disabled = false,
 
         Callback = function() end,
         ChangedCallback = function() end,
@@ -1473,12 +1478,14 @@ function Library:SetDPIScale(DPIScale: number)
         UIScale.Scale = Library.DPIScale - (tonumber(Library.ScalesOffset[UIScale]) or 0)
     end
 
-    for _, Option in Options do
-        if Option.Type == "Dropdown" then
-            Option:RecalculateListSize()
-            Option:RefreshPool()
+    task.defer(function()
+        for _, Option in Options do
+            if Option.Type == "Dropdown" then
+                Option:RecalculateListSize()
+                Option:RefreshPool()
+            end
         end
-    end
+    end)
 
     for _, Notification in Library.Notifications do
         Notification:Resize()
@@ -3961,6 +3968,7 @@ function Library:AddContextMenu(
         Signal = nil,
 
         Size = Size,
+        Offset = Offset,
         AutoSizeY = List == 1,
 
         OpenCloseTween = nil,
@@ -3983,6 +3991,26 @@ function Library:AddContextMenu(
         })
     end
 
+    local function SetPosition()
+        local OffsetValue = typeof(Table.Offset) == "function" and Table.Offset() or Table.Offset
+
+        Menu.Position = UDim2.fromOffset(
+            math.floor(Holder.AbsolutePosition.X + OffsetValue[1]),
+            math.floor(Holder.AbsolutePosition.Y + OffsetValue[2])
+        )
+    end
+
+    local function SetSize()
+        local TargetSize = typeof(Table.Size) == "function" and Table.Size() or Table.Size
+
+        Menu.Size = UDim2.new(
+            TargetSize.X.Scale,
+            math.round(TargetSize.X.Offset),
+            TargetSize.Y.Scale,
+            math.round(TargetSize.Y.Offset)
+        )
+    end
+
     function Table:Open()
         if CurrentMenu == Table then
             return
@@ -3998,19 +4026,15 @@ function Library:AddContextMenu(
         Menu.Parent = nil
         Menu.Parent = TargetParent
 
-        if typeof(Offset) == "function" then
-            Menu.Position = UDim2.fromOffset(
-                math.floor(Holder.AbsolutePosition.X + Offset()[1]),
-                math.floor(Holder.AbsolutePosition.Y + Offset()[2])
-            )
-        else
-            Menu.Position = UDim2.fromOffset(
-                math.floor(Holder.AbsolutePosition.X + Offset[1]),
-                math.floor(Holder.AbsolutePosition.Y + Offset[2])
-            )
-        end
+        SetPosition()
 
         local TargetSize = typeof(Table.Size) == "function" and Table.Size() or Table.Size
+        TargetSize = UDim2.new(
+            TargetSize.X.Scale,
+            math.round(TargetSize.X.Offset),
+            TargetSize.Y.Scale,
+            math.round(TargetSize.Y.Offset)
+        )
 
         if typeof(ActiveCallback) == "function" then
             Library:SafeCallback(ActiveCallback, true)
@@ -4054,22 +4078,18 @@ function Library:AddContextMenu(
 
             Tween:Play()
         else
-            Menu.Size = TargetSize
+            SetSize()
             Menu.Visible = true
         end
 
-        Table.Signal = Holder:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
-            if typeof(Offset) == "function" then
-                Menu.Position = UDim2.fromOffset(
-                    math.floor(Holder.AbsolutePosition.X + Offset()[1]),
-                    math.floor(Holder.AbsolutePosition.Y + Offset()[2])
-                )
-            else
-                Menu.Position = UDim2.fromOffset(
-                    math.floor(Holder.AbsolutePosition.X + Offset[1]),
-                    math.floor(Holder.AbsolutePosition.Y + Offset[2])
-                )
+        Table.SizeSignal = Holder:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+            if not Table.AutoSizeY then
+                SetSize()
             end
+        end)
+
+        Table.Signal = Holder:GetPropertyChangedSignal("AbsolutePosition"):Connect(function()
+            SetPosition()
 
             local HolderAllowed = Library:IsInsideFrame(Library.WindowContainer, Holder)
             if not HolderAllowed then
@@ -4097,6 +4117,11 @@ function Library:AddContextMenu(
         if Table.Signal then
             Table.Signal:Disconnect()
             Table.Signal = nil
+        end
+
+        if Table.SizeSignal then
+            Table.SizeSignal:Disconnect()
+            Table.SizeSignal = nil
         end
 
         Table.Active = false
@@ -4155,7 +4180,12 @@ function Library:AddContextMenu(
 
     function Table:SetSize(Size)
         Table.Size = Size
-        Menu.Size = typeof(Size) == "function" and Size() or Size
+        SetSize()
+    end
+
+    function Table:SetPosition(Offset)
+        Table.Offset = Offset
+        SetPosition()
     end
 
     function Table:Destroy()
@@ -4417,6 +4447,8 @@ do
             Toggled = false,
             Mode = Info.Mode,
             SyncToggleState = Info.SyncToggleState,
+            NoUI = Info.NoUI == true,
+            Disabled = Info.Disabled == true,
 
             NoUI = Info.NoUI == true,
             MenuVisible = Info.NoUI ~= true,
@@ -4695,7 +4727,7 @@ do
         end
 
         table.insert(KeyPicker.Connections, Picker.MouseEnter:Connect(function()
-            if ParentObj.Disabled then
+            if ParentObj.Disabled or KeyPicker.Disabled then
                 return
             end
 
@@ -4703,7 +4735,7 @@ do
         end))
 
         table.insert(KeyPicker.Connections, Picker.MouseLeave:Connect(function()
-            if ParentObj.Disabled then
+            if ParentObj.Disabled or KeyPicker.Disabled then
                 return
             end
 
@@ -4741,7 +4773,7 @@ do
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 16),
                 Text = "",
-                Visible = not Info.NoUI,
+                Visible = not KeyPicker.NoUI,
                 Parent = Library.KeybindContainer,
             })
             table.insert(
@@ -4842,6 +4874,7 @@ do
 
             KeyPicker.DoClick = function(...) end --// make luau lsp shut up
             table.insert(KeyPicker.Connections, Holder.MouseButton1Click:Connect(function()
+                if KeybindsToggle.Normal or KeyPicker.Disabled then
                 if KeyPicker.Mode == "Press" then
                     KeyPicker:DoClick()
                     return
@@ -5155,26 +5188,22 @@ do
         end
 
         function KeyPicker:Update()
-            local Disabled = ParentObj.Disabled == true
+            local ParentDisabled = ParentObj.Disabled == true
+            local Inert = ParentDisabled or KeyPicker.Disabled
 
-            if Disabled and Picking then
+            if Inert and Picking then
                 SetPickingState(false, true)
             end
 
             KeyPicker:Display()
 
-            Picker.Active = not Disabled
-            ApplyPickerTextTransparency(Disabled and 0.8 or 0.4)
+            Picker.Active = not Inert
+            ApplyPickerTextTransparency(Inert and 0.8 or 0.4)
 
-            if Disabled then
+            if Inert then
                 if MenuTable.Active then
                     MenuTable:Close()
                 end
-            end
-
-            if KeyPicker.Mode == "Toggle" and ParentObj.Type == "Toggle" and ParentObj.Disabled then
-                KeybindsToggle:SetVisibility(false)
-                return
             end
 
             local State = KeyPicker:GetState()
@@ -5185,10 +5214,6 @@ do
                 State = KeyPicker:GetState()
             end
 
-            if Info.NoUI then
-                return
-            end
-
             if KeybindsToggle.Loaded then
                 if ShowToggle then
                     KeybindsToggle:SetNormal(false)
@@ -5197,7 +5222,7 @@ do
                 end
 
                 KeybindsToggle:SetText(("[%s] %s (%s)"):format(KeyPicker.DisplayValue, KeyPicker.Text, KeyPicker.Mode))
-                KeybindsToggle:SetVisibility(KeyPicker.MenuVisible ~= false)
+                KeybindsToggle:SetVisibility(not KeyPicker.NoUI and KeyPicker.MenuVisible ~= false)
                 KeybindsToggle:Display(State)
             end
         end
@@ -5243,7 +5268,7 @@ do
         end
 
         function KeyPicker:DoClick()
-            if Picking or ParentObj.Disabled then
+            if Picking or ParentObj.Disabled or KeyPicker.Disabled then
                 return
             end
 
@@ -5272,7 +5297,7 @@ do
         end
 
         function KeyPicker:RunChanged(IsKeyValid, KeyCode)
-            if ParentObj.Disabled then
+            if ParentObj.Disabled or KeyPicker.Disabled then
                 return
             end
 
@@ -5356,8 +5381,30 @@ do
             end
         end
 
+        function KeyPicker:SetNoUI(NoUI: boolean)
+            NoUI = NoUI == true
+
+            if KeyPicker.NoUI == NoUI then
+                return
+            end
+
+            KeyPicker.NoUI = NoUI
+            KeyPicker:Update()
+        end
+
+        function KeyPicker:SetDisabled(Disabled: boolean)
+            Disabled = Disabled == true
+
+            if KeyPicker.Disabled == Disabled then
+                return
+            end
+
+            KeyPicker.Disabled = Disabled
+            KeyPicker:Update()
+        end
+
         table.insert(KeyPicker.Connections, Picker.MouseButton1Click:Connect(function()
-            if Picking or Library.IsPicking or ParentObj.Disabled then
+            if Picking or Library.IsPicking or ParentObj.Disabled or KeyPicker.Disabled then
                 return
             end
 
@@ -5510,7 +5557,7 @@ do
         end))
 
         table.insert(KeyPicker.Connections, Picker.MouseButton2Click:Connect(function()
-            if ParentObj.Disabled then
+            if ParentObj.Disabled or KeyPicker.Disabled then
                 return
             end
 
@@ -5525,6 +5572,7 @@ do
             local IsMouse = IsMouseClickInput(Input)
             if
                 ParentObj.Disabled
+                or KeyPicker.Disabled
                 or KeyPicker.Mode == "Always"
                 or KeyPicker.Value == "Unknown"
                 or KeyPicker.Value == "None"
@@ -6044,6 +6092,22 @@ do
             if ResizeIcon then
                 Library:ApplyLucideIcon(ResizeGrabberIcon, ResizeIcon)
             end
+
+            table.insert(ColorPicker.Connections, ResizeGrabber.MouseEnter:Connect(function()
+                Library.Registry[ResizeGrabberIcon].ImageColor3 = "AccentColor"
+                TweenService:Create(ResizeGrabberIcon, Library.TweenInfo, {
+                    ImageColor3 = Library.Scheme.AccentColor,
+                    ImageTransparency = 0,
+                }):Play()
+            end))
+
+            table.insert(ColorPicker.Connections, ResizeGrabber.MouseLeave:Connect(function()
+                Library.Registry[ResizeGrabberIcon].ImageColor3 = "FontColor"
+                TweenService:Create(ResizeGrabberIcon, Library.TweenInfo, {
+                    ImageColor3 = Library.Scheme.FontColor,
+                    ImageTransparency = 0.5,
+                }):Play()
+            end))
 
             table.insert(ColorPicker.Connections, ResizeGrabber.InputBegan:Connect(function(Input: InputObject)
                 Library.CantDragForced = true
@@ -8389,7 +8453,9 @@ do
             Library.Registry[Fill].BackgroundColor3 = Slider.Disabled and "OutlineColor" or "AccentColor"
         end
 
-        function Slider:Display()
+        local FillTween: TweenBase
+
+        function Slider:Display(Instant: boolean?)
             if Library.Unloaded then
                 return
             end
@@ -8421,7 +8487,33 @@ do
             end
 
             local X = (Slider.Value - Slider.Min) / (Slider.Max - Slider.Min)
-            Fill.Size = UDim2.fromScale(X, 1)
+            local TargetSize = UDim2.fromScale(X, 1)
+
+            if FillTween then
+                StopTween(FillTween, true)
+                FillTween = nil
+            end
+
+            if not Instant and Library.Animations and Library.Animations.Slider then
+                local AnimTweenInfo = Library.SliderTweenInfo or TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                local Tween = TweenService:Create(Fill, AnimTweenInfo, { Size = TargetSize })
+                FillTween = Tween
+
+                local Connection; Connection = Library:GiveSignal(Tween.Completed:Once(function()
+                    if Connection then
+                        Connection:Disconnect()
+                    end
+
+                    if FillTween == Tween then
+                        StopTween(FillTween, true)
+                        FillTween = nil
+                    end
+                end))
+
+                Tween:Play()
+            else
+                Fill.Size = TargetSize
+            end
         end
 
         function Slider:OnChanged(Func)
@@ -8650,7 +8742,7 @@ do
         end
 
         Slider:UpdateColors()
-        Slider:Display()
+        Slider:Display(true)
         Groupbox:Resize()
 
         Slider.Holder = Holder
@@ -8662,6 +8754,11 @@ do
 
         function Slider:Destroy()
             Slider.Destroyed = true
+
+            if FillTween then
+                StopTween(FillTween, true)
+                FillTween = nil
+            end
 
             if Slider.Connections then
                 for _, Connection in Slider.Connections do
@@ -8881,14 +8978,22 @@ do
             return ValueImage
         end
 
+        local function GetAlignedWidth()
+            local Left = math.floor(DisplayContainer.AbsolutePosition.X + 0.5)
+            local Right = math.floor(DisplayContainer.AbsolutePosition.X + 0.5 + DisplayContainer.AbsoluteSize.X)
+
+            return (Right - Left) / Library.DPIScale
+        end
+
         local MenuTable
+        local FocusStrokeTween
         MenuTable = Library:AddContextMenu(
             DisplayContainer,
             function()
-                return UDim2.fromOffset((DisplayContainer.AbsoluteSize.X / Library.DPIScale), 0)
+                return UDim2.fromOffset(GetAlignedWidth(), 0)
             end,
             function()
-                return { 0.5, DisplayContainer.AbsoluteSize.Y + 1.5 }
+                return { 0.5, DisplayContainer.AbsoluteSize.Y + 1 }
             end,
             2,
             function(Active: boolean)
@@ -8900,6 +9005,21 @@ do
                 if SearchBox then
                     SearchBox.Text = ""
                     SearchBox.Visible = Active
+                end
+
+                local FocusColor = Active and "AccentColor" or "OutlineColor"
+                local IsAnimated, AnimationInfo = MenuTable.Animated()
+
+                StopTween(FocusStrokeTween, true)
+                Library.Registry[DisplayStroke].Color = FocusColor
+
+                if IsAnimated then
+                    FocusStrokeTween = TweenService:Create(DisplayStroke, AnimationInfo, {
+                        Color = Library.Scheme[FocusColor],
+                    })
+                    FocusStrokeTween:Play()
+                else
+                    DisplayStroke.Color = Library.Scheme[FocusColor]
                 end
 
                 local Half = UDim.new(0, Library.CornerRadius / 2)
@@ -8934,9 +9054,10 @@ do
             local Y = math.clamp(ItemCount * ItemHeight, 0, Info.MaxVisibleDropdownItems * ItemHeight)
 
             MenuTable.Menu.CanvasSize = UDim2.fromOffset(0, ItemCount * ItemHeight)
+            MenuTable.Menu.ScrollBarThickness = (ItemCount * ItemHeight > Y) and 2 or 0
 
             MenuTable:SetSize(function()
-                return UDim2.fromOffset((DisplayContainer.AbsoluteSize.X / Library.DPIScale), Y)
+                return UDim2.fromOffset(GetAlignedWidth(), Y)
             end)
         end
 
@@ -9265,7 +9386,7 @@ do
             DragPrevMax = Max
 
             for _, OtherRow in Pool do
-                OtherRow:UpdateButton()
+                OtherRow:UpdateButton(true)
             end
         end
 
@@ -9321,7 +9442,7 @@ do
             Row.Image = Image
             Row.Button = Button
 
-            function Row:UpdateButton()
+            function Row:UpdateButton(Animate: boolean?)
                 local Entry = Row.Entry
                 if not Entry then
                     return
@@ -9336,11 +9457,31 @@ do
 
                 Row.Selected = Selected and true or false
 
-                Container.BackgroundTransparency = Selected and 0 or 1
-                Button.TextTransparency = Entry.IsDisabled and 0.8 or Selected and 0 or 0.5
+                local TargetContainerTransparency = Selected and 0 or 1
+                local TargetButtonTransparency = Entry.IsDisabled and 0.8 or Selected and 0 or 0.5
+                local TargetImageTransparency = Entry.IsDisabled and 0.8 or Selected and 0 or 0.5
 
-                if Entry.ValueImage then
-                    Image.ImageTransparency = Entry.IsDisabled and 0.8 or Selected and 0 or 0.5
+                local IsAnimated, AnimationInfo = MenuTable.Animated()
+                if Animate and IsAnimated then
+                    TweenService:Create(Container, AnimationInfo, {
+                        BackgroundTransparency = TargetContainerTransparency,
+                    }):Play()
+                    TweenService:Create(Button, AnimationInfo, {
+                        TextTransparency = TargetButtonTransparency,
+                    }):Play()
+
+                    if Entry.ValueImage then
+                        TweenService:Create(Image, AnimationInfo, {
+                            ImageTransparency = TargetImageTransparency,
+                        }):Play()
+                    end
+                else
+                    Container.BackgroundTransparency = TargetContainerTransparency
+                    Button.TextTransparency = TargetButtonTransparency
+
+                    if Entry.ValueImage then
+                        Image.ImageTransparency = TargetImageTransparency
+                    end
                 end
             end
 
@@ -9367,11 +9508,11 @@ do
                     end
 
                     for _, OtherRow in Pool do
-                        OtherRow:UpdateButton()
+                        OtherRow:UpdateButton(true)
                     end
                 end
 
-                Row:UpdateButton()
+                Row:UpdateButton(true)
                 Dropdown:Display()
 
                 Library:UpdateDependencyBoxes()
@@ -9546,7 +9687,7 @@ do
 
             Dropdown:Display()
             for _, Row in Pool do
-                Row:UpdateButton()
+                Row:UpdateButton(true)
             end
 
             if not Dropdown.Disabled then
@@ -11955,6 +12096,20 @@ function Library:CreateWindow(WindowInfo)
                 Parent = TopBar,
             })
             Library:ApplyLucideIcon(MoveIconImage, MoveIcon)
+
+            TopBar.MouseEnter:Connect(function()
+                Library.Registry[MoveIconImage].ImageColor3 = "AccentColor"
+                TweenService:Create(MoveIconImage, Library.TweenInfo, {
+                    ImageColor3 = Library.Scheme.AccentColor,
+                }):Play()
+            end)
+
+            TopBar.MouseLeave:Connect(function()
+                Library.Registry[MoveIconImage].ImageColor3 = "OutlineColor"
+                TweenService:Create(MoveIconImage, Library.TweenInfo, {
+                    ImageColor3 = Library.Scheme.OutlineColor,
+                }):Play()
+            end)
         end
 
         --// Bottom Bar \\--
@@ -12039,6 +12194,24 @@ function Library:CreateWindow(WindowInfo)
         })
         if ResizeIcon then
             Library:ApplyLucideIcon(WindowResizeIcon, ResizeIcon)
+        end
+
+        if WindowInfo.Resizable then
+            ResizeButton.MouseEnter:Connect(function()
+                Library.Registry[WindowResizeIcon].ImageColor3 = "AccentColor"
+                TweenService:Create(WindowResizeIcon, Library.TweenInfo, {
+                    ImageColor3 = Library.Scheme.AccentColor,
+                    ImageTransparency = 0,
+                }):Play()
+            end)
+
+            ResizeButton.MouseLeave:Connect(function()
+                Library.Registry[WindowResizeIcon].ImageColor3 = "FontColor"
+                TweenService:Create(WindowResizeIcon, Library.TweenInfo, {
+                    ImageColor3 = Library.Scheme.FontColor,
+                    ImageTransparency = 0.5,
+                }):Play()
+            end)
         end
 
         --// Tabs \\--
@@ -12974,6 +13147,48 @@ function Library:CreateWindow(WindowInfo)
                     Parent = Container,
                 })
 
+                local ActiveButtonTweens: { TweenBase } = {}
+
+                local function StopButtonTweens()
+                    for _, Tween in ActiveButtonTweens do
+                        StopTween(Tween, true)
+                    end
+                    table.clear(ActiveButtonTweens)
+                end
+
+                local function SetButtonState(Active: boolean)
+                    StopButtonTweens()
+
+                    local TargetBackgroundTransparency = Active and 1 or 0
+                    local TargetLabelTransparency = Active and 0 or 0.5
+                    local TargetIconTransparency = Active and 0 or 0.5
+
+                    if Library.Animations and Library.Animations.Groupbox then
+                        local AnimTweenInfo = Library.GroupboxTweenInfo or TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+                        table.insert(ActiveButtonTweens, TweenService:Create(Button, AnimTweenInfo, { BackgroundTransparency = TargetBackgroundTransparency }))
+                        if ButtonLabel then
+                            table.insert(ActiveButtonTweens, TweenService:Create(ButtonLabel, AnimTweenInfo, { TextTransparency = TargetLabelTransparency }))
+                        end
+                        if ButtonIcon then
+                            table.insert(ActiveButtonTweens, TweenService:Create(ButtonIcon, AnimTweenInfo, { ImageTransparency = TargetIconTransparency }))
+                        end
+
+                        for _, Tween in ActiveButtonTweens do
+                            Tween:Play()
+                        end
+                    else
+                        Button.BackgroundTransparency = TargetBackgroundTransparency
+
+                        if ButtonLabel then
+                            ButtonLabel.TextTransparency = TargetLabelTransparency
+                        end
+                        if ButtonIcon then
+                            ButtonIcon.ImageTransparency = TargetIconTransparency
+                        end
+                    end
+                end
+
                 local Tab = {
                     Type = "SubTab",
                     Name = Name,
@@ -12997,14 +13212,7 @@ function Library:CreateWindow(WindowInfo)
                         Tabbox.ActiveTab:Hide()
                     end
 
-                    Button.BackgroundTransparency = 1
-
-                    if ButtonLabel then
-                        ButtonLabel.TextTransparency = 0
-                    end
-                    if ButtonIcon then
-                        ButtonIcon.ImageTransparency = 0
-                    end
+                    SetButtonState(true)
 
                     Line.Visible = false
 
@@ -13016,14 +13224,8 @@ function Library:CreateWindow(WindowInfo)
                 end
 
                 function Tab:Hide()
-                    Button.BackgroundTransparency = 0
+                    SetButtonState(false)
 
-                    if ButtonLabel then
-                        ButtonLabel.TextTransparency = 0.5
-                    end
-                    if ButtonIcon then
-                        ButtonIcon.ImageTransparency = 0.5
-                    end
                     Line.Visible = true
                     Container.Visible = false
 
@@ -13060,6 +13262,8 @@ function Library:CreateWindow(WindowInfo)
 
                 function Tab:Destroy()
                     Tab.Destroyed = true
+
+                    StopButtonTweens()
 
                     if Tab.Connections then
                         for _, Connection in Tab.Connections do
