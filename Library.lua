@@ -4624,7 +4624,6 @@ do
 
             KeyPicker.DoClick = function(...) end --// make luau lsp shut up
             table.insert(KeyPicker.Connections, Holder.MouseButton1Click:Connect(function()
-                if KeybindsToggle.Normal or KeyPicker.Disabled then
                 if KeyPicker.Mode == "Press" then
                     KeyPicker:DoClick()
                     return
