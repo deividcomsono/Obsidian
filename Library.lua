@@ -2160,9 +2160,12 @@ local TextWipeGeneration = setmetatable({}, { __mode = "k" })
 local TextWipeTarget = setmetatable({}, { __mode = "k" })
 
 local function GetTextWipeLabel(Base: TextButton): TextLabel
-    local Mask = Base:FindFirstChild("__TextWipeMask")
+    local Mask = Base:FindFirstChild("__TextWipeMask", true)
     if Mask then
-        return Mask:FindFirstChild("__TextWipeLabel")
+        local ExistingLabel = Mask:FindFirstChild("__TextWipeLabel")
+        if ExistingLabel and ExistingLabel:IsA("TextLabel") then
+            return ExistingLabel
+        end
     end
 
     Mask = New("Frame", {
@@ -2203,7 +2206,7 @@ local function GetTextWipeLabel(Base: TextButton): TextLabel
 end
 
 function Library:SetButtonText(Base: TextButton, NewText: string, OnSwap: (() -> ())?)
-    local Mask = Base:FindFirstChild("__TextWipeMask")
+    local Mask = Base:FindFirstChild("__TextWipeMask", true)
     local Label = Mask and Mask:FindFirstChild("__TextWipeLabel")
 
     local WasAnimating = ActiveTextWipes[Base] ~= nil
@@ -2241,12 +2244,14 @@ function Library:SetButtonText(Base: TextButton, NewText: string, OnSwap: (() ->
 
     if not Label then
         Label = GetTextWipeLabel(Base)
+        Mask = Label.Parent
     end
 
-    Label.Position = UDim2.fromScale(0, 0)
+    Label.Position = UDim2.fromOffset(0, 0)
+    local MaskWidth = math.max(1, (Mask and Mask.AbsoluteSize.X) or Base.AbsoluteSize.X)
 
     local WipeOut = TweenService:Create(Label, Library.ButtonTextWipeTweenInfo, {
-        Position = UDim2.fromScale(1, 0),
+        Position = UDim2.fromOffset(MaskWidth, 0),
     })
 
     ActiveTextWipes[Base] = WipeOut
@@ -2267,11 +2272,18 @@ function Library:SetButtonText(Base: TextButton, NewText: string, OnSwap: (() ->
     end
 
     Label.Text = NewText
-    Label.Position = UDim2.fromScale(-1, 0)
+
+    RunService.Heartbeat:Wait()
+    if TextWipeGeneration[Base] ~= Generation or not Base.Parent then
+        return
+    end
+
+    MaskWidth = math.max(1, (Mask and Mask.AbsoluteSize.X) or Base.AbsoluteSize.X)
+    Label.Position = UDim2.fromOffset(-MaskWidth, 0)
     Library:SafeCallback(OnSwap)
 
     local WipeIn = TweenService:Create(Label, Library.ButtonTextWipeTweenInfo, {
-        Position = UDim2.fromScale(0, 0),
+        Position = UDim2.fromOffset(0, 0),
     })
 
     ActiveTextWipes[Base] = WipeIn
@@ -7148,15 +7160,27 @@ do
             })
 
             Button.Content = Content
-            Button.Label = New("TextLabel", {
+
+            Button.TextMask = New("Frame", {
+                Name = "__TextWipeMask",
                 AutomaticSize = Enum.AutomaticSize.X,
                 BackgroundTransparency = 1,
+                ClipsDescendants = true,
                 LayoutOrder = 1,
+                Size = UDim2.fromOffset(0, 16),
+                Parent = Content,
+            })
+
+            Button.Label = New("TextLabel", {
+                Name = "__TextWipeLabel",
+                AutomaticSize = Enum.AutomaticSize.X,
+                BackgroundTransparency = 1,
+                Position = UDim2.fromScale(0, 0),
                 Size = UDim2.fromOffset(0, 16),
                 Text = Button.Text,
                 TextSize = 14,
                 TextTransparency = Button.Disabled and 0.8 or 0.4,
-                Parent = Content,
+                Parent = Button.TextMask,
             })
 
             if Button.Risky then
@@ -7219,9 +7243,17 @@ do
 
             local function RevertButtonText()
                 Library:SetButtonText(Button.Base, Button.Text, function()
-                    Button.Base.TextColor3 = Button.Risky and Library.Scheme.RedColor or Library.Scheme.FontColor
+                    local TextColor = Button.Risky and Library.Scheme.RedColor or Library.Scheme.FontColor
+                    local TextColorKey = Button.Risky and "RedColor" or "FontColor"
+
+                    Button.Label.TextColor3 = TextColor
+                    Button.Base.TextColor3 = TextColor
+
+                    if Library.Registry[Button.Label] then
+                        Library.Registry[Button.Label].TextColor3 = TextColorKey
+                    end
                     if Library.Registry[Button.Base] then
-                        Library.Registry[Button.Base].TextColor3 = Button.Risky and "RedColor" or "FontColor"
+                        Library.Registry[Button.Base].TextColor3 = TextColorKey
                     end
                 end)
             end
@@ -7245,7 +7277,6 @@ do
                         Button.IconImage.Visible = false
                     end
 
-                    Button.Label.Text = "Are you sure?"
                     Button.Label.TextColor3 = Library.Scheme.AccentColor
                     Library.Registry[Button.Label].TextColor3 = "AccentColor"
 
@@ -7260,7 +7291,12 @@ do
                 local Token = Button.DoubleClickToken
 
                 task.spawn(Library.SetButtonText, Library, Button.Base, "Are you sure?", function()
+                    Button.Label.TextColor3 = Library.Scheme.AccentColor
                     Button.Base.TextColor3 = Library.Scheme.AccentColor
+
+                    if Library.Registry[Button.Label] then
+                        Library.Registry[Button.Label].TextColor3 = "AccentColor"
+                    end
                     if Library.Registry[Button.Base] then
                         Library.Registry[Button.Base].TextColor3 = "AccentColor"
                     end
