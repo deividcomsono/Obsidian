@@ -4450,7 +4450,6 @@ do
             NoUI = Info.NoUI == true,
             Disabled = Info.Disabled == true,
 
-            NoUI = Info.NoUI == true,
             MenuVisible = Info.NoUI ~= true,
 
             Callback = Info.Callback,
@@ -4874,7 +4873,10 @@ do
 
             KeyPicker.DoClick = function(...) end --// make luau lsp shut up
             table.insert(KeyPicker.Connections, Holder.MouseButton1Click:Connect(function()
-                if KeybindsToggle.Normal or KeyPicker.Disabled then
+                if KeyPicker.Disabled then
+                    return
+                end
+
                 if KeyPicker.Mode == "Press" then
                     KeyPicker:DoClick()
                     return
