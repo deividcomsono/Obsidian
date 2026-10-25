@@ -1,3 +1,15 @@
+## 25.10.2026
+
+```diff
+[features]
++ Clicking Press mode KeyPickers in the keybind menu now fires them
++ Press mode KeyPickers in the keybind menu are shown as buttons
+
+[fixed]
++ Fixed SyncToggleState KeyPickers staying visually enabled in the keybind menu when the synced Toggle callback sets itself back to false
++ Fixed dependency boxes not properly changing its visibility
+```
+
 ## 07.10.2026
 
 ```diff
