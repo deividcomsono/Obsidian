@@ -1,5 +1,6 @@
 {
     "luau-lsp.types.definitionFiles": [
         "./.vscode/globals.d.luau"
-    ]
+    ],
+    "liveServer.settings.port": 5501
 }
