@@ -4200,7 +4200,6 @@ do
             NoUI = Info.NoUI == true,
             Disabled = Info.Disabled == true,
 
-            NoUI = Info.NoUI == true,
             MenuVisible = Info.NoUI ~= true,
 
             Callback = Info.Callback,
@@ -4523,7 +4522,7 @@ do
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 16),
                 Text = "",
-                Visible = not KeyPicker.NoUI,
+                Visible = KeyPicker.MenuVisible ~= false,
                 Parent = Library.KeybindContainer,
             })
             table.insert(
@@ -4962,7 +4961,7 @@ do
                 end
 
                 KeybindsToggle:SetText(("[%s] %s (%s)"):format(KeyPicker.DisplayValue, KeyPicker.Text, KeyPicker.Mode))
-                KeybindsToggle:SetVisibility(not KeyPicker.NoUI and KeyPicker.MenuVisible ~= false)
+                KeybindsToggle:SetVisibility(KeyPicker.MenuVisible ~= false)
                 KeybindsToggle:Display(State)
             end
         end
@@ -5129,7 +5128,13 @@ do
             end
 
             KeyPicker.NoUI = NoUI
+            KeyPicker.MenuVisible = not NoUI
             KeyPicker:Update()
+
+            local KeybindMenu = Library.KeybindMenu
+            if KeybindMenu and KeybindMenu.SettingsOpen then
+                KeybindMenu:RefreshSettings()
+            end
         end
 
         function KeyPicker:SetDisabled(Disabled: boolean)
@@ -11237,7 +11242,7 @@ function Library:CreateWindow(WindowInfo)
             end
 
             for Idx, Option in Options do
-                if Option.Type ~= "KeyPicker" or Option.NoUI == true then
+                if Option.Type ~= "KeyPicker" then
                     continue
                 end
 
