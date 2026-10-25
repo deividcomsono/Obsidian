@@ -1000,15 +1000,13 @@ local function RestoreDepbox(Box)
         end
     end
 
-    Box:Resize()
-    Box.Holder.Visible = true
-
     for _, Depbox in Box.DependencyBoxes do
-        if not Depbox.Visible then
-            continue
-        end
-
         RestoreDepbox(Depbox)
+    end
+
+    Box.Holder.Visible = Box.Visible
+    if Box.Visible then
+        Box:Resize()
     end
 end
 
@@ -1329,10 +1327,6 @@ local function ResetTab(Tab)
         end
 
         for _, Depbox in Groupbox.DependencyBoxes do
-            if not Depbox.Visible then
-                continue
-            end
-
             RestoreDepbox(Depbox)
         end
 
@@ -1353,10 +1347,6 @@ local function ResetTab(Tab)
             end
 
             for _, Depbox in SubTab.DependencyBoxes do
-                if not Depbox.Visible then
-                    continue
-                end
-
                 RestoreDepbox(Depbox)
             end
 
@@ -4912,6 +4902,7 @@ do
 
             if KeyPicker.SyncToggleState and ParentObj.Value ~= State then
                 ParentObj:SetValue(State)
+                State = KeyPicker:GetState()
             end
 
             if Info.NoUI then

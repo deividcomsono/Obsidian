@@ -1,3 +1,11 @@
+## 25.10.2026
+
+```diff
+[fixed]
++ Fixed SyncToggleState KeyPickers staying visually enabled in the keybind menu when the synced Toggle callback sets itself back to false
++ Fixed dependency boxes not properly changing its visibility
+```
+
 ## 07.10.2026
 
 ```diff
