@@ -1,3 +1,17 @@
+## 26.10.2026
+
+```diff
+[features]
++ Window:AddCustomTab()
++ AddSettings({ Width }) for certain elements (adds a gear button that opens a groupbox settings box)
++ SetCameraCFrame, GetCameraCFrame, Rotate, Zoom, LookAt, SetDistance, GetDistance, SetFieldOfView for Viewport element
++ Remove option in the KeyPicker right click menu to unbind the key
++ MaxHeight option and SetMaxHeight for Groupboxes, Tabboxes and Tabbox tabs (content becomes scrollable past the max height)
+
+[changes]
++ Slider right click input now allows typing values past Min and Max
+```
+
 ## 25.10.2026
 
 ```diff

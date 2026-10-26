@@ -451,6 +451,7 @@ local Templates = {
         Visible = true,
         Collapsed = false,
         DisableCollapsing = false,
+        MaxHeight = nil,
         PopOut = true,
         MaxPopOutHeight = nil,
         PopOutWidth = nil,
@@ -458,9 +459,13 @@ local Templates = {
     Tabbox = {
         Side = 1,
         Name = nil,
+        MaxHeight = nil,
         PopOut = true,
         MaxPopOutHeight = nil,
         PopOutWidth = nil,
+    },
+    Settings = {
+        Width = nil,
     },
     Dialog = {
         Title = "Dialog",
@@ -1311,6 +1316,7 @@ local function ApplySearchToTab(Tab, Search)
 
     return HasVisible, BestScore
 end
+
 local function ResetTab(Tab)
     if not Tab then
         return
@@ -1366,7 +1372,7 @@ function Library:UpdateSearch(SearchText)
 
     local TabsToSearch = {}
     for _, Tab in Library.Tabs do
-        if typeof(Tab) == "table" and not Tab.IsKeyTab then
+        if typeof(Tab) == "table" and not Tab.IsKeyTab and not Tab.IsCustomTab then
             table.insert(TabsToSearch, Tab)
         end
     end
@@ -3764,13 +3770,26 @@ function Library:AddContextMenu(
     function Table:Open()
         if CurrentMenu == Table then
             return
-        elseif CurrentMenu then
+        end
+
+        local NestedParent = nil
+        local Check = CurrentMenu
+        while Check do
+            if Holder:IsDescendantOf(Check.Menu) then
+                NestedParent = Check
+                break
+            end
+            Check = Check.ParentMenu
+        end
+
+        while CurrentMenu and CurrentMenu ~= NestedParent do
             CurrentMenu:Close()
         end
 
+        Table.ParentMenu = NestedParent
         CurrentMenu = Table
         Table.Active = true
-        Menu.ZIndex = 1
+        Menu.ZIndex = NestedParent and NestedParent.Menu.ZIndex + 1 or 1
 
         local TargetParent = if ParentGui == Overlay then Overlay else ParentGui
         Menu.Parent = nil
@@ -3849,7 +3868,7 @@ function Library:AddContextMenu(
                 )
             end
 
-            local HolderAllowed = Library:IsInsideFrame(Library.WindowContainer, Holder)
+            local HolderAllowed = Table.ParentMenu ~= nil or Library:IsInsideFrame(Library.WindowContainer, Holder)
             if not HolderAllowed then
                 for _, Surface in Library.DraggableElements do
                     if not (Surface and Library:IsInsideFrame(Surface, Holder)) then
@@ -3878,7 +3897,8 @@ function Library:AddContextMenu(
         end
 
         Table.Active = false
-        CurrentMenu = nil
+        CurrentMenu = Table.ParentMenu
+        Table.ParentMenu = nil
 
         if typeof(ActiveCallback) == "function" then
             Library:SafeCallback(ActiveCallback, false)
@@ -3945,7 +3965,10 @@ function Library:AddContextMenu(
             end
         end
 
-        if CurrentMenu == Table then
+        if Table.Active then
+            while CurrentMenu and CurrentMenu ~= Table do
+                CurrentMenu:Close()
+            end
             Table:Close()
         end
 
@@ -3976,13 +3999,13 @@ Library:GiveSignal(UserInputService.InputBegan:Connect(function(Input: InputObje
     if IsClickInput(Input, true) then
         local Location = Input.Position
 
-        if
+        while
             CurrentMenu
             and not (
                 Library:MouseIsOverFrame(CurrentMenu.Menu, Location)
                 or Library:MouseIsOverFrame(CurrentMenu.Holder, Location)
             )
-        then
+        do
             CurrentMenu:Close()
         end
     end
@@ -4075,7 +4098,7 @@ function Library:AddTooltip(InfoStr: string, DisabledInfoStr: string, HoverInsta
         if
             CurrentHoverInstance == HoverInstance
             or Library.ActiveDialog
-            or (CurrentMenu and Library:MouseIsOverFrame(CurrentMenu.Menu, Mouse))
+            or (CurrentMenu and not HoverInstance:IsDescendantOf(CurrentMenu.Menu) and Library:MouseIsOverFrame(CurrentMenu.Menu, Mouse))
             or (TooltipTable.Disabled and typeof(DisabledInfoStr) ~= "string")
             or (not TooltipTable.Disabled and typeof(InfoStr) ~= "string")
         then
@@ -4102,7 +4125,7 @@ function Library:AddTooltip(InfoStr: string, DisabledInfoStr: string, HoverInsta
             (Library.Toggled or Library.ActiveLoading)
             and not Library.ActiveDialog
             and Library:MouseIsOverFrame(HoverInstance, Mouse)
-            and not (CurrentMenu and Library:MouseIsOverFrame(CurrentMenu.Menu, Mouse))
+            and not (CurrentMenu and not HoverInstance:IsDescendantOf(CurrentMenu.Menu) and Library:MouseIsOverFrame(CurrentMenu.Menu, Mouse))
         do
             TooltipLabel.Position = UDim2.fromOffset(
                 Mouse.X + (Library.ShowCustomCursor and 8 or 14),
@@ -4161,7 +4184,7 @@ function Library:OnUnload(Callback)
     table.insert(Library.UnloadSignals, Callback)
 end
 
-local BaseAddons = {}
+local BaseAddons, BaseGroupbox = {}, {}
 do
     local Funcs = {}
 
@@ -4653,7 +4676,7 @@ do
 
         local ModeButtons = {}
         local ModeCorners = {}
-        local TotalModeButtons = GetTableSize(Info.Modes)
+        local TotalModeButtons = GetTableSize(Info.Modes) + 1
         local MenuCornersOnly = if TotalModeButtons == 1 then "no_left" else "no_top_left"
 
         local MenuTable
@@ -4804,6 +4827,48 @@ do
             end
 
             ModeButtons[Mode] = ModeButton
+        end
+
+        do
+            local RemoveButton = New("TextButton", {
+                BackgroundColor3 = "MainColor",
+                BackgroundTransparency = 1,
+                LayoutOrder = TotalModeButtons,
+                Size = UDim2.new(1, 0, 0, IsForButton and 21 or 19),
+                Text = "Remove",
+                TextSize = 14,
+                TextTransparency = 0.5,
+                Parent = MenuTable.Menu,
+            })
+
+            local Corner = New("UICorner", {
+                TopLeftRadius = UDim.new(0, 0),
+                TopRightRadius = UDim.new(0, 0),
+                BottomLeftRadius = UDim.new(0, Library.CornerRadius / 2),
+                BottomRightRadius = UDim.new(0, Library.CornerRadius / 2),
+                Parent = RemoveButton,
+            })
+            table.insert(Library.SpecificCorners, Corner)
+            table.insert(ModeCorners, { Corner = Corner, Style = "last" })
+
+            table.insert(KeyPicker.Connections, RemoveButton.MouseButton1Click:Connect(function()
+                MenuTable:Close()
+                KeyPicker:SetValue({ "None", KeyPicker.Mode, {} })
+            end))
+
+            table.insert(KeyPicker.Connections, RemoveButton.MouseEnter:Connect(function()
+                TweenService:Create(RemoveButton, Library.TweenInfo, {
+                    BackgroundTransparency = 0.7,
+                    TextTransparency = 0.1,
+                }):Play()
+            end))
+
+            table.insert(KeyPicker.Connections, RemoveButton.MouseLeave:Connect(function()
+                TweenService:Create(RemoveButton, Library.TweenInfo, {
+                    BackgroundTransparency = 1,
+                    TextTransparency = 0.5,
+                }):Play()
+            end))
         end
 
         local SetPickingState = function(State, SkipUpdate: boolean?)
@@ -6354,13 +6419,301 @@ do
         return self
     end
 
+    function Funcs:AddSettings(Info)
+        if self.Destroyed then return nil end
+
+        local ParentObj = self
+        if ParentObj.Settings and not ParentObj.Settings.Destroyed then
+            return ParentObj.Settings
+        end
+
+        Info = Library:Validate(Info, Templates.Settings)
+
+        local Settings = {
+            Connections = {},
+            Destroyed = false,
+
+            Elements = {},
+            DependencyBoxes = {},
+
+            Width = Info.Width,
+
+            Type = "Settings",
+            Parent = ParentObj,
+        }
+
+        local IsForButton = ParentObj.Type == "Button" or ParentObj.Type == "SubButton"
+        local IsForContainer = ParentObj.Type == "Input" or ParentObj.Type == "Dropdown"
+        local ParentContainer = IsForContainer and ParentObj.Container or nil
+
+        local Gear = New("TextButton", {
+            BackgroundColor3 = "MainColor",
+            Size = UDim2.fromOffset(18, 18),
+            Text = "",
+        })
+
+        New("UIStroke", {
+            Color = "OutlineColor",
+            Parent = Gear,
+        })
+
+        table.insert(
+            Library.Corners,
+            New("UICorner", {
+                CornerRadius = UDim.new(0, Library.CornerRadius / 2),
+                Parent = Gear,
+            })
+        )
+
+        local Content = New("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundTransparency = 1,
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(0, 16),
+            Parent = Gear,
+        })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            HorizontalAlignment = Enum.HorizontalAlignment.Center,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Padding = UDim.new(0, 6),
+            Parent = Content,
+        })
+
+        local Icon = New("ImageLabel", {
+            BackgroundTransparency = 1,
+            ImageColor3 = "FontColor",
+            ImageTransparency = 0.5,
+            Size = UDim2.fromOffset(14, 14),
+            Parent = Content,
+        })
+        if SettingsIcon then
+            Library:ApplyLucideIcon(Icon, SettingsIcon)
+        end
+
+        if IsForButton then
+            local Holder = New("Frame", {
+                BackgroundTransparency = 1,
+                LayoutOrder = ParentObj.Base.LayoutOrder,
+                Size = UDim2.new(1, 0, 0, 21),
+                Parent = ParentObj.Base.Parent,
+            })
+
+            New("UIListLayout", {
+                FillDirection = Enum.FillDirection.Horizontal,
+                Padding = UDim.new(0, 9),
+                Parent = Holder,
+            })
+
+            New("UIFlexItem", {
+                FlexMode = Enum.UIFlexMode.Fill,
+                Parent = ParentObj.Base,
+            })
+
+            ParentObj.Base.Parent = Holder
+            Gear.Parent = Holder
+
+            Gear.LayoutOrder = 2
+            Gear.Size = UDim2.new(0, 21, 1, 0)
+        elseif IsForContainer then
+            local Height = ParentContainer.Size.Y.Offset
+            ParentContainer.Size = UDim2.new(1, -(Height + 6), 0, Height)
+
+            Gear.AnchorPoint = Vector2.new(1, 1)
+            Gear.Position = UDim2.fromScale(1, 1)
+            Gear.Size = UDim2.fromOffset(Height, Height)
+            Gear.Parent = ParentObj.Holder
+        else
+            Gear.Parent = ParentObj.TextLabel
+        end
+
+        local function GetMenuSize()
+            if typeof(Settings.Width) == "number" then
+                return UDim2.fromOffset(Settings.Width, 0)
+            end
+
+            if not Library.WindowContainer then
+                return UDim2.fromOffset(200, 0)
+            end
+
+            local Width = (Library.WindowContainer.AbsoluteSize.X / Library.DPIScale - 12) / 2 - 7
+            return UDim2.fromOffset(math.floor(Width), 0)
+        end
+
+        local SettingsMenu = Library:AddContextMenu(Gear, GetMenuSize, function()
+            return { 0, Gear.AbsoluteSize.Y + 4 }
+        end, 1, function(Active: boolean)
+            if ParentObj.Disabled then
+                return
+            end
+
+            Icon.ImageTransparency = Active and 0 or 0.5
+        end)
+        Settings.Menu = SettingsMenu
+
+        local Container = New("Frame", {
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 0),
+            Parent = SettingsMenu.Menu,
+        })
+        New("UIListLayout", {
+            Padding = UDim.new(0, 8),
+            Parent = Container,
+        })
+        New("UIPadding", {
+            PaddingBottom = UDim.new(0, 7),
+            PaddingLeft = UDim.new(0, 7),
+            PaddingRight = UDim.new(0, 7),
+            PaddingTop = UDim.new(0, 7),
+            Parent = Container,
+        })
+
+        Settings.Holder = Container
+        Settings.Container = Container
+        Settings.Gear = Gear
+
+        function Settings:Resize() end
+
+        function Settings:SetWidth(Width: number?)
+            if Width ~= nil then
+                assert(typeof(Width) == "number", "Width must be a number or nil")
+                assert(Width >= 0, "Width must be higher than 0")
+            end
+
+            Settings.Width = Width
+            SettingsMenu:SetSize(GetMenuSize)
+        end
+
+        function Settings:Open()
+            if ParentObj.Disabled then
+                return
+            end
+
+            SettingsMenu:Open()
+        end
+
+        function Settings:Close()
+            if not SettingsMenu.Active then
+                return
+            end
+
+            while CurrentMenu and CurrentMenu ~= SettingsMenu do
+                CurrentMenu:Close()
+            end
+
+            SettingsMenu:Close()
+        end
+
+        function Settings:Toggle()
+            if SettingsMenu.Active then
+                Settings:Close()
+            else
+                Settings:Open()
+            end
+        end
+
+        function Settings:Update()
+            local Disabled = ParentObj.Disabled == true
+
+            Gear.Active = not Disabled
+            Gear.BackgroundColor3 = Disabled and Library.Scheme.BackgroundColor or Library.Scheme.MainColor
+            Library.Registry[Gear].BackgroundColor3 = Disabled and "BackgroundColor" or "MainColor"
+            Icon.ImageTransparency = Disabled and 0.8 or (SettingsMenu.Active and 0 or 0.5)
+
+            if Disabled then
+                Settings:Close()
+            end
+        end
+
+        table.insert(Settings.Connections, Gear.MouseButton1Click:Connect(function()
+            Settings:Toggle()
+        end))
+
+        table.insert(Settings.Connections, Gear.MouseEnter:Connect(function()
+            if ParentObj.Disabled then
+                return
+            end
+
+            TweenService:Create(Icon, Library.TweenInfo, {
+                ImageTransparency = 0,
+            }):Play()
+        end))
+
+        table.insert(Settings.Connections, Gear.MouseLeave:Connect(function()
+            if ParentObj.Disabled then
+                return
+            end
+
+            TweenService:Create(Icon, Library.TweenInfo, {
+                ImageTransparency = SettingsMenu.Active and 0 or 0.5,
+            }):Play()
+        end))
+
+        setmetatable(Settings, BaseGroupbox)
+
+        function Settings:Destroy()
+            Settings.Destroyed = true
+
+            for _, Connection in Settings.Connections do
+                Connection:Disconnect()
+            end
+
+            for Index = #Settings.Elements, 1, -1 do
+                local Element = Settings.Elements[Index]
+                if Element and Element.Destroy then
+                    Element:Destroy()
+                end
+            end
+
+            for Index = #Settings.DependencyBoxes, 1, -1 do
+                local SubDepbox = Settings.DependencyBoxes[Index]
+                if SubDepbox and SubDepbox.Destroy then
+                    SubDepbox:Destroy()
+                end
+            end
+
+            SettingsMenu:Destroy()
+
+            if ParentContainer and ParentContainer.Parent then
+                ParentContainer.Size = UDim2.new(1, 0, 0, ParentContainer.Size.Y.Offset)
+            end
+
+            if Gear then
+                Gear:Destroy()
+            end
+
+            if ParentObj.Addons then
+                local AddonIdx = table.find(ParentObj.Addons, Settings)
+                if AddonIdx then
+                    table.remove(ParentObj.Addons, AddonIdx)
+                end
+            end
+
+            if ParentObj.Settings == Settings then
+                ParentObj.Settings = nil
+            end
+        end
+
+        if not ParentObj.Addons then
+            ParentObj.Addons = {}
+        end
+
+        table.insert(ParentObj.Addons, Settings)
+        ParentObj.Settings = Settings
+
+        Settings:Update()
+
+        return Settings
+    end
+
     BaseAddons.__index = Funcs
     BaseAddons.__namecall = function(_, Key, ...)
         return Funcs[Key](...)
     end
 end
 
-local BaseGroupbox = {}
 do
     local Funcs = {}
 
@@ -6725,6 +7078,8 @@ do
             Label = nil,
             IconImage = nil,
 
+            Addons = {},
+
             Tween = nil,
             Type = "Button",
 
@@ -6779,6 +7134,7 @@ do
             local Base = New("TextButton", {
                 Active = not Button.Disabled,
                 BackgroundColor3 = Button.Disabled and "BackgroundColor" or "MainColor",
+                LayoutOrder = Button.Type == "SubButton" and 1 or 0,
                 Size = UDim2.fromScale(1, 1),
                 Text = "",
                 Visible = Button.Visible,
@@ -6829,6 +7185,7 @@ do
                 Text = Button.Text,
                 TextSize = 14,
                 TextTransparency = Button.Disabled and 0.8 or 0.4,
+                Visible = Button.Text ~= "",
                 Parent = Content,
             })
 
@@ -6891,12 +7248,14 @@ do
                     end
 
                     Button.Label.Text = "Are you sure?"
+                    Button.Label.Visible = true
                     Button.Label.TextColor3 = Library.Scheme.AccentColor
                     Library.Registry[Button.Label].TextColor3 = "AccentColor"
 
                     local Clicked = WaitForEvent(Button.Base.MouseButton1Click, 0.5)
 
                     Button.Label.Text = Button.Text
+                    Button.Label.Visible = Button.Text ~= ""
                     Button.Label.TextColor3 = Button.Risky and Library.Scheme.RedColor or Library.Scheme.FontColor
                     Library.Registry[Button.Label].TextColor3 = Button.Risky and "RedColor" or "FontColor"
 
@@ -6947,6 +7306,8 @@ do
                 Label = nil,
                 IconImage = nil,
 
+                Addons = {},
+
                 Tween = nil,
                 Type = "SubButton",
             }
@@ -6996,6 +7357,7 @@ do
             function SubButton:SetText(Text: string)
                 SubButton.Text = Text
                 SubButton.Label.Text = Text
+                SubButton.Label.Visible = Text ~= ""
             end
 
             function SubButton:SetIcon(Icon: string?)
@@ -7018,6 +7380,7 @@ do
             end
 
             SubButton.AddKeyPicker = BaseAddons.__index.AddKeyPicker
+            SubButton.AddSettings = BaseAddons.__index.AddSettings
 
             function SubButton:Destroy()
                 SubButton.Destroyed = true
@@ -7025,6 +7388,15 @@ do
                 if SubButton.Connections then
                     for _, Connection in SubButton.Connections do
                         Connection:Disconnect()
+                    end
+                end
+
+                if SubButton.Addons then
+                    for Index = #SubButton.Addons, 1, -1 do
+                        local Addon = table.remove(SubButton.Addons, Index)
+                        if Addon and Addon.Destroy then
+                            Addon:Destroy()
+                        end
                     end
                 end
 
@@ -7094,6 +7466,7 @@ do
         function Button:SetText(Text: string)
             Button.Text = Text
             Button.Label.Text = Text
+            Button.Label.Visible = Text ~= ""
         end
 
         function Button:SetIcon(Icon: string?)
@@ -7119,6 +7492,7 @@ do
         end
 
         Button.AddKeyPicker = BaseAddons.__index.AddKeyPicker
+        Button.AddSettings = BaseAddons.__index.AddSettings
 
         function Button:Destroy()
             Button.Destroyed = true
@@ -7126,6 +7500,15 @@ do
             if Button.Connections then
                 for _, Connection in Button.Connections do
                     Connection:Disconnect()
+                end
+            end
+
+            if Button.Addons then
+                for Index = #Button.Addons, 1, -1 do
+                    local Addon = table.remove(Button.Addons, Index)
+                    if Addon and Addon.Destroy then
+                        Addon:Destroy()
+                    end
                 end
             end
 
@@ -7732,6 +8115,12 @@ do
             Disabled = Info.Disabled,
             Visible = Info.Visible,
 
+            Addons = {},
+
+            Holder = nil,
+            Label = nil,
+            Container = nil,
+
             Type = "Input",
         }
 
@@ -7847,6 +8236,8 @@ do
             Box.ClearTextOnFocus = not Input.Disabled and Input.ClearTextOnFocus
             Box.TextEditable = not Input.Disabled
             Input:UpdateColors()
+
+            Library:UpdateAddons(Input)
         end
 
         function Input:SetVisible(Visible: boolean)
@@ -7911,6 +8302,10 @@ do
         Groupbox:Resize()
 
         Input.Holder = Holder
+        Input.Label = Label
+        Input.Container = Box
+
+        Input.AddSettings = BaseAddons.__index.AddSettings
         table.insert(Groupbox.Elements, Input)
 
         Input.Default = Input.Value
@@ -7928,6 +8323,15 @@ do
             if Input.Connections then
                 for _, Connection in Input.Connections do
                     Connection:Disconnect()
+                end
+            end
+
+            if Input.Addons then
+                for Index = #Input.Addons, 1, -1 do
+                    local Addon = table.remove(Input.Addons, Index)
+                    if Addon and Addon.Destroy then
+                        Addon:Destroy()
+                    end
                 end
             end
 
@@ -8240,14 +8644,6 @@ do
                     end
 
                     LastValidText = Text
-
-                    if AsNum then
-                        if AsNum > Slider.Max then
-                            InputTextBox.Text = tostring(Slider.Max)
-                        elseif AsNum < Slider.Min then
-                            InputTextBox.Text = tostring(Slider.Min)
-                        end
-                    end
                 end
             end))
 
@@ -8445,6 +8841,12 @@ do
 
             Disabled = Info.Disabled,
             Visible = Info.Visible,
+
+            Addons = {},
+
+            Holder = nil,
+            Label = nil,
+            Container = nil,
 
             Type = "Dropdown",
         }
@@ -9380,6 +9782,7 @@ do
             MenuTable:Close()
             DisplayButton.Active = not Dropdown.Disabled
             Dropdown:UpdateColors()
+            Library:UpdateAddons(Dropdown)
 
             Library:UpdateDependencyBoxes()
         end
@@ -9487,6 +9890,10 @@ do
         Groupbox:Resize()
 
         Dropdown.Holder = Holder
+        Dropdown.Label = Label
+        Dropdown.Container = DisplayContainer
+
+        Dropdown.AddSettings = BaseAddons.__index.AddSettings
         table.insert(Groupbox.Elements, Dropdown)
 
         Dropdown.Default = Defaults
@@ -9502,6 +9909,15 @@ do
             if Dropdown.Connections then
                 for _, Connection in Dropdown.Connections do
                     Connection:Disconnect()
+                end
+            end
+
+            if Dropdown.Addons then
+                for Index = #Dropdown.Addons, 1, -1 do
+                    local Addon = table.remove(Dropdown.Addons, Index)
+                    if Addon and Addon.Destroy then
+                        Addon:Destroy()
+                    end
                 end
             end
 
@@ -9588,6 +10004,29 @@ do
             local ModelPosition = (Viewport.Object :: PVInstance):GetPivot().Position
 
             Viewport.Camera.CFrame = CFrame.new(ModelPosition + Vector3.new(0, MaxExtent / 2, CameraDistance), ModelPosition)
+        end
+
+        local function GetPivotPosition()
+            return (Viewport.Object :: PVInstance):GetPivot().Position
+        end
+
+        local function OrbitCamera(Yaw: number, Pitch: number)
+            local Position = GetPivotPosition()
+            local Camera = Viewport.Camera
+
+            local RotationY = CFrame.fromAxisAngle(Vector3.new(0, 1, 0), Yaw)
+            Camera.CFrame = CFrame.new(Position) * RotationY * CFrame.new(-Position) * Camera.CFrame
+
+            local RotationX = CFrame.fromAxisAngle(Camera.CFrame.RightVector, Pitch)
+            local PitchedCFrame = CFrame.new(Position) * RotationX * CFrame.new(-Position) * Camera.CFrame
+
+            if PitchedCFrame.UpVector.Y > 0.1 then
+                Camera.CFrame = PitchedCFrame
+            end
+        end
+
+        local function ZoomCamera(Amount: number)
+            Viewport.Camera.CFrame += Viewport.Camera.CFrame.LookVector * Amount
         end
 
         local Holder = New("Frame", {
@@ -9684,18 +10123,7 @@ do
                 local MouseDelta = input.Position - LastMousePos
                 LastMousePos = input.Position
 
-                local Position = (Viewport.Object :: PVInstance):GetPivot().Position
-                local Camera = Viewport.Camera
-
-                local RotationY = CFrame.fromAxisAngle(Vector3.new(0, 1, 0), -MouseDelta.X * 0.01)
-                Camera.CFrame = CFrame.new(Position) * RotationY * CFrame.new(-Position) * Camera.CFrame
-
-                local RotationX = CFrame.fromAxisAngle(Camera.CFrame.RightVector, -MouseDelta.Y * 0.01)
-                local PitchedCFrame = CFrame.new(Position) * RotationX * CFrame.new(-Position) * Camera.CFrame
-
-                if PitchedCFrame.UpVector.Y > 0.1 then
-                    Camera.CFrame = PitchedCFrame
-                end
+                OrbitCamera(-MouseDelta.X * 0.01, -MouseDelta.Y * 0.01)
             end
         end))
 
@@ -9705,8 +10133,7 @@ do
             end
 
             if input.UserInputType == Enum.UserInputType.MouseWheel then
-                local ZoomAmount = input.Position.Z * 2
-                Viewport.Camera.CFrame += Viewport.Camera.CFrame.LookVector * ZoomAmount
+                ZoomCamera(input.Position.Z * 2)
             end
         end))
 
@@ -9727,7 +10154,7 @@ do
                 local currentDist = (touchPositions[1] - touchPositions[2]).Magnitude
                 local delta = (currentDist - LastPinchDist) * 0.1
                 LastPinchDist = currentDist
-                Viewport.Camera.CFrame += Viewport.Camera.CFrame.LookVector * delta
+                ZoomCamera(delta)
             elseif state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
                 Pinching = false
             end
@@ -9778,6 +10205,65 @@ do
 
             Viewport.Camera = Camera
             ViewportFrame.CurrentCamera = Camera
+        end
+
+        function Viewport:SetCameraCFrame(NewCFrame: CFrame)
+            assert(typeof(NewCFrame) == "CFrame", "CFrame must be a valid CFrame.")
+
+            Viewport.Camera.CFrame = NewCFrame
+        end
+
+        function Viewport:GetCameraCFrame(): CFrame
+            return Viewport.Camera.CFrame
+        end
+
+        function Viewport:Rotate(Yaw: number, Pitch: number?)
+            if not Viewport.Object then
+                return
+            end
+
+            OrbitCamera(math.rad(Yaw or 0), math.rad(Pitch or 0))
+        end
+
+        function Viewport:Zoom(Amount: number)
+            assert(typeof(Amount) == "number", "Amount must be a number.")
+
+            ZoomCamera(Amount)
+        end
+
+        function Viewport:LookAt(Target: Vector3?)
+            if not Target and not Viewport.Object then
+                return
+            end
+
+            Viewport.Camera.CFrame = CFrame.lookAt(Viewport.Camera.CFrame.Position, Target or GetPivotPosition())
+        end
+
+        function Viewport:SetDistance(Distance: number)
+            assert(typeof(Distance) == "number" and Distance > 0, "Distance must be greater than 0.")
+            if not Viewport.Object then
+                return
+            end
+
+            local Position = GetPivotPosition()
+            local Offset = Viewport.Camera.CFrame.Position - Position
+            local Direction = Offset.Magnitude > 0 and Offset.Unit or -Viewport.Camera.CFrame.LookVector
+
+            Viewport.Camera.CFrame = CFrame.lookAt(Position + Direction * Distance, Position)
+        end
+
+        function Viewport:GetDistance(): number
+            if not Viewport.Object then
+                return 0
+            end
+
+            return (Viewport.Camera.CFrame.Position - GetPivotPosition()).Magnitude
+        end
+
+        function Viewport:SetFieldOfView(FieldOfView: number)
+            assert(typeof(FieldOfView) == "number", "FieldOfView must be a number.")
+
+            Viewport.Camera.FieldOfView = math.clamp(FieldOfView, 1, 120)
         end
 
         function Viewport:SetInteractive(Interactive: boolean)
@@ -12566,6 +13052,7 @@ function Library:CreateWindow(WindowInfo)
 
                 Visible = true,
                 ActiveTab = nil,
+                MaxHeight = Info.MaxHeight,
 
                 BoxHolder = BoxHolder,
                 Holder = TabboxHolder,
@@ -12586,7 +13073,17 @@ function Library:CreateWindow(WindowInfo)
                 end
             end
 
-            function Tabbox:AddTab(Name, IconName)
+            function Tabbox:SetMaxHeight(MaxHeight: number?)
+                if MaxHeight ~= nil then
+                    assert(typeof(MaxHeight) == "number", "MaxHeight must be a number or nil")
+                    assert(MaxHeight > 0, "MaxHeight must be higher than 0")
+                end
+
+                Tabbox.MaxHeight = MaxHeight
+                Tabbox:Resize()
+            end
+
+            function Tabbox:AddTab(Name, IconName, MaxHeight)
                 TotalTabs = TotalTabs + 1
                 local TabIndex = TotalTabs
 
@@ -12689,6 +13186,7 @@ function Library:CreateWindow(WindowInfo)
                 local Tab = {
                     Type = "SubTab",
                     Name = Name,
+                    MaxHeight = MaxHeight,
 
                     Connections = {},
                     Destroyed = false,
@@ -12749,8 +13247,11 @@ function Library:CreateWindow(WindowInfo)
 
                     local ContentSize = (List.AbsoluteContentSize.Y / Library.DPIScale) + 14
                     local FrameSize = ContentSize
+                    local TabMaxHeight = Tab.MaxHeight or Tabbox.MaxHeight
                     if Tabbox.PoppedOut then
                         FrameSize = math.min(ContentSize, GetPopOutBodyMaxHeight(Tabbox, 35))
+                    elseif typeof(TabMaxHeight) == "number" then
+                        FrameSize = math.min(ContentSize, math.max(TabMaxHeight - 35, 0))
                     end
 
                     local NeedsScroll = ContentSize > FrameSize + 1
@@ -12761,6 +13262,16 @@ function Library:CreateWindow(WindowInfo)
                     if IsNested then
                         ParentObj:Resize()
                     end
+                end
+
+                function Tab:SetMaxHeight(NewMaxHeight: number?)
+                    if NewMaxHeight ~= nil then
+                        assert(typeof(NewMaxHeight) == "number", "MaxHeight must be a number or nil")
+                        assert(NewMaxHeight > 0, "MaxHeight must be higher than 0")
+                    end
+
+                    Tab.MaxHeight = NewMaxHeight
+                    Tab:Resize()
                 end
 
                 function Tab:UpdateCorners()
@@ -13071,6 +13582,7 @@ function Library:CreateWindow(WindowInfo)
 
                 Visible = true,
                 Collapsed = false,
+                MaxHeight = Info.MaxHeight,
 
                 BoxHolder = BoxHolder,
                 Holder = GroupboxHolder,
@@ -13102,6 +13614,8 @@ function Library:CreateWindow(WindowInfo)
                 local ContainerSize = ContentSize
                 if Groupbox.PoppedOut then
                     ContainerSize = math.min(ContainerSize, GetPopOutBodyMaxHeight(Groupbox, TopSize + 1))
+                elseif typeof(Groupbox.MaxHeight) == "number" then
+                    ContainerSize = math.min(ContainerSize, math.max(Groupbox.MaxHeight - TopSize - 1, 0))
                 end
 
                 local NeedsScroll = ContentSize > ContainerSize + 1
@@ -13191,6 +13705,16 @@ function Library:CreateWindow(WindowInfo)
             function Groupbox:ToggleCollapsed()
                 if Info.DisableCollapsing == true then return end
                 Groupbox:SetCollapsed(not Groupbox.Collapsed)
+            end
+
+            function Groupbox:SetMaxHeight(MaxHeight: number?)
+                if MaxHeight ~= nil then
+                    assert(typeof(MaxHeight) == "number", "MaxHeight must be a number or nil")
+                    assert(MaxHeight > 0, "MaxHeight must be higher than 0")
+                end
+
+                Groupbox.MaxHeight = MaxHeight
+                Groupbox:Resize()
             end
 
             Library:MakeBoxPopOut(Groupbox, {
@@ -13899,6 +14423,317 @@ function Library:CreateWindow(WindowInfo)
         Library.Tabs[Name] = Tab
 
         return Tab
+    end
+
+    function Window:AddCustomTab(...)
+        local Name = nil
+        local Icon = nil
+        local Description = nil
+        local Tooltip = nil
+        local Order = nil
+
+        if select("#", ...) == 1 and typeof(...) == "table" then
+            local Info = select(1, ...)
+            Name = Info.Name or "Tab"
+            Icon = Info.Icon
+            Description = Info.Description
+            Tooltip = Info.Tooltip
+            Order = Info.Order
+        else
+            Name = select(1, ...) or "Tab"
+            Icon = select(2, ...)
+            Description = select(3, ...)
+            Order = select(4, ...)
+        end
+
+        if not tonumber(Order) then
+            Order = #Tabs:GetChildren()
+        end
+
+        local TabButton: TextButton
+        local TabIndicator
+        local TabLabel
+        local TabIcon
+
+        local TabContainer
+
+        Icon = Library:GetCustomIcon(Icon)
+        do
+            TabButton = New("TextButton", {
+                BackgroundColor3 = "MainColor",
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 40),
+                Text = "",
+                LayoutOrder = Order,
+                Parent = Tabs,
+            })
+            New("UICorner", {
+                CornerRadius = UDim.new(0, TabButtonsStyle.CornerRadius),
+                Parent = TabButton,
+            })
+
+            if TabButtonsStyle.Indicator then
+                TabIndicator = New("Frame", {
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    BackgroundColor3 = "AccentColor",
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, -2, 0.5, 0),
+                    Size = UDim2.fromOffset(TabButtonsStyle.IndicatorWidth, TabButtonsStyle.IndicatorHeight),
+                    Parent = TabButton,
+                })
+
+                New("UICorner", {
+                    CornerRadius = UDim.new(1, 0),
+                    Parent = TabIndicator,
+                })
+            end
+
+            local ButtonHolder = New("Frame", {
+                BackgroundTransparency = 1,
+                Size = UDim2.fromScale(1, 1),
+                Parent = TabButton,
+            })
+            local ButtonPadding = New("UIPadding", {
+                PaddingBottom = UDim.new(0, IsCompact and 6 or 11),
+                PaddingLeft = UDim.new(0, IsCompact and 6 or 12),
+                PaddingRight = UDim.new(0, IsCompact and 6 or 12),
+                PaddingTop = UDim.new(0, IsCompact and 6 or 11),
+                Parent = ButtonHolder,
+            })
+
+            TabLabel = New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(30, 0),
+                Size = UDim2.new(1, -30, 1, 0),
+                Text = Name,
+                TextSize = 16,
+                TextTransparency = 0.5,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Visible = not IsCompact,
+                Parent = ButtonHolder,
+            })
+
+            if Icon then
+                TabIcon = New("ImageLabel", {
+                    ImageColor3 = Icon.Custom and "WhiteColor" or "AccentColor",
+                    ImageTransparency = 0.5,
+                    ScaleType = Enum.ScaleType.Fit,
+                    Size = UDim2.fromScale(1, 1),
+                    SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
+                    Parent = ButtonHolder,
+                })
+                Library:ApplyLucideIcon(TabIcon, Icon)
+            end
+
+            table.insert(Library.TabButtons, {
+                Label = TabLabel,
+                Padding = ButtonPadding,
+                Icon = TabIcon,
+            })
+
+            --// Tab Container \\--
+            TabContainer = New("Frame", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromScale(0, 0),
+                Size = UDim2.fromScale(1, 1),
+                Visible = false,
+                Parent = Container,
+            })
+        end
+
+        --// Tab Table \\--
+        local Tab = {
+            Name = Name,
+            Description = Description,
+            IsCustomTab = true,
+
+            Tooltip = Tooltip,
+            TooltipTable = nil,
+
+            Connections = {},
+            Destroyed = false,
+
+            Window = Window,
+            Button = TabButton,
+            Container = TabContainer,
+            Sides = {},
+
+            Groupboxes = {},
+            Tabboxes = {},
+            DependencyGroupboxes = {},
+        }
+
+        function Tab:RefreshSides() end
+        function Tab:Resize() end
+        function Tab:UpdateCorners() end
+
+        function Tab:Hover(Hovering)
+            if Library.ActiveTab == Tab then
+                return
+            end
+
+            TweenService:Create(TabLabel, Library.TweenInfo, {
+                TextTransparency = Hovering and 0.25 or 0.5,
+            }):Play()
+            if TabIcon then
+                TweenService:Create(TabIcon, Library.TweenInfo, {
+                    ImageTransparency = Hovering and 0.25 or 0.5,
+                }):Play()
+            end
+        end
+
+        function Tab:Show()
+            if Library.ActiveTab == Tab then
+                return
+            end
+
+            if Library.ActiveTab then
+                Library.ActiveTab:Hide()
+            end
+
+            TweenService:Create(TabButton, Library.TweenInfo, {
+                BackgroundTransparency = 0,
+            }):Play()
+
+            if TabIndicator then
+                TweenService:Create(TabIndicator, Library.TweenInfo, {
+                    BackgroundTransparency = 0,
+                }):Play()
+            end
+
+            TweenService:Create(TabLabel, Library.TweenInfo, {
+                TextTransparency = 0,
+            }):Play()
+
+            if TabIcon then
+                TweenService:Create(TabIcon, Library.TweenInfo, {
+                    ImageTransparency = 0,
+                }):Play()
+            end
+
+            Library:PlayTabAnimation(Tab, true)
+
+            if Description then
+                Window:ShowTabInfo(Name, Description)
+            end
+
+            Library.ActiveTab = Tab
+
+            if Library.Searching then
+                Library:UpdateSearch(Library.SearchText)
+            end
+        end
+
+        function Tab:Hide()
+            TweenService:Create(TabButton, Library.TweenInfo, {
+                BackgroundTransparency = 1,
+            }):Play()
+
+            if TabIndicator then
+                TweenService:Create(TabIndicator, Library.TweenInfo, {
+                    BackgroundTransparency = 1,
+                }):Play()
+            end
+
+            TweenService:Create(TabLabel, Library.TweenInfo, {
+                TextTransparency = 0.5,
+            }):Play()
+
+            if TabIcon then
+                TweenService:Create(TabIcon, Library.TweenInfo, {
+                    ImageTransparency = 0.5,
+                }):Play()
+            end
+
+            Library:PlayTabAnimation(Tab, false)
+            Window:HideTabInfo()
+
+            Library.PreviousTab = Tab
+            Library.ActiveTab = nil
+        end
+
+        function Tab:SetVisible(Visible: boolean)
+            TabButton.Visible = Visible
+
+            if not Visible and Library.ActiveTab == Tab then
+                Tab:Hide()
+            end
+        end
+
+        function Tab:SetOrder(NewOrder: number)
+            Order = NewOrder
+            TabButton.LayoutOrder = Order
+        end
+
+        function Tab:SetTooltip(Text: string?)
+            Tab.Tooltip = Text
+
+            if Tab.TooltipTable then
+                Tab.TooltipTable:Destroy()
+                Tab.TooltipTable = nil
+            end
+
+            if typeof(Text) == "string" then
+                Tab.TooltipTable = Library:AddTooltip(Text, nil, TabButton)
+            end
+        end
+
+        function Tab:Destroy()
+            Tab.Destroyed = true
+
+            if Tab.Connections then
+                for _, Connection in Tab.Connections do
+                    Connection:Disconnect()
+                end
+            end
+
+            if Tab.TooltipTable then
+                Tab.TooltipTable:Destroy()
+                Tab.TooltipTable = nil
+            end
+
+            if Library.ActiveTab == Tab then
+                Tab:Hide()
+            end
+
+            if TabContainer then
+                TabContainer:Destroy()
+            end
+
+            if TabButton then
+                for Index, Entry in Library.TabButtons do
+                    if typeof(Entry) == "table" and Entry.Button == TabButton then
+                        table.remove(Library.TabButtons, Index)
+                        break
+                    end
+                end
+
+                TabButton:Destroy()
+            end
+
+            Library.Tabs[Name] = nil
+        end
+
+        --// Execution \\--
+        if typeof(Tooltip) == "string" then
+            Tab.TooltipTable = Library:AddTooltip(Tooltip, nil, TabButton)
+        end
+
+        if not Library.ActiveTab then
+            Tab:Show()
+        end
+
+        table.insert(Tab.Connections, TabButton.MouseEnter:Connect(function()
+            Tab:Hover(true)
+        end))
+        table.insert(Tab.Connections, TabButton.MouseLeave:Connect(function()
+            Tab:Hover(false)
+        end))
+        table.insert(Tab.Connections, TabButton.MouseButton1Click:Connect(Tab.Show))
+
+        Library.Tabs[Name] = Tab
+
+        return TabContainer, Tab
     end
 
     function Window:AddDialog(Idx, Info)
