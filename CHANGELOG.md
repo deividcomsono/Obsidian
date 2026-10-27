@@ -15,7 +15,6 @@
 + Library:ApplyLucideIcon is deprecated, use Library:CreateIcon or Library:ApplyIcon instead
 
 [fixed]
-+ Fixed font icons being offset or drifting from their position
 + Fixed font icons rendering a pixel smaller and visually off center
 ```
 
