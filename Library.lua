@@ -1036,11 +1036,6 @@ local function RegisterPopOutClone(Source: Instance, Clone: Instance)
         if next(CloneProps) then
             Library.Registry[Clone] = CloneProps
         end
-
-        local FontLabel = Clone:FindFirstChild("__IconFont")
-        if FontLabel and FontLabel:IsA("TextLabel") and SourceProps.ImageColor3 then
-            Library.Registry[FontLabel] = { TextColor3 = SourceProps.ImageColor3 }
-        end
     end
 
     local SourceChildren = Source:GetChildren()
@@ -1057,12 +1052,6 @@ local function DimPopOutClone(Root: GuiObject)
 
     for _, Descendant in Root:QueryDescendants("ImageLabel, ImageButton") do
         Descendant.ImageTransparency = math.max(Descendant.ImageTransparency, 0.45)
-
-        local FontLabel = Descendant:FindFirstChild("__IconFont")
-        if FontLabel and FontLabel:IsA("TextLabel") then
-            FontLabel.TextColor3 = Descendant.ImageColor3
-            FontLabel.TextTransparency = math.max(FontLabel.TextTransparency, 0.45)
-        end
     end
 
     for _, Descendant in Root:QueryDescendants("GuiButton") do
@@ -1510,41 +1499,24 @@ type Icon = {
     ImageRectSize: Vector2,
     FontFace: Font?,
     Text: string?,
+    Custom: boolean?,
 }
 
 type IconModule = {
     Icons: { string },
     GetAsset: (Name: string) -> Icon?,
-    GetFontAsset: ((Name: string) -> { FontFace: Font, Text: string }?)?,
 }
 
 local FetchIcons = false
 local Icons: IconModule | nil = nil
 
-function Library:GetIcon(IconName: string)
+function Library:GetIcon(IconName: string): Icon?
     if not FetchIcons or not Icons then
-        return
+        return nil
     end
 
     local Success, Icon = pcall(Icons.GetAsset, IconName)
-    if not Success or not Icon then
-        return
-    end
-
-    local FontSuccess, FontIcon = false, nil
-    if Icons.GetFontAsset then
-        FontSuccess, FontIcon = pcall(Icons.GetFontAsset, IconName)
-    end
-
-    if FontSuccess and FontIcon and FontIcon.FontFace and FontIcon.Text then
-        local Merged = table.clone(Icon)
-        Merged.FontFace = FontIcon.FontFace
-        Merged.Text = FontIcon.Text
-
-        return Merged
-    end
-
-    return Icon
+    return if Success then Icon else nil
 end
 
 function Library:GetCustomIcon(IconName: string): any
@@ -1640,93 +1612,113 @@ local function New(ClassName: string, Properties: { [string]: any }): any
     return Instance
 end
 
-function Library:ApplyLucideIcon(ImageGui: any, Icon: any, Rotation: number?)
-    if not ImageGui or not Icon then
-        return
+--// Icon Instances \\--
+local IconTextProperties = { ImageColor3 = "TextColor3", ImageTransparency = "TextTransparency" }
+local IconSharedProperties = { "Name", "AnchorPoint", "Position", "Size", "SizeConstraint", "LayoutOrder", "ZIndex", "Visible", "Rotation", "ImageColor3", "ImageTransparency" }
+
+local function IconProperties(ClassName: string, Properties: { [string]: any }): { [string]: any }
+    if ClassName ~= "TextLabel" and ClassName ~= "TextButton" then
+        return Properties
     end
 
-    if not (ImageGui:IsA("ImageLabel") or ImageGui:IsA("ImageButton")) then
-        return
+    local Mapped: { [string]: any } = {}
+    for Property, Value in Properties do
+        Mapped[IconTextProperties[Property] or Property] = Value
     end
+
+    return Mapped
+end
+
+local function ImageContent(Icon: Icon?): { [string]: any }
+    return {
+        Image = Icon and Icon.Url or "",
+        ImageRectOffset = Icon and Icon.ImageRectOffset or Vector2.zero,
+        ImageRectSize = Icon and Icon.ImageRectSize or Vector2.zero,
+    }
+end
+
+local function SetIconProperties(Target: GuiObject, Properties: { [string]: any })
+    FillInstance(IconProperties(Target.ClassName, Properties), Target)
+end
+
+local function TweenIcon(Target: GuiObject, Properties: { [string]: any }): Tween
+    local Tween = TweenService:Create(Target, Library.TweenInfo, IconProperties(Target.ClassName, Properties))
+    Tween:Play()
+
+    return Tween
+end
+
+function Library:CreateIcon(Icon: Icon?, Properties: { [string]: any }?, IsButton: boolean?): GuiObject
+    local IsFont = Icon ~= nil and Icon.FontFace ~= nil
+    local ClassName = (if IsFont then "Text" else "Image") .. (if IsButton then "Button" else "Label")
+
+    local Merged: { [string]: any } = {
+        BackgroundTransparency = 1,
+        ImageColor3 = Color3.new(1, 1, 1),
+    }
+
+    if not IsFont then
+        Merged.ScaleType = Enum.ScaleType.Fit
+    end
+
+    if Properties then
+        for Property, Value in Properties do
+            Merged[Property] = Value
+        end
+    end
+
+    return Library:ApplyIcon(New(ClassName, IconProperties(ClassName, Merged)), Icon)
+end
+
+function Library:ApplyIcon(Target: GuiObject, Icon: Icon?): GuiObject
+    local IsFont = Icon ~= nil and Icon.FontFace ~= nil
+    local IsText = Target:IsA("TextLabel") or Target:IsA("TextButton")
+
+    if IsFont ~= IsText then
+        local Theme = Library.Registry[Target] or {}
+        local Properties: { [string]: any } = { Parent = Target.Parent }
+
+        for _, Property in IconSharedProperties do
+            local Source = if IsText then IconTextProperties[Property] or Property else Property
+            Properties[Property] = if Theme[Source] ~= nil then Theme[Source] else (Target :: any)[Source]
+        end
+
+        local Replacement = Library:CreateIcon(Icon, Properties, Target:IsA("GuiButton"))
+        Library:RemoveFromRegistry(Target)
+        Target:Destroy()
+
+        return Replacement
+    end
+
+    if IsFont and Icon then
+        FillInstance({
+            FontFace = Icon.FontFace,
+            RichText = false,
+            Text = Icon.Text,
+            TextScaled = true,
+        }, Target)
+
+        if not Target:FindFirstChild("IconPadding") then
+            New("UIPadding", {
+                Name = "IconPadding",
+                PaddingLeft = UDim.new(0, -1),
+                PaddingRight = UDim.new(0, -1),
+                Parent = Target,
+            })
+        end
+    else
+        FillInstance(ImageContent(Icon), Target)
+    end
+
+    return Target
+end
+
+--// DEPRECATED
+function Library:ApplyLucideIcon(ImageGui: ImageLabel | ImageButton, Icon: Icon, Rotation: number?)
+    warn("Obsidian:ApplyLucideIcon is deprecated, please use Obsidian:CreateIcon or Obsidian:ApplyIcon instead.")
 
     ImageGui.Rotation = Rotation or ImageGui.Rotation
-
-    local FontLabel = ImageGui:FindFirstChild("__IconFont")
-    if Icon.FontFace and Icon.Text then
-        if not FontLabel then
-            FontLabel = New("TextLabel", {
-                Name = "__IconFont",
-                BackgroundTransparency = 1,
-                Size = UDim2.fromScale(1, 1),
-                RichText = false,
-                TextScaled = false,
-                TextXAlignment = Enum.TextXAlignment.Center,
-                TextYAlignment = Enum.TextYAlignment.Center,
-                Parent = ImageGui,
-            })
-            Library:RemoveFromRegistry(FontLabel)
-
-            local SyncLabel = function()
-                if not FontLabel.Parent then
-                    return
-                end
-
-                FontLabel.TextColor3 = ImageGui.ImageColor3
-                FontLabel.TextTransparency = ImageGui.ImageTransparency
-            end
-
-            local SyncTextSize = function()
-                if not FontLabel.Parent then
-                    return
-                end
-
-                local Absolute = ImageGui.AbsoluteSize
-                local Side = math.min(Absolute.X, Absolute.Y) / Library.DPIScale
-                FontLabel.TextSize = math.max(1, math.floor(Side + 0.5))
-            end
-
-            SyncLabel()
-            SyncTextSize()
-
-            ImageGui:GetPropertyChangedSignal("ImageColor3"):Connect(SyncLabel)
-            ImageGui:GetPropertyChangedSignal("ImageTransparency"):Connect(SyncLabel)
-            ImageGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(SyncTextSize)
-        else
-            Library:RemoveFromRegistry(FontLabel)
-        end
-
-        FontLabel.FontFace = Icon.FontFace
-        FontLabel.Text = Icon.Text
-        FontLabel.TextScaled = false
-        FontLabel.TextWrapped = false
-        FontLabel.TextXAlignment = Enum.TextXAlignment.Center
-        FontLabel.TextYAlignment = Enum.TextYAlignment.Center
-        FontLabel.TextColor3 = ImageGui.ImageColor3
-        FontLabel.TextTransparency = ImageGui.ImageTransparency
-
-        local Absolute = ImageGui.AbsoluteSize
-        local Side = math.min(Absolute.X, Absolute.Y) / Library.DPIScale
-        if Side > 0 then
-            FontLabel.TextSize = math.max(1, math.floor(Side + 0.5))
-        else
-            local OffsetSize = ImageGui.Size
-            FontLabel.TextSize = math.max(1, math.floor(math.min(OffsetSize.X.Offset, OffsetSize.Y.Offset) + 0.5))
-        end
-
-        FontLabel.Visible = true
-        ImageGui.ClipsDescendants = true
-        ImageGui.Image = ""
-        return
-    end
-
-    if FontLabel then
-        Library:RemoveFromRegistry(FontLabel)
-        FontLabel:Destroy()
-    end
-
-    ImageGui.Image = Icon.Url or ImageGui.Image
-    ImageGui.ImageRectOffset = Icon.ImageRectOffset or ImageGui.ImageRectOffset
-    ImageGui.ImageRectSize = Icon.ImageRectSize or ImageGui.ImageRectSize
+    FillInstance(ImageContent(Icon), ImageGui)
 end
 
 --// Main Instances \\-
@@ -1883,9 +1875,8 @@ do
         Parent = CursorCross,
     }))
 
-    CursorCustomImage = New("ImageLabel", {
+    CursorCustomImage = Library:CreateIcon(nil, {
         AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundTransparency = 1,
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromOffset(20, 20),
         ZIndex = 3,
@@ -1975,8 +1966,8 @@ end
 function Library.Cursor:ResetIcon()
     CursorCross.Visible = true
     CursorCustomImage.Visible = false
-    CursorCustomImage.ImageColor3 = Color3.new(1, 1, 1)
     CursorCustomImage.Size = UDim2.fromOffset(20, 20)
+    SetIconProperties(CursorCustomImage, { ImageColor3 = Color3.new(1, 1, 1) })
 end
 
 function Library.Cursor:ResetCursor()
@@ -2002,13 +1993,13 @@ function Library.Cursor:ChangeIcon(ImageId: string)
     assert(Icon, "Image must be a valid Roblox asset or a valid URL or a valid lucide icon.")
 
     CursorCross.Visible = false
+    CursorCustomImage = Library:ApplyIcon(CursorCustomImage, Icon)
     CursorCustomImage.Visible = true
-    Library:ApplyLucideIcon(CursorCustomImage, Icon)
 end
 
 function Library.Cursor:ChangeIconColor(Color: Color3)
     assert(typeof(Color) == "Color3", "Color3 expected.")
-    CursorCustomImage.ImageColor3 = Color
+    SetIconProperties(CursorCustomImage, { ImageColor3 = Color })
 end
 
 function Library.Cursor:ChangeIconSize(Size: UDim2)
@@ -2804,17 +2795,14 @@ function Library:MakeBoxPopOut(Box: any, Options: {
         DimPopOutClone(PlaceholderHeader)
 
         if PopOutIcon then
-            local PlaceholderDockIcon = New("ImageButton", {
-                AutoButtonColor = false,
+            local PlaceholderDockIcon = Library:CreateIcon(PopOutIcon, {
                 AnchorPoint = Vector2.new(1, 0.5),
-                BackgroundTransparency = 1,
                 ImageColor3 = "WhiteColor",
                 Position = UDim2.new(1, -8, 0.5, 0),
                 Size = UDim2.fromOffset(22, 22),
                 ZIndex = PlaceholderHeader.ZIndex + 1,
                 Parent = Frame,
-            })
-            Library:ApplyLucideIcon(PlaceholderDockIcon, PopOutIcon)
+            }, true)
             PlaceholderDockIcon.MouseButton1Click:Connect(function()
                 Box:SetPoppedOut(false)
             end)
@@ -3267,15 +3255,12 @@ function Library:AddDraggableLabel(...)
             local CustomIcon = Library:GetCustomIcon(Icon)
             assert(CustomIcon, "Icon must be a valid Roblox asset or a valid URL or a valid lucide icon.")
 
-            IconImage = IconImage or New("ImageLabel", {
-                BackgroundTransparency = 1,
+            IconImage = if IconImage then Library:ApplyIcon(IconImage, CustomIcon) else Library:CreateIcon(CustomIcon, {
                 ImageColor3 = "FontColor",
                 Size = UDim2.fromOffset(16, 16),
                 ZIndex = 2,
                 Parent = Label,
             })
-
-            Library:ApplyLucideIcon(IconImage, CustomIcon)
         end
 
         if IconImage then IconImage.Visible = IsNotEmpty end
@@ -3546,8 +3531,7 @@ function Library:AddDraggableImageButton(...)
         Parent = Floats,
     })
 
-    local IconImage = New("ImageLabel", {
-        BackgroundTransparency = 1,
+    local IconImage = Library:CreateIcon(nil, {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromOffset(IconSize, IconSize),
@@ -3593,7 +3577,7 @@ function Library:AddDraggableImageButton(...)
         local CustomIcon = Library:GetCustomIcon(Icon)
         assert(CustomIcon, "Icon must be a valid Roblox asset or a valid URL or a valid lucide icon.")
 
-        Library:ApplyLucideIcon(IconImage, CustomIcon)
+        IconImage = Library:ApplyIcon(IconImage, CustomIcon)
     end
 
     function DraggableImageButton:SetIconSize(NewSize: number)
@@ -4592,26 +4576,23 @@ do
                 Parent = Checkbox,
             })
 
-            local CheckImage = New("ImageLabel", {
+            local CheckImage = Library:CreateIcon(CheckIcon, {
                 ImageColor3 = "FontColor",
                 ImageTransparency = 1,
                 Position = UDim2.fromOffset(2, 2),
                 Size = UDim2.new(1, -4, 1, -4),
                 Parent = Checkbox,
             })
-            if CheckIcon then
-                Library:ApplyLucideIcon(CheckImage, CheckIcon)
-            end
 
             function KeybindsToggle:Display(State)
                 if KeyPicker.Mode == "Press" then
                     Label.TextTransparency = 0.4
-                    CheckImage.ImageTransparency = 1
+                    SetIconProperties(CheckImage, { ImageTransparency = 1 })
                     return
                 end
 
                 Label.TextTransparency = State and 0 or 0.5
-                CheckImage.ImageTransparency = State and 0 or 1
+                SetIconProperties(CheckImage, { ImageTransparency = State and 0 or 1 })
             end
 
             function KeybindsToggle:SetText(Text)
@@ -5868,16 +5849,13 @@ do
                 Text = "",
                 Parent = FooterBackground,
             })
-            local ResizeGrabberIcon = New("ImageLabel", {
+            Library:CreateIcon(ResizeIcon, {
                 ImageColor3 = "FontColor",
                 ImageTransparency = 0.5,
                 Position = UDim2.fromOffset(2, 2),
                 Size = UDim2.new(1, -4, 1, -4),
                 Parent = ResizeGrabber,
             })
-            if ResizeIcon then
-                Library:ApplyLucideIcon(ResizeGrabberIcon, ResizeIcon)
-            end
 
             table.insert(ColorPicker.Connections, ResizeGrabber.InputBegan:Connect(function(Input: InputObject)
                 Library.CantDragForced = true
@@ -6481,16 +6459,12 @@ do
             Parent = Content,
         })
 
-        local Icon = New("ImageLabel", {
-            BackgroundTransparency = 1,
+        local Icon = Library:CreateIcon(SettingsIcon, {
             ImageColor3 = "FontColor",
             ImageTransparency = 0.5,
             Size = UDim2.fromOffset(14, 14),
             Parent = Content,
         })
-        if SettingsIcon then
-            Library:ApplyLucideIcon(Icon, SettingsIcon)
-        end
 
         if IsForButton then
             local Holder = New("Frame", {
@@ -6548,7 +6522,7 @@ do
                 return
             end
 
-            Icon.ImageTransparency = Active and 0 or 0.5
+            SetIconProperties(Icon, { ImageTransparency = Active and 0 or 0.5 })
         end)
         Settings.Menu = SettingsMenu
 
@@ -6620,7 +6594,7 @@ do
             Gear.Active = not Disabled
             Gear.BackgroundColor3 = Disabled and Library.Scheme.BackgroundColor or Library.Scheme.MainColor
             Library.Registry[Gear].BackgroundColor3 = Disabled and "BackgroundColor" or "MainColor"
-            Icon.ImageTransparency = Disabled and 0.8 or (SettingsMenu.Active and 0 or 0.5)
+            SetIconProperties(Icon, { ImageTransparency = Disabled and 0.8 or (SettingsMenu.Active and 0 or 0.5) })
 
             if Disabled then
                 Settings:Close()
@@ -6636,9 +6610,7 @@ do
                 return
             end
 
-            TweenService:Create(Icon, Library.TweenInfo, {
-                ImageTransparency = 0,
-            }):Play()
+            TweenIcon(Icon, { ImageTransparency = 0 })
         end))
 
         table.insert(Settings.Connections, Gear.MouseLeave:Connect(function()
@@ -6646,9 +6618,7 @@ do
                 return
             end
 
-            TweenService:Create(Icon, Library.TweenInfo, {
-                ImageTransparency = SettingsMenu.Active and 0 or 0.5,
-            }):Play()
+            TweenIcon(Icon, { ImageTransparency = SettingsMenu.Active and 0 or 0.5 })
         end))
 
         setmetatable(Settings, BaseGroupbox)
@@ -7107,24 +7077,17 @@ do
 
             local ParsedIcon = Library:GetCustomIcon(IconName)
             if ParsedIcon then
-                local ColorKey = Button.Risky and "RedColor" or (ParsedIcon.Custom and "WhiteColor" or "FontColor")
+                Button.IconImage = if Button.IconImage then Library:ApplyIcon(Button.IconImage, ParsedIcon) else Library:CreateIcon(ParsedIcon, {
+                    LayoutOrder = 0,
+                    Size = UDim2.fromOffset(14, 14),
+                    Parent = Content,
+                })
 
-                if not Button.IconImage then
-                    Button.IconImage = New("ImageLabel", {
-                        BackgroundTransparency = 1,
-                        ImageColor3 = ColorKey,
-                        LayoutOrder = 0,
-                        Size = UDim2.fromOffset(14, 14),
-                        Parent = Content,
-                    })
-                else
-                    Button.IconImage.ImageColor3 = Library.Scheme[ColorKey]
-                    Library.Registry[Button.IconImage].ImageColor3 = ColorKey
-                end
-
-                Button.IconImage.ImageTransparency = Button.Disabled and 0.8 or 0.4
                 Button.IconImage.Visible = true
-                Library:ApplyLucideIcon(Button.IconImage, ParsedIcon)
+                SetIconProperties(Button.IconImage, {
+                    ImageColor3 = if Button.Risky then "RedColor" elseif ParsedIcon.Custom then "WhiteColor" else "FontColor",
+                    ImageTransparency = Button.Disabled and 0.8 or 0.4,
+                })
             elseif Button.IconImage then
                 Button.IconImage.Visible = false
             end
@@ -7211,9 +7174,7 @@ do
                 Button.Tween:Play()
 
                 if Button.IconImage and Button.IconImage.Visible then
-                    TweenService:Create(Button.IconImage, Library.TweenInfo, {
-                        ImageTransparency = 0,
-                    }):Play()
+                    TweenIcon(Button.IconImage, { ImageTransparency = 0 })
                 end
             end))
             table.insert(Button.Connections, Button.Base.MouseLeave:Connect(function()
@@ -7227,9 +7188,7 @@ do
                 Button.Tween:Play()
 
                 if Button.IconImage and Button.IconImage.Visible then
-                    TweenService:Create(Button.IconImage, Library.TweenInfo, {
-                        ImageTransparency = 0.4,
-                    }):Play()
+                    TweenIcon(Button.IconImage, { ImageTransparency = 0.4 })
                 end
             end))
 
@@ -7328,7 +7287,7 @@ do
                 SubButton.Stroke.Transparency = SubButton.Disabled and 0.5 or 0
 
                 if SubButton.IconImage and SubButton.IconImage.Visible then
-                    SubButton.IconImage.ImageTransparency = SubButton.Disabled and 0.8 or 0.4
+                    SetIconProperties(SubButton.IconImage, { ImageTransparency = SubButton.Disabled and 0.8 or 0.4 })
                 end
 
                 Library.Registry[SubButton.Base].BackgroundColor3 = SubButton.Disabled and "BackgroundColor"
@@ -7438,7 +7397,7 @@ do
             Button.Stroke.Transparency = Button.Disabled and 0.5 or 0
 
             if Button.IconImage and Button.IconImage.Visible then
-                Button.IconImage.ImageTransparency = Button.Disabled and 0.8 or 0.4
+                SetIconProperties(Button.IconImage, { ImageTransparency = Button.Disabled and 0.8 or 0.4 })
             end
 
             Library.Registry[Button.Base].BackgroundColor3 = Button.Disabled and "BackgroundColor" or "MainColor"
@@ -7630,16 +7589,13 @@ do
             Parent = Checkbox,
         })
 
-        local CheckImage = New("ImageLabel", {
+        local CheckImage = Library:CreateIcon(CheckIcon, {
             ImageColor3 = "FontColor",
             ImageTransparency = 1,
             Position = UDim2.fromOffset(2, 2),
             Size = UDim2.new(1, -4, 1, -4),
             Parent = Checkbox,
         })
-        if CheckIcon then
-            Library:ApplyLucideIcon(CheckImage, CheckIcon)
-        end
 
         function Toggle:UpdateColors()
             Toggle:Display()
@@ -7654,7 +7610,7 @@ do
 
             if Toggle.Disabled then
                 Label.TextTransparency = 0.8
-                CheckImage.ImageTransparency = Toggle.Value and 0.8 or 1
+                SetIconProperties(CheckImage, { ImageTransparency = Toggle.Value and 0.8 or 1 })
 
                 Checkbox.BackgroundColor3 = Library.Scheme.BackgroundColor
                 Library.Registry[Checkbox].BackgroundColor3 = "BackgroundColor"
@@ -7665,9 +7621,7 @@ do
             TweenService:Create(Label, Library.TweenInfo, {
                 TextTransparency = Toggle.Value and 0 or 0.4,
             }):Play()
-            TweenService:Create(CheckImage, Library.TweenInfo, {
-                ImageTransparency = Toggle.Value and 0 or 1,
-            }):Play()
+            TweenIcon(CheckImage, { ImageTransparency = Toggle.Value and 0 or 1 })
 
             Checkbox.BackgroundColor3 = Library.Scheme.MainColor
             Library.Registry[Checkbox].BackgroundColor3 = "MainColor"
@@ -8899,11 +8853,9 @@ do
             Parent = DisplayContainer,
         }); table.insert(Library.SpecificCorners, DropdownCorner)
 
-        local DisplayImage = New("ImageLabel", {
-            BackgroundTransparency = 1,
+        local DisplayImage = Library:CreateIcon(nil, {
             Position = UDim2.fromOffset(-4, 3),
             Size = UDim2.fromOffset(16, 16),
-            Image = "",
             ImageTransparency = 1,
             ZIndex = 2,
             Parent = DisplayContainer,
@@ -8920,7 +8872,7 @@ do
             Parent = DisplayContainer,
         })
 
-        local ArrowImage = New("ImageLabel", {
+        local ArrowImage = Library:CreateIcon(ArrowIcon, {
             AnchorPoint = Vector2.new(1, 0.5),
             ImageColor3 = "FontColor",
             ImageTransparency = 0.5,
@@ -8928,9 +8880,6 @@ do
             Size = UDim2.fromOffset(16, 16),
             Parent = DisplayContainer,
         })
-        if ArrowIcon then
-            Library:ApplyLucideIcon(ArrowImage, ArrowIcon)
-        end
 
         local SearchBox
         if Info.Searchable then
@@ -9008,8 +8957,7 @@ do
             function(Active: boolean)
                 DisplayButton.TextTransparency = (Active and SearchBox) and 1 or 0
 
-                ArrowImage.ImageTransparency = Active and 0 or 0.5
-                ArrowImage.Rotation = Active and 180 or 0
+                SetIconProperties(ArrowImage, { ImageTransparency = Active and 0 or 0.5, Rotation = Active and 180 or 0 })
 
                 if SearchBox then
                     SearchBox.Text = ""
@@ -9061,8 +9009,8 @@ do
 
             Label.TextTransparency = Dropdown.Disabled and 0.8 or 0
             DisplayButton.TextTransparency = Dropdown.Disabled and 0.8 or 0
-            DisplayImage.ImageTransparency = Dropdown.Disabled and 0.8 or 0
-            ArrowImage.ImageTransparency = Dropdown.Disabled and 0.8 or MenuTable.Active and 0 or 0.5
+            SetIconProperties(DisplayImage, { ImageTransparency = Dropdown.Disabled and 0.8 or 0 })
+            SetIconProperties(ArrowImage, { ImageTransparency = Dropdown.Disabled and 0.8 or MenuTable.Active and 0 or 0.5 })
         end
 
         function Dropdown:Display()
@@ -9110,13 +9058,8 @@ do
 
             DisplayButton.Text = (Str == "" and "---" or Str)
 
-            if ValueImage then
-                Library:ApplyLucideIcon(DisplayImage, ValueImage)
-                DisplayImage.ImageTransparency = 0
-            else
-                DisplayImage.Image = ""
-                DisplayImage.ImageTransparency = 1
-            end
+            DisplayImage = Library:ApplyIcon(DisplayImage, ValueImage)
+            SetIconProperties(DisplayImage, { ImageTransparency = if ValueImage then 0 else 1 })
 
             DisplayButton.Size = ValueImage and UDim2.new(1, -8, 0, 21) or UDim2.new(1, 0, 0, 21)
             DisplayButton.Position = ValueImage and UDim2.fromOffset(14, 0) or UDim2.fromOffset(0, 0)
@@ -9272,8 +9215,8 @@ do
                 Row.Button.Text = Entry.FormattedValue
 
                 if Entry.ValueImage then
+                    Row.Image = Library:ApplyIcon(Row.Image, Entry.ValueImage)
                     Row.Image.Visible = true
-                    Library:ApplyLucideIcon(Row.Image, Entry.ValueImage)
                     Row.Button.Size = UDim2.new(1, -18, 0, ItemHeight)
                     Row.Button.Position = UDim2.fromOffset(18, 0)
                 else
@@ -9405,9 +9348,7 @@ do
                 Parent = Container,
             }); table.insert(Library.SpecificCorners, Corner)
 
-            local Image = New("ImageLabel", {
-                BackgroundTransparency = 1,
-                Image = "",
+            local Image = Library:CreateIcon(nil, {
                 ImageTransparency = 0.5,
                 Size = UDim2.fromOffset(16, 16),
                 Position = UDim2.fromOffset(4, 3),
@@ -9454,7 +9395,7 @@ do
                 Button.TextTransparency = Entry.IsDisabled and 0.8 or Selected and 0 or 0.5
 
                 if Entry.ValueImage then
-                    Image.ImageTransparency = Entry.IsDisabled and 0.8 or Selected and 0 or 0.5
+                    SetIconProperties(Row.Image, { ImageTransparency = Entry.IsDisabled and 0.8 or Selected and 0 or 0.5 })
                 end
             end
 
@@ -9509,11 +9450,7 @@ do
                     TextTransparency = 0.25,
                 }):Play()
 
-                if Image then
-                    TweenService:Create(Image, Library.TweenInfo, {
-                        ImageTransparency = 0.25,
-                    }):Play()
-                end
+                TweenIcon(Row.Image, { ImageTransparency = 0.25 })
             end))
 
             table.insert(Dropdown.Connections, Button.MouseLeave:Connect(function()
@@ -9533,11 +9470,7 @@ do
                     TextTransparency = 0.5,
                 }):Play()
 
-                if Image then
-                    TweenService:Create(Image, Library.TweenInfo, {
-                        ImageTransparency = 0.5,
-                    }):Play()
-                end
+                TweenIcon(Row.Image, { ImageTransparency = 0.5 })
             end))
 
             table.insert(Dropdown.Connections, Button.InputBegan:Connect(function(StartInput)
@@ -10371,24 +10304,18 @@ do
             Parent = Box,
         })
 
-        local ImageProperties = {
+        local Icon = Library:GetCustomIcon(Image.Image)
+        assert(Icon, "Image must be a valid Roblox asset or a valid URL or a valid lucide icon.")
+
+        local ImageLabel = New("ImageLabel", {
             BackgroundTransparency = 1,
             Size = UDim2.fromScale(1, 1),
             ImageTransparency = Image.Transparency,
             ImageColor3 = Image.Color,
             ScaleType = Image.ScaleType,
             Parent = Box,
-        }
-
-        local Icon = Library:GetCustomIcon(Image.Image)
-        assert(Icon, "Image must be a valid Roblox asset or a valid URL or a valid lucide icon.")
-
-        ImageProperties.Image = Icon.Url
-        ImageProperties.ImageRectOffset = Icon.ImageRectOffset
-        ImageProperties.ImageRectSize = Icon.ImageRectSize
-
-        local ImageLabel = New("ImageLabel", ImageProperties)
-        Library:ApplyLucideIcon(ImageLabel, Icon)
+        })
+        FillInstance(ImageContent(Icon), ImageLabel)
 
         function Image:SetHeight(Height: number)
             assert(Height > 0, "Height must be greater than 0.")
@@ -10407,7 +10334,7 @@ do
             Image.RectOffset = Icon.ImageRectOffset
             Image.RectSize = Icon.ImageRectSize
 
-            Library:ApplyLucideIcon(ImageLabel, Icon)
+            FillInstance(ImageContent(Icon), ImageLabel)
             Image.Image = Icon.Url
         end
 
@@ -11206,30 +11133,21 @@ function Library:Notify(...)
 
     local CloseButton
     if Data.Closable then
-        CloseButton = New("ImageButton", {
+        CloseButton = Library:CreateIcon(CloseIcon, {
             AnchorPoint = Vector2.new(1, 0),
-            BackgroundTransparency = 1,
-            Image = CloseIcon and CloseIcon.Url or "",
             ImageColor3 = "FontColor",
-            ImageRectOffset = CloseIcon and CloseIcon.ImageRectOffset or Vector2.zero,
-            ImageRectSize = CloseIcon and CloseIcon.ImageRectSize or Vector2.zero,
             ImageTransparency = 0.5,
             Position = UDim2.new(1, -8, 0, 8),
             Size = UDim2.fromOffset(14, 14),
             ZIndex = 6,
             Parent = Holder,
-        })
-        Library:ApplyLucideIcon(CloseButton, CloseIcon)
+        }, true)
 
         CloseButton.MouseEnter:Connect(function()
-            TweenService:Create(CloseButton, Library.TweenInfo, {
-                ImageTransparency = 0,
-            }):Play()
+            TweenIcon(CloseButton, { ImageTransparency = 0 })
         end)
         CloseButton.MouseLeave:Connect(function()
-            TweenService:Create(CloseButton, Library.TweenInfo, {
-                ImageTransparency = 0.5,
-            }):Play()
+            TweenIcon(CloseButton, { ImageTransparency = 0.5 })
         end)
         CloseButton.MouseButton1Click:Connect(function()
             Data:Destroy("user")
@@ -11256,13 +11174,11 @@ function Library:Notify(...)
     if Data.BigIcon then
         local ParsedIcon = Library:GetCustomIcon(Data.BigIcon)
         if ParsedIcon then
-            BigIconLabel = New("ImageLabel", {
-                BackgroundTransparency = 1,
+            BigIconLabel = Library:CreateIcon(ParsedIcon, {
                 Size = UDim2.fromOffset(24, 24),
                 ImageColor3 = Data.IconColor or "AccentColor",
                 Parent = ContentContainer,
             })
-            Library:ApplyLucideIcon(BigIconLabel, ParsedIcon)
         end
     end
 
@@ -11290,15 +11206,13 @@ function Library:Notify(...)
     if Data.Icon and TitleContainer then
         local ParsedIcon = Library:GetCustomIcon(Data.Icon)
         if ParsedIcon then
-            IconLabel = New("ImageLabel", {
-                BackgroundTransparency = 1,
+            IconLabel = Library:CreateIcon(ParsedIcon, {
                 AnchorPoint = Vector2.new(0, 0.5),
                 Position = UDim2.new(0, 0, 0.5, 1),
                 Size = UDim2.fromOffset(15, 15),
                 ImageColor3 = Data.IconColor or "FontColor",
                 Parent = TitleContainer,
             })
-            Library:ApplyLucideIcon(IconLabel, ParsedIcon)
         end
     end
 
@@ -11641,50 +11555,36 @@ function Library:CreateWindow(WindowInfo)
             Parent = HeaderButtons,
         })
 
-        local SettingsButton = New("ImageButton", {
-            AutoButtonColor = false,
-            BackgroundTransparency = 1,
+        local SettingsButton = Library:CreateIcon(SettingsIcon, {
             ImageColor3 = "FontColor",
             LayoutOrder = 1,
             Size = UDim2.fromOffset(18, 18),
             Visible = false,
             ZIndex = 2,
             Parent = HeaderButtons,
-        })
-        if SettingsIcon then
-            Library:ApplyLucideIcon(SettingsButton, SettingsIcon)
-        end
+        }, true)
 
-        local CollapseButton = New("ImageButton", {
-            AutoButtonColor = false,
-            BackgroundTransparency = 1,
+        local CollapseButton = Library:CreateIcon(ArrowIcon, {
             ImageColor3 = "FontColor",
             LayoutOrder = 2,
+            Rotation = 180,
             Size = UDim2.fromOffset(18, 18),
             ZIndex = 2,
             Parent = HeaderButtons,
-        })
-        if ArrowIcon then
-            Library:ApplyLucideIcon(CollapseButton, ArrowIcon, 180)
-        end
+        }, true)
 
         local SettingsFrame, SettingsContainer, _, _, SettingsLabelPadding = Library:AddDraggableMenu("Visible Keybinds")
         SettingsFrame.Visible = false
         SettingsLabelPadding.PaddingRight = UDim.new(0, 34)
 
-        local CloseSettingsButton = New("ImageButton", {
+        local CloseSettingsButton = Library:CreateIcon(CloseIcon, {
             AnchorPoint = Vector2.new(1, 0.5),
-            AutoButtonColor = false,
-            BackgroundTransparency = 1,
             ImageColor3 = "FontColor",
             Position = UDim2.new(1, -8, 0, 17),
             Size = UDim2.fromOffset(18, 18),
             ZIndex = 2,
             Parent = SettingsFrame,
-        })
-        if CloseIcon then
-            Library:ApplyLucideIcon(CloseSettingsButton, CloseIcon)
-        end
+        }, true)
 
         local KeybindMenu = {
             VisibilityControl = false,
@@ -11750,16 +11650,13 @@ function Library:CreateWindow(WindowInfo)
                     Parent = Checkbox,
                 })
 
-                local CheckImage = New("ImageLabel", {
+                Library:CreateIcon(CheckIcon, {
                     ImageColor3 = "FontColor",
                     ImageTransparency = Visible and 0 or 1,
                     Position = UDim2.fromOffset(2, 2),
                     Size = UDim2.new(1, -4, 1, -4),
                     Parent = Checkbox,
                 })
-                if CheckIcon then
-                    Library:ApplyLucideIcon(CheckImage, CheckIcon)
-                end
 
                 Holder.MouseButton1Click:Connect(function()
                     local Picker = Options[Idx]
@@ -11917,9 +11814,7 @@ function Library:CreateWindow(WindowInfo)
             Visible = false,
             Parent = ScreenGui,
         })
-        if BackgroundIcon then
-            Library:ApplyLucideIcon(BackgroundImage, BackgroundIcon)
-        end
+        FillInstance(ImageContent(BackgroundIcon), BackgroundImage)
 
         table.insert(
             Library.Corners,
@@ -11978,14 +11873,10 @@ function Library:CreateWindow(WindowInfo)
         })
 
         if WindowInfo.Icon then
-            local Icon = Library:GetCustomIcon(WindowInfo.Icon)
-            WindowIcon = New("ImageLabel", {
+            WindowIcon = Library:CreateIcon(Library:GetCustomIcon(WindowInfo.Icon), {
                 Size = WindowInfo.IconSize,
                 Parent = TitleHolder,
             })
-            if Icon then
-                Library:ApplyLucideIcon(WindowIcon, Icon)
-            end
         else
             WindowIcon = New("TextLabel", {
                 BackgroundTransparency = 1,
@@ -12133,18 +12024,17 @@ function Library:CreateWindow(WindowInfo)
 
         local SearchIcon = Library:GetIcon("search")
         if SearchIcon then
-            local SearchIconImage = New("ImageLabel", {
+            Library:CreateIcon(SearchIcon, {
                 ImageColor3 = "FontColor",
                 ImageTransparency = 0.5,
                 Size = UDim2.fromScale(1, 1),
                 SizeConstraint = Enum.SizeConstraint.RelativeYY,
                 Parent = SearchBox,
             })
-            Library:ApplyLucideIcon(SearchIconImage, SearchIcon)
         end
 
         if MoveIcon then
-            local MoveIconImage = New("ImageLabel", {
+            Library:CreateIcon(MoveIcon, {
                 AnchorPoint = Vector2.new(1, 0.5),
                 ImageColor3 = "OutlineColor",
                 Position = UDim2.new(1, -10, 0.5, 0),
@@ -12152,7 +12042,6 @@ function Library:CreateWindow(WindowInfo)
                 SizeConstraint = Enum.SizeConstraint.RelativeYY,
                 Parent = TopBar,
             })
-            Library:ApplyLucideIcon(MoveIconImage, MoveIcon)
         end
 
         --// Bottom Bar \\--
@@ -12228,16 +12117,13 @@ function Library:CreateWindow(WindowInfo)
             end)
         end
 
-        local WindowResizeIcon = New("ImageLabel", {
+        Library:CreateIcon(ResizeIcon, {
             ImageColor3 = "FontColor",
             ImageTransparency = 0.5,
             Position = UDim2.fromOffset(2, 2),
             Size = UDim2.new(1, -4, 1, -4),
             Parent = ResizeButton,
         })
-        if ResizeIcon then
-            Library:ApplyLucideIcon(WindowResizeIcon, ResizeIcon)
-        end
 
         --// Tabs \\--
         Tabs = New("ScrollingFrame", {
@@ -12319,7 +12205,7 @@ function Library:CreateWindow(WindowInfo)
             if BackgroundIcon then
                 ValidIcon = true
 
-                Library:ApplyLucideIcon(BackgroundImage, BackgroundIcon)
+                FillInstance(ImageContent(BackgroundIcon), BackgroundImage)
             elseif Image:match("http://") or Image:match("https://") then
                 local RawFileName = Image:match("(.+)%..+$")
                 local _, Domain = Image:match("^(https?://)([^/]+)");
@@ -12348,18 +12234,14 @@ function Library:CreateWindow(WindowInfo)
                             CustomImageManager.DownloadAsset(FileName, true)
                         end
 
-                        BackgroundImage.Image = CustomImageManager.GetAsset(FileName)
-                        BackgroundImage.ImageRectOffset = Vector2.zero
-                        BackgroundImage.ImageRectSize = Vector2.zero
+                        FillInstance(ImageContent({ Url = CustomImageManager.GetAsset(FileName) }), BackgroundImage)
                     end
                 end
             end
         end
 
         if not ValidIcon then
-            BackgroundImage.Image = ""
-            BackgroundImage.ImageRectOffset = Vector2.zero
-            BackgroundImage.ImageRectSize = Vector2.zero
+            FillInstance(ImageContent(nil), BackgroundImage)
         end
 
         HasBackgroundImage = ValidIcon
@@ -12679,15 +12561,13 @@ function Library:CreateWindow(WindowInfo)
             })
 
             if Icon then
-                TabIcon = New("ImageLabel", {
+                TabIcon = Library:CreateIcon(Icon, {
                     ImageColor3 = Icon.Custom and "WhiteColor" or "AccentColor",
                     ImageTransparency = 0.5,
-                    ScaleType = Enum.ScaleType.Fit,
                     Size = UDim2.fromScale(1, 1),
                     SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
                     Parent = ButtonHolder,
                 })
-                Library:ApplyLucideIcon(TabIcon, Icon)
             end
 
             table.insert(Library.TabButtons, {
@@ -13130,13 +13010,12 @@ function Library:CreateWindow(WindowInfo)
                 local ButtonIcon
                 local BoxIcon = Library:GetCustomIcon(IconName)
                 if BoxIcon then
-                    ButtonIcon = New("ImageLabel", {
+                    ButtonIcon = Library:CreateIcon(BoxIcon, {
                         ImageColor3 = BoxIcon.Custom and "WhiteColor" or "AccentColor",
                         ImageTransparency = 0.5,
                         Size = IsNameEmpty and UDim2.fromOffset(16, 16) or UDim2.fromOffset(18, 18),
                         Parent = ButtonContent,
                     })
-                    Library:ApplyLucideIcon(ButtonIcon, BoxIcon)
                 end
 
                 local ButtonLabel
@@ -13213,7 +13092,7 @@ function Library:CreateWindow(WindowInfo)
                         ButtonLabel.TextTransparency = 0
                     end
                     if ButtonIcon then
-                        ButtonIcon.ImageTransparency = 0
+                        SetIconProperties(ButtonIcon, { ImageTransparency = 0 })
                     end
 
                     Line.Visible = false
@@ -13232,7 +13111,7 @@ function Library:CreateWindow(WindowInfo)
                         ButtonLabel.TextTransparency = 0.5
                     end
                     if ButtonIcon then
-                        ButtonIcon.ImageTransparency = 0.5
+                        SetIconProperties(ButtonIcon, { ImageTransparency = 0.5 })
                     end
                     Line.Visible = true
                     Container.Visible = false
@@ -13470,14 +13349,13 @@ function Library:CreateWindow(WindowInfo)
 
                 local BoxIcon = Library:GetCustomIcon(Info.IconName)
                 if BoxIcon then
-                    local GroupboxHeaderIcon = New("ImageLabel", {
+                    Library:CreateIcon(BoxIcon, {
                         AnchorPoint = Vector2.new(0, 0.5),
                         ImageColor3 = BoxIcon.Custom and "WhiteColor" or "AccentColor",
                         Position = UDim2.fromScale(0, 0.5),
                         Size = UDim2.fromOffset(22, 22),
                         Parent = GroupboxTop,
                     })
-                    Library:ApplyLucideIcon(GroupboxHeaderIcon, BoxIcon)
                 end
 
                 local RightInset = if Info.DisableCollapsing ~= true then 22 else 0
@@ -13527,18 +13405,15 @@ function Library:CreateWindow(WindowInfo)
                     Parent = TextsFrame,
                 })
 
-                GroupboxCollapseArrow = New("ImageButton", {
+                GroupboxCollapseArrow = Library:CreateIcon(ArrowIcon, {
                     Visible = Info.DisableCollapsing ~= true,
                     AnchorPoint = Vector2.new(1, 0.5),
-                    BackgroundTransparency = 1,
                     ImageColor3 = "WhiteColor",
                     Position = UDim2.fromScale(1, 0.5),
+                    Rotation = 180,
                     Size = UDim2.fromOffset(22, 22),
                     Parent = GroupboxTop,
-                })
-                if ArrowIcon then
-                    Library:ApplyLucideIcon(GroupboxCollapseArrow, ArrowIcon, 180)
-                end
+                }, true)
 
                 GroupboxLine = Library:MakeLine(GroupboxHolder, {
                     LayoutOrder = 1,
@@ -13848,9 +13723,7 @@ function Library:CreateWindow(WindowInfo)
                 TextTransparency = Hovering and 0.25 or 0.5,
             }):Play()
             if TabIcon then
-                TweenService:Create(TabIcon, Library.TweenInfo, {
-                    ImageTransparency = Hovering and 0.25 or 0.5,
-                }):Play()
+                TweenIcon(TabIcon, { ImageTransparency = Hovering and 0.25 or 0.5 })
             end
         end
 
@@ -13875,9 +13748,7 @@ function Library:CreateWindow(WindowInfo)
                 TextTransparency = 0,
             }):Play()
             if TabIcon then
-                TweenService:Create(TabIcon, Library.TweenInfo, {
-                    ImageTransparency = 0,
-                }):Play()
+                TweenIcon(TabIcon, { ImageTransparency = 0 })
             end
 
             if Description then
@@ -13910,9 +13781,7 @@ function Library:CreateWindow(WindowInfo)
             }):Play()
 
             if TabIcon then
-                TweenService:Create(TabIcon, Library.TweenInfo, {
-                    ImageTransparency = 0.5,
-                }):Play()
+                TweenIcon(TabIcon, { ImageTransparency = 0.5 })
             end
 
             Library:PlayTabAnimation(Tab, false)
@@ -14113,15 +13982,13 @@ function Library:CreateWindow(WindowInfo)
             })
 
             if Icon then
-                TabIcon = New("ImageLabel", {
+                TabIcon = Library:CreateIcon(Icon, {
                     ImageColor3 = Icon.Custom and "WhiteColor" or "AccentColor",
                     ImageTransparency = 0.5,
-                    ScaleType = Enum.ScaleType.Fit,
                     Size = UDim2.fromScale(1, 1),
                     SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
                     Parent = ButtonHolder,
                 })
-                Library:ApplyLucideIcon(TabIcon, Icon)
             end
 
             table.insert(Library.TabButtons, {
@@ -14301,9 +14168,7 @@ function Library:CreateWindow(WindowInfo)
                 TextTransparency = Hovering and 0.25 or 0.5,
             }):Play()
             if TabIcon then
-                TweenService:Create(TabIcon, Library.TweenInfo, {
-                    ImageTransparency = Hovering and 0.25 or 0.5,
-                }):Play()
+                TweenIcon(TabIcon, { ImageTransparency = Hovering and 0.25 or 0.5 })
             end
         end
 
@@ -14331,9 +14196,7 @@ function Library:CreateWindow(WindowInfo)
             }):Play()
 
             if TabIcon then
-                TweenService:Create(TabIcon, Library.TweenInfo, {
-                    ImageTransparency = 0,
-                }):Play()
+                TweenIcon(TabIcon, { ImageTransparency = 0 })
             end
 
             Library:PlayTabAnimation(Tab, true)
@@ -14367,9 +14230,7 @@ function Library:CreateWindow(WindowInfo)
             }):Play()
 
             if TabIcon then
-                TweenService:Create(TabIcon, Library.TweenInfo, {
-                    ImageTransparency = 0.5,
-                }):Play()
+                TweenIcon(TabIcon, { ImageTransparency = 0.5 })
             end
 
             Library:PlayTabAnimation(Tab, false)
@@ -14514,15 +14375,13 @@ function Library:CreateWindow(WindowInfo)
             })
 
             if Icon then
-                TabIcon = New("ImageLabel", {
+                TabIcon = Library:CreateIcon(Icon, {
                     ImageColor3 = Icon.Custom and "WhiteColor" or "AccentColor",
                     ImageTransparency = 0.5,
-                    ScaleType = Enum.ScaleType.Fit,
                     Size = UDim2.fromScale(1, 1),
                     SizeConstraint = IsCompact and Enum.SizeConstraint.RelativeXY or Enum.SizeConstraint.RelativeYY,
                     Parent = ButtonHolder,
                 })
-                Library:ApplyLucideIcon(TabIcon, Icon)
             end
 
             table.insert(Library.TabButtons, {
@@ -14576,9 +14435,7 @@ function Library:CreateWindow(WindowInfo)
                 TextTransparency = Hovering and 0.25 or 0.5,
             }):Play()
             if TabIcon then
-                TweenService:Create(TabIcon, Library.TweenInfo, {
-                    ImageTransparency = Hovering and 0.25 or 0.5,
-                }):Play()
+                TweenIcon(TabIcon, { ImageTransparency = Hovering and 0.25 or 0.5 })
             end
         end
 
@@ -14606,9 +14463,7 @@ function Library:CreateWindow(WindowInfo)
             }):Play()
 
             if TabIcon then
-                TweenService:Create(TabIcon, Library.TweenInfo, {
-                    ImageTransparency = 0,
-                }):Play()
+                TweenIcon(TabIcon, { ImageTransparency = 0 })
             end
 
             Library:PlayTabAnimation(Tab, true)
@@ -14640,9 +14495,7 @@ function Library:CreateWindow(WindowInfo)
             }):Play()
 
             if TabIcon then
-                TweenService:Create(TabIcon, Library.TweenInfo, {
-                    ImageTransparency = 0.5,
-                }):Play()
+                TweenIcon(TabIcon, { ImageTransparency = 0.5 })
             end
 
             Library:PlayTabAnimation(Tab, false)
@@ -14844,15 +14697,13 @@ function Library:CreateWindow(WindowInfo)
         if Info.Icon then
             local ParsedIcon = Library:GetCustomIcon(Info.Icon)
             if ParsedIcon then
-                local IconImg = New("ImageLabel", {
-                    BackgroundTransparency = 1,
+                Library:CreateIcon(ParsedIcon, {
                     Size = UDim2.fromOffset(16, 16),
                     ImageColor3 = Info.TitleColor or "FontColor",
                     LayoutOrder = 1,
                     ZIndex = 2,
                     Parent = TitleRow,
                 })
-                Library:ApplyLucideIcon(IconImg, ParsedIcon)
             end
         end
 
@@ -15649,16 +15500,12 @@ function Library:CreateLoading(LoadingInfo)
     })
 
     if LoadingInfo.Icon then
-        local Icon = Library:GetCustomIcon(LoadingInfo.Icon)
-        local _WindowIcon = New("ImageLabel", {
+        Library:CreateIcon(Library:GetCustomIcon(LoadingInfo.Icon), {
             Size = LoadingInfo.IconSize,
             Parent = TitleHolder,
         })
-        if Icon then
-            Library:ApplyLucideIcon(_WindowIcon, Icon)
-        end
     else
-        local _WindowIcon = New("TextLabel", {
+        New("TextLabel", {
             BackgroundTransparency = 1,
             Size = LoadingInfo.IconSize,
             Text = LoadingInfo.Title:sub(1, 1),
@@ -15714,19 +15561,14 @@ function Library:CreateLoading(LoadingInfo)
         Parent = InnerContent,
     })
 
-    local LoaderIcon = Library:GetCustomIcon(LoadingInfo.LoadingIcon)
-    local LoadingIcon = New("ImageLabel", {
+    local LoadingIcon = Library:CreateIcon(Library:GetCustomIcon(LoadingInfo.LoadingIcon), {
         Name = "LoaderIcon",
         AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundTransparency = 1,
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromScale(1, 1),
         ImageColor3 = LoadingInfo.LoadingIconColor or ((LoadingInfo.LoadingIcon == Templates.Loading.LoadingIcon) and "AccentColor" or "WhiteColor"),
         Parent = IconHolder,
     })
-    if LoaderIcon then
-        Library:ApplyLucideIcon(LoadingIcon, LoaderIcon)
-    end
 
     local RotationTween
     if LoadingInfo.LoadingIconTweenTime > 0 then
@@ -15973,10 +15815,16 @@ function Library:CreateLoading(LoadingInfo)
         local IconData = Library:GetCustomIcon(Icon)
         assert(IconData, "Image must be a valid Roblox asset or a valid URL or a valid lucide icon.")
 
-        Library:ApplyLucideIcon(LoadingIcon, IconData)
+        local Replacement = Library:ApplyIcon(LoadingIcon, IconData)
+        if Replacement ~= LoadingIcon then
+            LoadingIcon = Replacement
+            Loading:SetLoadingIconTweenTime(LoadingInfo.LoadingIconTweenTime)
+        end
     end
 
     function Loading:SetLoadingIconTweenTime(TweenTime)
+        LoadingInfo.LoadingIconTweenTime = TweenTime
+
         if RotationTween then
             StopTween(RotationTween, true)
             RotationTween = nil
@@ -15995,7 +15843,7 @@ function Library:CreateLoading(LoadingInfo)
     end
 
     function Loading:SetLoadingIconColor(Color)
-        LoadingIcon.ImageColor3 = Color
+        SetIconProperties(LoadingIcon, { ImageColor3 = Color })
     end
 
     function Loading:SetCurrentStep(Step)
