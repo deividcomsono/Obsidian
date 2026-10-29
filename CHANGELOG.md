@@ -1,3 +1,11 @@
+## 29.10.2026
+
+```diff
+[fixed]
++ Fixed search being case sensitive for non-English letters and fuzzy matching breaking on non-English characters
++ Fixed text strokes being too strong on light themes and not updating when the theme changes
+```
+
 ## 28.10.2026
 
 ```diff
