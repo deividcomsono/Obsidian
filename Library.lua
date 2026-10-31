@@ -1688,6 +1688,20 @@ local function TweenIcon(Target: GuiObject, Properties: { [string]: any }): Twee
     return Tween
 end
 
+local function HoverIcon(Target: GuiObject, ColorName: string, Transparency: number?)
+    local Theme = Library.Registry[Target]
+    if Theme then
+        Theme[if Target:IsA("TextLabel") or Target:IsA("TextButton") then "TextColor3" else "ImageColor3"] = ColorName
+    end
+
+    local Properties: { [string]: any } = { ImageColor3 = Library.Scheme[ColorName] }
+    if Transparency ~= nil then
+        Properties.ImageTransparency = Transparency
+    end
+
+    TweenIcon(Target, Properties)
+end
+
 function Library:CreateIcon(Icon: Icon?, Properties: { [string]: any }?, IsButton: boolean?): GuiObject
     local IsFont = IsFontIcon(Icon, Properties and Properties.Size, Properties and Properties.Parent)
     local ClassName = (if IsFont then "Text" else "Image") .. (if IsButton then "Button" else "Label")
@@ -5894,13 +5908,21 @@ do
                 Text = "",
                 Parent = FooterBackground,
             })
-            Library:CreateIcon(ResizeIcon, {
+            local ResizeGrabberIcon = Library:CreateIcon(ResizeIcon, {
                 ImageColor3 = "FontColor",
                 ImageTransparency = 0.5,
                 Position = UDim2.fromOffset(2, 2),
                 Size = UDim2.new(1, -4, 1, -4),
                 Parent = ResizeGrabber,
             })
+
+            table.insert(ColorPicker.Connections, ResizeGrabber.MouseEnter:Connect(function()
+                HoverIcon(ResizeGrabberIcon, "AccentColor", 0)
+            end))
+
+            table.insert(ColorPicker.Connections, ResizeGrabber.MouseLeave:Connect(function()
+                HoverIcon(ResizeGrabberIcon, "FontColor", 0.5)
+            end))
 
             table.insert(ColorPicker.Connections, ResizeGrabber.InputBegan:Connect(function(Input: InputObject)
                 Library.CantDragForced = true
@@ -8962,6 +8984,7 @@ do
         end
 
         local MenuTable
+        local FocusStrokeTween
         MenuTable = Library:AddContextMenu(
             DisplayContainer,
             function()
@@ -8979,6 +9002,21 @@ do
                 if SearchBox then
                     SearchBox.Text = ""
                     SearchBox.Visible = Active
+                end
+
+                local FocusColor = Active and "AccentColor" or "OutlineColor"
+                local IsAnimated, AnimationInfo = MenuTable.Animated()
+
+                StopTween(FocusStrokeTween, true)
+                Library.Registry[DisplayStroke].Color = FocusColor
+
+                if IsAnimated then
+                    FocusStrokeTween = TweenService:Create(DisplayStroke, AnimationInfo, {
+                        Color = Library.Scheme[FocusColor],
+                    })
+                    FocusStrokeTween:Play()
+                else
+                    DisplayStroke.Color = Library.Scheme[FocusColor]
                 end
 
                 local Half = UDim.new(0, Library.CornerRadius / 2)
@@ -9339,7 +9377,7 @@ do
             DragPrevMax = Max
 
             for _, OtherRow in Pool do
-                OtherRow:UpdateButton()
+                OtherRow:UpdateButton(true)
             end
         end
 
@@ -9393,7 +9431,7 @@ do
             Row.Image = Image
             Row.Button = Button
 
-            function Row:UpdateButton()
+            function Row:UpdateButton(Animate: boolean?)
                 local Entry = Row.Entry
                 if not Entry then
                     return
@@ -9408,11 +9446,31 @@ do
 
                 Row.Selected = Selected and true or false
 
-                Container.BackgroundTransparency = Selected and 0 or 1
-                Button.TextTransparency = Entry.IsDisabled and 0.8 or Selected and 0 or 0.5
+                local TargetContainerTransparency = Selected and 0 or 1
+                local TargetButtonTransparency = Entry.IsDisabled and 0.8 or Selected and 0 or 0.5
+                local TargetImageTransparency = Entry.IsDisabled and 0.8 or Selected and 0 or 0.5
 
-                if Entry.ValueImage then
-                    SetIconProperties(Row.Image, { ImageTransparency = Entry.IsDisabled and 0.8 or Selected and 0 or 0.5 })
+                local IsAnimated, AnimationInfo = MenuTable.Animated()
+                if Animate and IsAnimated then
+                    TweenService:Create(Container, AnimationInfo, {
+                        BackgroundTransparency = TargetContainerTransparency,
+                    }):Play()
+                    TweenService:Create(Button, AnimationInfo, {
+                        TextTransparency = TargetButtonTransparency,
+                    }):Play()
+
+                    if Entry.ValueImage then
+                        TweenService:Create(Row.Image, AnimationInfo, IconProperties(Row.Image.ClassName, {
+                            ImageTransparency = TargetImageTransparency,
+                        })):Play()
+                    end
+                else
+                    Container.BackgroundTransparency = TargetContainerTransparency
+                    Button.TextTransparency = TargetButtonTransparency
+
+                    if Entry.ValueImage then
+                        SetIconProperties(Row.Image, { ImageTransparency = TargetImageTransparency })
+                    end
                 end
             end
 
@@ -9439,11 +9497,11 @@ do
                     end
 
                     for _, OtherRow in Pool do
-                        OtherRow:UpdateButton()
+                        OtherRow:UpdateButton(true)
                     end
                 end
 
-                Row:UpdateButton()
+                Row:UpdateButton(true)
                 Dropdown:Display()
 
                 Library:UpdateDependencyBoxes()
@@ -9610,7 +9668,7 @@ do
 
             Dropdown:Display()
             for _, Row in Pool do
-                Row:UpdateButton()
+                Row:UpdateButton(true)
             end
 
             if not Dropdown.Disabled then
@@ -12051,7 +12109,7 @@ function Library:CreateWindow(WindowInfo)
         end
 
         if MoveIcon then
-            Library:CreateIcon(MoveIcon, {
+            local MoveIconImage = Library:CreateIcon(MoveIcon, {
                 AnchorPoint = Vector2.new(1, 0.5),
                 ImageColor3 = "OutlineColor",
                 Position = UDim2.new(1, -10, 0.5, 0),
@@ -12059,6 +12117,14 @@ function Library:CreateWindow(WindowInfo)
                 SizeConstraint = Enum.SizeConstraint.RelativeYY,
                 Parent = TopBar,
             })
+
+            TopBar.MouseEnter:Connect(function()
+                HoverIcon(MoveIconImage, "AccentColor")
+            end)
+
+            TopBar.MouseLeave:Connect(function()
+                HoverIcon(MoveIconImage, "OutlineColor")
+            end)
         end
 
         --// Bottom Bar \\--
@@ -12134,13 +12200,23 @@ function Library:CreateWindow(WindowInfo)
             end)
         end
 
-        Library:CreateIcon(ResizeIcon, {
+        local WindowResizeIcon = Library:CreateIcon(ResizeIcon, {
             ImageColor3 = "FontColor",
             ImageTransparency = 0.5,
             Position = UDim2.fromOffset(2, 2),
             Size = UDim2.new(1, -4, 1, -4),
             Parent = ResizeButton,
         })
+
+        if WindowInfo.Resizable then
+            ResizeButton.MouseEnter:Connect(function()
+                HoverIcon(WindowResizeIcon, "AccentColor", 0)
+            end)
+
+            ResizeButton.MouseLeave:Connect(function()
+                HoverIcon(WindowResizeIcon, "FontColor", 0.5)
+            end)
+        end
 
         --// Tabs \\--
         Tabs = New("ScrollingFrame", {
