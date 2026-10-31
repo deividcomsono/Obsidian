@@ -4217,7 +4217,7 @@ local BaseAddons, BaseGroupbox = {}, {}
 do
     local Funcs = {}
 
-    function Funcs:AddKeyPicker(Idx, Info)
+    function Funcs:AddKeyPicker(Idx, Info, ReturnCreated)
         if self.Destroyed then return nil end
 
         Info = Library:Validate(Info, Templates.KeyPicker)
@@ -5516,6 +5516,9 @@ do
             KeybindMenu:RefreshSettings()
         end
 
+        if ReturnCreated then
+            return KeyPicker
+        end
         return self
     end
 
@@ -5523,7 +5526,7 @@ do
     for Hue = 0, 1, 0.1 do
         table.insert(HueSequenceTable, ColorSequenceKeypoint.new(Hue, Color3.fromHSV(Hue, 1, 1)))
     end
-    function Funcs:AddColorPicker(Idx, Info)
+    function Funcs:AddColorPicker(Idx, Info, ReturnCreated)
         if self.Destroyed then return nil end
 
         Info = Library:Validate(Info, Templates.ColorPicker)
@@ -6439,6 +6442,9 @@ do
 
         Options[Idx] = ColorPicker
 
+        if ReturnCreated then
+            return ColorPicker
+        end
         return self
     end
 
@@ -9680,6 +9686,7 @@ do
             end
 
             Dropdown:BuildDropdownList()
+            return self
         end
 
         function Dropdown:SetDisabledValues(DisabledValues)
@@ -9699,6 +9706,7 @@ do
             end
 
             Dropdown:BuildDropdownList()
+            return self
         end
 
         function Dropdown:SetValueImages(ValueImages)
@@ -9720,6 +9728,7 @@ do
             end
 
             Dropdown:BuildDropdownList()
+            return self
         end
 
         function Dropdown:SetDisabled(Disabled: boolean)
