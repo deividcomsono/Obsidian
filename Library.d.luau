@@ -1,5 +1,5 @@
 --!strict
--- Last updated: 29.10.2026
+-- Last updated: 31.10.2026
 -- Luau type definitions for the Obsidian UI Library
 
 --// Helper & Configuration Types
