@@ -488,11 +488,9 @@ export type Label = {
 
     -- From BaseAddons
     AddKeyPicker: ((self: Label, Idx: string, Info: KeyPickerInfo, ReturnCreated: true) -> KeyPicker)
-        & ((self: Label, Idx: string, Info: KeyPickerInfo, ReturnCreated: false?) -> Label)
-        & ((self: Label, Idx: string, Info: KeyPickerInfo, ReturnCreated: boolean) -> Label | KeyPicker),
+        & ((self: Label, Idx: string, Info: KeyPickerInfo) -> Label),
     AddColorPicker: ((self: Label, Idx: string, Info: ColorPickerInfo, ReturnCreated: true) -> ColorPicker)
-        & ((self: Label, Idx: string, Info: ColorPickerInfo, ReturnCreated: false?) -> Label)
-        & ((self: Label, Idx: string, Info: ColorPickerInfo, ReturnCreated: boolean) -> Label | ColorPicker),
+        & ((self: Label, Idx: string, Info: ColorPickerInfo) -> Label),
     AddSettings: (self: Label, Info: SettingsInfo?) -> Settings,
     Destroy: (self: Label) -> (),
 }
@@ -529,11 +527,9 @@ export type Button = {
     SetText: (self: Button, Text: string) -> (),
     SetIcon: (self: Button, Icon: string?) -> (),
     AddKeyPicker: ((self: Button, Idx: string, Info: KeyPickerInfo, ReturnCreated: true) -> KeyPicker)
-        & ((self: Button, Idx: string, Info: KeyPickerInfo, ReturnCreated: false?) -> Button)
-        & ((self: Button, Idx: string, Info: KeyPickerInfo, ReturnCreated: boolean) -> Button | KeyPicker),
+        & ((self: Button, Idx: string, Info: KeyPickerInfo) -> Button),
     AddColorPicker: ((self: Button, Idx: string, Info: ColorPickerInfo, ReturnCreated: true) -> ColorPicker)
-        & ((self: Button, Idx: string, Info: ColorPickerInfo, ReturnCreated: false?) -> Button)
-        & ((self: Button, Idx: string, Info: ColorPickerInfo, ReturnCreated: boolean) -> Button | ColorPicker),
+        & ((self: Button, Idx: string, Info: ColorPickerInfo) -> Button),
     AddSettings: (self: Button, Info: SettingsInfo?) -> Settings,
     Destroy: (self: Button) -> (),
 }
@@ -566,8 +562,7 @@ export type SubButton = {
     SetText: (self: SubButton, Text: string) -> (),
     SetIcon: (self: SubButton, Icon: string?) -> (),
     AddKeyPicker: ((self: SubButton, Idx: string, Info: KeyPickerInfo, ReturnCreated: true) -> KeyPicker)
-        & ((self: SubButton, Idx: string, Info: KeyPickerInfo, ReturnCreated: false?) -> SubButton)
-        & ((self: SubButton, Idx: string, Info: KeyPickerInfo, ReturnCreated: boolean) -> SubButton | KeyPicker),
+        & ((self: SubButton, Idx: string, Info: KeyPickerInfo) -> SubButton),
     AddSettings: (self: SubButton, Info: SettingsInfo?) -> Settings,
     Destroy: (self: SubButton) -> (),
 }
@@ -604,11 +599,9 @@ export type Toggle = {
 
     -- From BaseAddons
     AddKeyPicker: ((self: Toggle, Idx: string, Info: KeyPickerInfo, ReturnCreated: true) -> KeyPicker)
-        & ((self: Toggle, Idx: string, Info: KeyPickerInfo, ReturnCreated: false?) -> Toggle)
-        & ((self: Toggle, Idx: string, Info: KeyPickerInfo, ReturnCreated: boolean) -> Toggle | KeyPicker),
+        & ((self: Toggle, Idx: string, Info: KeyPickerInfo) -> Toggle),
     AddColorPicker: ((self: Toggle, Idx: string, Info: ColorPickerInfo, ReturnCreated: true) -> ColorPicker)
-        & ((self: Toggle, Idx: string, Info: ColorPickerInfo, ReturnCreated: false?) -> Toggle)
-        & ((self: Toggle, Idx: string, Info: ColorPickerInfo, ReturnCreated: boolean) -> Toggle | ColorPicker),
+        & ((self: Toggle, Idx: string, Info: ColorPickerInfo) -> Toggle),
     AddSettings: (self: Toggle, Info: SettingsInfo?) -> Settings,
     Destroy: (self: Toggle) -> (),
 }
