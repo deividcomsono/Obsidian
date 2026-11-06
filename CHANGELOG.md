@@ -2,7 +2,7 @@
 
 ```diff
 [changes]
-+ Icons now always render as font glyphs at every size, with sprites only used as a fallback
++ Icons now always render as font icons at every size, with sprites only used as a fallback
 + Tab sides are now sized in whole pixels to avoid blurry or misaligned elements
 
 [fixed]
