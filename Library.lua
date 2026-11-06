@@ -302,7 +302,6 @@ local Library = {
 
     --// Image Manager \\--
     ImageManager = CustomImageManager,
-    MaxSpriteIconSize = 24,
 
     --// Misc \\--
     Notify = nil, Toggle = nil -- we love luau lsp
@@ -1652,21 +1651,8 @@ local function IconProperties(ClassName: string, Properties: { [string]: any }):
     return Mapped
 end
 
-local function IsFontIcon(Icon: Icon?, Size: UDim2?, Parent: Instance?): boolean
-    if Icon == nil or Icon.FontFace == nil or Size == nil then
-        return false
-    end
-
-    local Height = Size.Y.Offset
-    if Size.Y.Scale ~= 0 then
-        if not (Parent and Parent:IsA("GuiObject")) then
-            return false
-        end
-
-        Height += Parent.AbsoluteSize.Y / Library.DPIScale * Size.Y.Scale
-    end
-
-    return Height > Library.MaxSpriteIconSize
+local function IsFontIcon(Icon: Icon?): boolean
+    return Icon ~= nil and Icon.FontFace ~= nil
 end
 
 local function ImageContent(Icon: Icon?): { [string]: any }
@@ -1689,7 +1675,7 @@ local function TweenIcon(Target: GuiObject, Properties: { [string]: any }): Twee
 end
 
 function Library:CreateIcon(Icon: Icon?, Properties: { [string]: any }?, IsButton: boolean?): GuiObject
-    local IsFont = IsFontIcon(Icon, Properties and Properties.Size, Properties and Properties.Parent)
+    local IsFont = IsFontIcon(Icon)
     local ClassName = (if IsFont then "Text" else "Image") .. (if IsButton then "Button" else "Label")
 
     local Merged: { [string]: any } = {
@@ -1711,7 +1697,7 @@ function Library:CreateIcon(Icon: Icon?, Properties: { [string]: any }?, IsButto
 end
 
 function Library:ApplyIcon(Target: GuiObject, Icon: Icon?): GuiObject
-    local IsFont = IsFontIcon(Icon, Target.Size, Target.Parent)
+    local IsFont = IsFontIcon(Icon)
     local IsText = Target:IsA("TextLabel") or Target:IsA("TextButton")
 
     if IsFont ~= IsText then
@@ -1741,7 +1727,7 @@ function Library:ApplyIcon(Target: GuiObject, Icon: Icon?): GuiObject
         if not Target:FindFirstChild("IconPadding") then
             New("UIPadding", {
                 Name = "IconPadding",
-                PaddingLeft = UDim.new(-0.5, 0),
+                PaddingLeft = UDim.new(-0.5, -0.5),
                 PaddingRight = UDim.new(-0.5, 0),
                 Parent = Target,
             })
@@ -12846,11 +12832,16 @@ function Library:CreateWindow(WindowInfo)
 
         function Tab:RefreshSides()
             local Offset = WarningBoxHolder.Visible and WarningBox.Size.Y.Offset + 8 or 0
-            for _, Side in Tab.Sides do
-                Side.Position = UDim2.new(Side.Position.X.Scale, 0, 0, Offset)
-                Side.Size = UDim2.new(0.5, -3, 1, -Offset)
-            end
+            local Width = TabContainer.AbsoluteSize.X / Library.DPIScale
+            local LeftWidth = math.floor(Width / 2 - 3)
+
+            TabLeft.Position = UDim2.fromOffset(0, Offset)
+            TabLeft.Size = UDim2.new(0, LeftWidth, 1, -Offset)
+
+            TabRight.Position = UDim2.new(1, 0, 0, Offset)
+            TabRight.Size = UDim2.new(0, Width - LeftWidth - 6, 1, -Offset)
         end
+        table.insert(Tab.Connections, TabContainer:GetPropertyChangedSignal("AbsoluteSize"):Connect(function() Tab:RefreshSides() end))
 
         function Tab:Resize(ResizeWarningBox: boolean?)
             if ResizeWarningBox then
