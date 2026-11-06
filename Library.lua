@@ -608,6 +608,8 @@ local Templates = {
         Mode = "Toggle",
         Modes = { "Always", "Toggle", "Hold" },
         SyncToggleState = false,
+        NoUI = false,
+        Disabled = false,
 
         Callback = function() end,
         ChangedCallback = function() end,
@@ -4233,8 +4235,9 @@ do
             Toggled = false,
             Mode = Info.Mode,
             SyncToggleState = Info.SyncToggleState,
-
             NoUI = Info.NoUI == true,
+            Disabled = Info.Disabled == true,
+
             MenuVisible = Info.NoUI ~= true,
 
             Callback = Info.Callback,
@@ -4511,7 +4514,7 @@ do
         end
 
         table.insert(KeyPicker.Connections, Picker.MouseEnter:Connect(function()
-            if ParentObj.Disabled then
+            if ParentObj.Disabled or KeyPicker.Disabled then
                 return
             end
 
@@ -4519,7 +4522,7 @@ do
         end))
 
         table.insert(KeyPicker.Connections, Picker.MouseLeave:Connect(function()
-            if ParentObj.Disabled then
+            if ParentObj.Disabled or KeyPicker.Disabled then
                 return
             end
 
@@ -4557,7 +4560,7 @@ do
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, 16),
                 Text = "",
-                Visible = not Info.NoUI,
+                Visible = KeyPicker.MenuVisible ~= false,
                 Parent = Library.KeybindContainer,
             })
             table.insert(
@@ -5001,26 +5004,22 @@ do
         end
 
         function KeyPicker:Update()
-            local Disabled = ParentObj.Disabled == true
+            local ParentDisabled = ParentObj.Disabled == true
+            local Inert = ParentDisabled or KeyPicker.Disabled
 
-            if Disabled and Picking then
+            if Inert and Picking then
                 SetPickingState(false, true)
             end
 
             KeyPicker:Display()
 
-            Picker.Active = not Disabled
-            ApplyPickerTextTransparency(Disabled and 0.8 or 0.4)
+            Picker.Active = not Inert
+            ApplyPickerTextTransparency(Inert and 0.8 or 0.4)
 
-            if Disabled then
+            if Inert then
                 if MenuTable.Active then
                     MenuTable:Close()
                 end
-            end
-
-            if KeyPicker.Mode == "Toggle" and ParentObj.Type == "Toggle" and ParentObj.Disabled then
-                KeybindsToggle:SetVisibility(false)
-                return
             end
 
             local State = KeyPicker:GetState()
@@ -5029,10 +5028,6 @@ do
             if KeyPicker.SyncToggleState and ParentObj.Value ~= State then
                 ParentObj:SetValue(State)
                 State = KeyPicker:GetState()
-            end
-
-            if Info.NoUI then
-                return
             end
 
             if KeybindsToggle.Loaded then
@@ -5089,7 +5084,7 @@ do
         end
 
         function KeyPicker:DoClick()
-            if Picking or ParentObj.Disabled then
+            if Picking or ParentObj.Disabled or KeyPicker.Disabled then
                 return
             end
 
@@ -5118,7 +5113,7 @@ do
         end
 
         function KeyPicker:RunChanged(IsKeyValid, KeyCode)
-            if ParentObj.Disabled then
+            if ParentObj.Disabled or KeyPicker.Disabled then
                 return
             end
 
@@ -5202,8 +5197,36 @@ do
             end
         end
 
+        function KeyPicker:SetNoUI(NoUI: boolean)
+            NoUI = NoUI == true
+
+            if KeyPicker.NoUI == NoUI then
+                return
+            end
+
+            KeyPicker.NoUI = NoUI
+            KeyPicker.MenuVisible = not NoUI
+            KeyPicker:Update()
+
+            local KeybindMenu = Library.KeybindMenu
+            if KeybindMenu and KeybindMenu.SettingsOpen then
+                KeybindMenu:RefreshSettings()
+            end
+        end
+
+        function KeyPicker:SetDisabled(Disabled: boolean)
+            Disabled = Disabled == true
+
+            if KeyPicker.Disabled == Disabled then
+                return
+            end
+
+            KeyPicker.Disabled = Disabled
+            KeyPicker:Update()
+        end
+
         table.insert(KeyPicker.Connections, Picker.MouseButton1Click:Connect(function()
-            if Picking or Library.IsPicking or ParentObj.Disabled then
+            if Picking or Library.IsPicking or ParentObj.Disabled or KeyPicker.Disabled then
                 return
             end
 
@@ -5356,7 +5379,7 @@ do
         end))
 
         table.insert(KeyPicker.Connections, Picker.MouseButton2Click:Connect(function()
-            if ParentObj.Disabled then
+            if ParentObj.Disabled or KeyPicker.Disabled then
                 return
             end
 
@@ -5371,6 +5394,7 @@ do
             local IsMouse = IsMouseClickInput(Input)
             if
                 ParentObj.Disabled
+                or KeyPicker.Disabled
                 or KeyPicker.Mode == "Always"
                 or KeyPicker.Value == "Unknown"
                 or KeyPicker.Value == "None"
@@ -11607,7 +11631,7 @@ function Library:CreateWindow(WindowInfo)
             end
 
             for Idx, Option in Options do
-                if Option.Type ~= "KeyPicker" or Option.NoUI == true then
+                if Option.Type ~= "KeyPicker" then
                     continue
                 end
 
