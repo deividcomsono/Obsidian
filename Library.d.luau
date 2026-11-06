@@ -1,5 +1,5 @@
 --!strict
--- Last updated: 29.10.2026
+-- Last updated: 31.10.2026
 -- Luau type definitions for the Obsidian UI Library
 
 --// Helper & Configuration Types
@@ -487,8 +487,10 @@ export type Label = {
     SetText: (self: Label, Text: string) -> (),
 
     -- From BaseAddons
-    AddKeyPicker: (self: Label, Idx: string, Info: KeyPickerInfo) -> Label,
-    AddColorPicker: (self: Label, Idx: string, Info: ColorPickerInfo) -> Label,
+    AddKeyPicker: ((self: Label, Idx: string, Info: KeyPickerInfo, ReturnCreated: true) -> KeyPicker)
+        & ((self: Label, Idx: string, Info: KeyPickerInfo) -> Label),
+    AddColorPicker: ((self: Label, Idx: string, Info: ColorPickerInfo, ReturnCreated: true) -> ColorPicker)
+        & ((self: Label, Idx: string, Info: ColorPickerInfo) -> Label),
     AddSettings: (self: Label, Info: SettingsInfo?) -> Settings,
     Destroy: (self: Label) -> (),
 }
@@ -524,7 +526,10 @@ export type Button = {
     SetVisible: (self: Button, Visible: boolean) -> (),
     SetText: (self: Button, Text: string) -> (),
     SetIcon: (self: Button, Icon: string?) -> (),
-    AddKeyPicker: (self: Button, Idx: string, Info: KeyPickerInfo) -> Button,
+    AddKeyPicker: ((self: Button, Idx: string, Info: KeyPickerInfo, ReturnCreated: true) -> KeyPicker)
+        & ((self: Button, Idx: string, Info: KeyPickerInfo) -> Button),
+    AddColorPicker: ((self: Button, Idx: string, Info: ColorPickerInfo, ReturnCreated: true) -> ColorPicker)
+        & ((self: Button, Idx: string, Info: ColorPickerInfo) -> Button),
     AddSettings: (self: Button, Info: SettingsInfo?) -> Settings,
     Destroy: (self: Button) -> (),
 }
@@ -556,7 +561,8 @@ export type SubButton = {
     SetVisible: (self: SubButton, Visible: boolean) -> (),
     SetText: (self: SubButton, Text: string) -> (),
     SetIcon: (self: SubButton, Icon: string?) -> (),
-    AddKeyPicker: (self: SubButton, Idx: string, Info: KeyPickerInfo) -> SubButton,
+    AddKeyPicker: ((self: SubButton, Idx: string, Info: KeyPickerInfo, ReturnCreated: true) -> KeyPicker)
+        & ((self: SubButton, Idx: string, Info: KeyPickerInfo) -> SubButton),
     AddSettings: (self: SubButton, Info: SettingsInfo?) -> Settings,
     Destroy: (self: SubButton) -> (),
 }
@@ -592,8 +598,10 @@ export type Toggle = {
     SetText: (self: Toggle, Text: string) -> (),
 
     -- From BaseAddons
-    AddKeyPicker: (self: Toggle, Idx: string, Info: KeyPickerInfo) -> Toggle,
-    AddColorPicker: (self: Toggle, Idx: string, Info: ColorPickerInfo) -> Toggle,
+    AddKeyPicker: ((self: Toggle, Idx: string, Info: KeyPickerInfo, ReturnCreated: true) -> KeyPicker)
+        & ((self: Toggle, Idx: string, Info: KeyPickerInfo) -> Toggle),
+    AddColorPicker: ((self: Toggle, Idx: string, Info: ColorPickerInfo, ReturnCreated: true) -> ColorPicker)
+        & ((self: Toggle, Idx: string, Info: ColorPickerInfo) -> Toggle),
     AddSettings: (self: Toggle, Info: SettingsInfo?) -> Settings,
     Destroy: (self: Toggle) -> (),
 }
@@ -714,11 +722,11 @@ export type Dropdown = {
     RunChanged: (self: Dropdown) -> (),
     SetValue: (self: Dropdown, Value: any) -> (),
     SetValues: (self: Dropdown, Values: { [any]: any }) -> (),
-    AddValues: (self: Dropdown, Values: { [any]: any } | string) -> (),
+    AddValues: (self: Dropdown, Values: { [any]: any } | string) -> Dropdown,
     SetDisabledValues: (self: Dropdown, DisabledValues: { any }) -> (),
-    AddDisabledValues: (self: Dropdown, DisabledValues: { any } | string) -> (),
+    AddDisabledValues: (self: Dropdown, DisabledValues: { any } | string) -> Dropdown,
     SetValueImages: (self: Dropdown, ValueImages: { [any]: string }) -> (),
-    AddValueImages: (self: Dropdown, ValueImages: { [any]: string }) -> (),
+    AddValueImages: (self: Dropdown, ValueImages: { [any]: string }) -> Dropdown,
     SetDisabled: (self: Dropdown, Disabled: boolean) -> (),
     SetVisible: (self: Dropdown, Visible: boolean) -> (),
     SetText: (self: Dropdown, Text: string) -> (),
