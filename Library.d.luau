@@ -1058,6 +1058,7 @@ export type TabInfo = {
     Description: string?,
     Tooltip: string?,
     Order: number?,
+    SubTabs: boolean?,
 }
 
 export type Tab = {
@@ -1075,7 +1076,20 @@ export type Tab = {
     Groupboxes: { [string]: Groupbox },
     Tabboxes: { [string]: Tabbox },
     DependencyGroupboxes: { [number]: DependencyGroupbox },
+    IsSubTab: boolean,
+    ParentTab: Tab?,
+    HasSubTabs: boolean,
+    SubTabs: { Tab },
+    ActiveSubTab: Tab?,
 
+    AddSubTab: (
+        self: Tab,
+        Info: TabInfo | string,
+        Icon: string?,
+        Description: string?,
+        Order: number?
+    ) -> Tab,
+    UpdateTabInfo: (self: Tab) -> (),
     UpdateWarningBox: (
         self: Tab,
         Info: { IsNormal: boolean?, LockSize: boolean?, Visible: boolean?, Title: string?, Text: string? }
@@ -1331,7 +1345,7 @@ export type Window = {
     GetSidebarWidth: (self: Window) -> number,
     SetSidebarWidth: (self: Window, Width: number) -> (),
     SetCompact: (self: Window, State: boolean) -> (),
-    ShowTabInfo: (self: Window, Name: string, Description: string) -> (),
+    ShowTabInfo: (self: Window, Name: string, Description: string?, RichText: boolean?) -> (),
     HideTabInfo: (self: Window) -> (),
     AddTab: (
         self: Window,

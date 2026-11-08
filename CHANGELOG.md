@@ -6,6 +6,7 @@
 + FormatValue option for Dropdowns (used for both the display and list values when FormatDisplayValue or FormatListValue are not set)
 + AutoWidth option for Dropdowns (widens the list so every value is fully visible)
 + Dividers for Dropdowns (Library:DropdownDivider(Title))
++ SubTabs (Tab:AddSubTab(Name, Icon), requires Tab with SubTabs enabled)
 
 [changes]
 + Dropdown now support rich text
