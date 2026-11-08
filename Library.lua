@@ -552,6 +552,7 @@ local Templates = {
         DragSelect = false,
         MaxVisibleDropdownItems = 8,
         KeepDisabledValuePosition = false,
+        AutoWidth = false,
 
         Callback = function() end,
         Changed = function() end,
@@ -746,6 +747,14 @@ local function IsSequentialArray(Table: { [any]: any })
     return true
 end
 
+local function IsDropdownDivider(Value: any): boolean
+    return typeof(Value) == "table" and Value.DropdownDivider == true
+end
+
+function Library:DropdownDivider(Title: string?)
+    return { DropdownDivider = true, Title = Title }
+end
+
 local function StopTween(Tween: TweenBase, Destroy: boolean?)
     if not Tween then
         return
@@ -899,6 +908,10 @@ local function MatchesSearch(ElementInfo, Search: string, ForceMatch: boolean?):
             Checked += 1
             if Checked > 200 then
                 break
+            end
+
+            if IsDropdownDivider(Value) then
+                continue
             end
 
             if TryFuzzyMatch(Value, Search) or (typeof(Value) ~= "string" and TryFuzzyMatch(tostring(Value), Search)) then
@@ -2600,7 +2613,6 @@ function Library:AddBlank(Frame: GuiObject, Size: UDim2)
 end
 
 --// Animations \\--
-local TransparencyCache = {}
 local ActiveTabTweens = setmetatable({}, { __mode = "k" })
 
 function Library:PlayTabAnimation(Tab, Showing: boolean, OnComplete: (() -> ())?)
@@ -6751,7 +6763,7 @@ do
             local TextLabel = New("TextLabel", {
                 AutomaticSize = Enum.AutomaticSize.X,
                 BackgroundTransparency = 1,
-                Size = UDim2.fromScale(1, 0),
+                Size = UDim2.fromScale(1, 1),
                 Text = Text,
                 TextSize = 14,
                 TextTransparency = 0.5,
@@ -8758,6 +8770,8 @@ do
         if self.Destroyed then return nil end
 
         Info = Library:Validate(Info, Templates.Dropdown)
+        Info.FormatDisplayValue = Info.FormatDisplayValue or Info.FormatValue
+        Info.FormatListValue = Info.FormatListValue or Info.FormatValue
 
         local Groupbox = self
         local Container = Groupbox.Container
@@ -8993,6 +9007,35 @@ do
         local PoolSize = math.max(1, Info.MaxVisibleDropdownItems + 2)
         local Pool = {}
         local FilteredEntries = {}
+        local TextWidths = {}
+
+        local function GetListWidth()
+            local Width = DisplayContainer.AbsoluteSize.X / Library.DPIScale
+            if not Info.AutoWidth then
+                return Width
+            end
+
+            for _, Entry in FilteredEntries do
+                local TextWidth = TextWidths[Entry.FormattedValue]
+                if not TextWidth then
+                    TextWidth = Library:GetTextBounds(Entry.FormattedValue, Library.Scheme.Font, 14)
+                    TextWidths[Entry.FormattedValue] = TextWidth
+                end
+
+                local Extra = 16
+                if Entry.ValueImage then
+                    Extra += 18
+                end
+
+                if Entry.IsDivider and Entry.Title then
+                    Extra += 40
+                end
+
+                Width = math.max(Width, TextWidth + Extra)
+            end
+
+            return math.ceil(Width)
+        end
 
         function Dropdown:RecalculateListSize(Count)
             local ItemCount = Count or #FilteredEntries
@@ -9001,7 +9044,7 @@ do
             MenuTable.Menu.CanvasSize = UDim2.fromOffset(0, ItemCount * ItemHeight)
 
             MenuTable:SetSize(function()
-                return UDim2.fromOffset((DisplayContainer.AbsoluteSize.X / Library.DPIScale), Y)
+                return UDim2.fromOffset(GetListWidth(), Y)
             end)
         end
 
@@ -9029,7 +9072,7 @@ do
                 for Key, RawValue in Dropdown.Values do
                     local Value = IsDictionary and Key or RawValue
 
-                    if Dropdown.Value[Value] then
+                    if not IsDropdownDivider(RawValue) and Dropdown.Value[Value] then
                         if not ValueImage then
                             ValueImage = GetValueImage(Value, RawValue)
                         end
@@ -9055,8 +9098,9 @@ do
                 end
             end
 
-            if #Str > 25 then
-                Str = Str:sub(1, 22) .. "..."
+            local PlainStr = Str:gsub("<[^>]*>", "")
+            if utf8.len(PlainStr) and utf8.len(PlainStr) > 25 then
+                Str = PlainStr:sub(1, utf8.offset(PlainStr, 23) - 1) .. "..."
             end
 
             DisplayButton.Text = (Str == "" and "---" or Str)
@@ -9107,17 +9151,45 @@ do
             local SearchQuery = SearchBox and NormalizeSearch(LowerText(SearchBox.Text)) or ""
             local IsSearching = SearchQuery ~= ""
 
-            local EnabledList, DisabledList = {}, {}
-            local Pending = {}
+            local Keys = {}
+            for Key in Values do
+                table.insert(Keys, Key)
+            end
 
-            for Key, RawValue in Values do
+            if not IsDictionary then
+                table.sort(Keys)
+            end
+
+            local Groups = { { Items = {} } }
+            local Count = 0
+
+            for _, Key in Keys do
+                local RawValue = Values[Key]
+
+                if IsDropdownDivider(RawValue) then
+                    if not IsDictionary then
+                        local Title = RawValue.Title and tostring(RawValue.Title) or nil
+
+                        table.insert(Groups, {
+                            Divider = {
+                                IsDivider = true,
+                                Title = Title,
+                                FormattedValue = Title or "",
+                            },
+                            Items = {},
+                        })
+                    end
+
+                    continue
+                end
+
                 local Value = IsDictionary and Key or RawValue
 
                 local FormattedValue = tostring(Info.FormatListValue and Info.FormatListValue(RawValue) or RawValue)
 
                 local MatchScore = 0
                 if IsSearching then
-                    local Matched, Score = FuzzyScore(LowerText(FormattedValue), SearchQuery)
+                    local Matched, Score = FuzzyScore(LowerText((FormattedValue:gsub("<[^>]*>", ""))), SearchQuery)
                     if not Matched then
                         continue
                     end
@@ -9133,50 +9205,55 @@ do
                     FormattedValue = FormattedValue,
                     IsDisabled = IsDisabled,
                     ValueImage = GetValueImage(Value, RawValue),
-                    SortKey = Key,
                     MatchScore = MatchScore,
-                    Order = #Pending + 1,
+                    Order = Count + 1,
                 }
 
-                table.insert(Pending, Entry)
-            end
-
-            if IsSearching then
-                --// Best matches first; ties fall back to original order \\--
-                table.sort(Pending, function(A, B)
-                    if A.MatchScore ~= B.MatchScore then
-                        return A.MatchScore > B.MatchScore
-                    end
-                    return A.Order < B.Order
-                end)
-            elseif not IsDictionary then
-                table.sort(Pending, function(A, B)
-                    return A.SortKey < B.SortKey
-                end)
+                Count += 1
+                table.insert(Groups[#Groups].Items, Entry)
             end
 
             table.clear(FilteredEntries)
 
-            if Dropdown.KeepDisabledValuePosition then
-                for _, Entry in Pending do
-                    table.insert(FilteredEntries, Entry)
-                end
-                return
-            end
+            for _, Group in Groups do
+                local Items = Group.Items
+                if IsSearching then
+                    if #Items == 0 then
+                        continue
+                    end
 
-            for _, Entry in Pending do
-                if Entry.IsDisabled then
-                    table.insert(DisabledList, Entry)
-                else
-                    table.insert(EnabledList, Entry)
+                    --// Best matches first; ties fall back to original order \\--
+                    table.sort(Items, function(A, B)
+                        if A.MatchScore ~= B.MatchScore then
+                            return A.MatchScore > B.MatchScore
+                        end
+                        return A.Order < B.Order
+                    end)
                 end
-            end
 
-            for _, Entry in EnabledList do
-                table.insert(FilteredEntries, Entry)
-            end
-            for _, Entry in DisabledList do
-                table.insert(FilteredEntries, Entry)
+                if Group.Divider then
+                    table.insert(FilteredEntries, Group.Divider)
+                end
+
+                if Dropdown.KeepDisabledValuePosition then
+                    for _, Entry in Items do
+                        table.insert(FilteredEntries, Entry)
+                    end
+
+                    continue
+                end
+
+                for _, Entry in Items do
+                    if not Entry.IsDisabled then
+                        table.insert(FilteredEntries, Entry)
+                    end
+                end
+
+                for _, Entry in Items do
+                    if Entry.IsDisabled then
+                        table.insert(FilteredEntries, Entry)
+                    end
+                end
             end
         end
 
@@ -9216,6 +9293,28 @@ do
                 Row.Corner.BottomLeftRadius = IsLast and UDim.new(0, Library.CornerRadius / 2) or UDim.new(0, 0)
 
                 Row.Button.Text = Entry.FormattedValue
+                Row.Button.TextXAlignment = Entry.IsDivider and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left
+                Row.LeftLine.Visible = Entry.IsDivider == true
+                Row.RightLine.Visible = Entry.IsDivider == true and Entry.Title ~= nil
+
+                if Entry.IsDivider then
+                    Row.Image.Visible = false
+                    Row.Button.Size = UDim2.new(1, 0, 0, ItemHeight - 1)
+                    Row.Button.Position = UDim2.fromOffset(0, 0)
+
+                    if Entry.Title then
+                        local TitleWidth = Library:GetTextBounds(Entry.Title, Library.Scheme.Font, 14)
+                        local HalfWidth = TitleWidth // 2 + 10
+
+                        Row.LeftLine.Size = UDim2.new(0.5, -7 - HalfWidth, 0, 2)
+                        Row.RightLine.Size = UDim2.new(0.5, -7 - HalfWidth, 0, 2)
+                    else
+                        Row.LeftLine.Size = UDim2.new(1, -14, 0, 2)
+                    end
+
+                    Row:UpdateButton()
+                    continue
+                end
 
                 if Entry.ValueImage then
                     Row.Image = Library:ApplyIcon(Row.Image, Entry.ValueImage)
@@ -9264,7 +9363,7 @@ do
 
         local function ApplyDragIndex(Index, InRange)
             local Entry = FilteredEntries[Index]
-            if not Entry or Entry.IsDisabled then
+            if not Entry or Entry.IsDisabled or Entry.IsDivider then
                 return
             end
 
@@ -9362,6 +9461,7 @@ do
             local Button = New("TextButton", {
                 BackgroundTransparency = 1,
                 Size = UDim2.new(1, 0, 0, ItemHeight),
+                RichText = true,
                 Text = "",
                 TextSize = 14,
                 TextTransparency = 0.5,
@@ -9374,14 +9474,42 @@ do
                 Parent = Button,
             })
 
+            local LeftLine = New("Frame", {
+                BackgroundColor3 = "MainColor",
+                BorderColor3 = "OutlineColor",
+                BorderSizePixel = 1,
+                Position = UDim2.fromOffset(7, (ItemHeight - 1) / 2 - 1),
+                Visible = false,
+                Parent = Container,
+            })
+
+            local RightLine = New("Frame", {
+                AnchorPoint = Vector2.new(1, 0),
+                BackgroundColor3 = "MainColor",
+                BorderColor3 = "OutlineColor",
+                BorderSizePixel = 1,
+                Position = UDim2.new(1, -7, 0, (ItemHeight - 1) / 2 - 1),
+                Visible = false,
+                Parent = Container,
+            })
+
             Row.Container = Container
             Row.Corner = Corner
             Row.Image = Image
             Row.Button = Button
+            Row.LeftLine = LeftLine
+            Row.RightLine = RightLine
 
             function Row:UpdateButton()
                 local Entry = Row.Entry
                 if not Entry then
+                    return
+                end
+
+                if Entry.IsDivider then
+                    Row.Selected = false
+                    Container.BackgroundTransparency = 1
+                    Button.TextTransparency = 0.5
                     return
                 end
 
@@ -9404,7 +9532,7 @@ do
 
             table.insert(Dropdown.Connections, Button.MouseButton1Click:Connect(function()
                 local Entry = Row.Entry
-                if not Entry or Entry.IsDisabled or DragSelecting then
+                if not Entry or Entry.IsDisabled or Entry.IsDivider or DragSelecting then
                     return
                 end
 
@@ -9438,7 +9566,7 @@ do
 
             table.insert(Dropdown.Connections, Button.MouseEnter:Connect(function()
                 local Entry = Row.Entry
-                if not Entry or Entry.IsDisabled then
+                if not Entry or Entry.IsDisabled or Entry.IsDivider then
                     return
                 end
 
@@ -9458,7 +9586,7 @@ do
 
             table.insert(Dropdown.Connections, Button.MouseLeave:Connect(function()
                 local Entry = Row.Entry
-                if not Entry or Entry.IsDisabled then
+                if not Entry or Entry.IsDisabled or Entry.IsDivider then
                     return
                 end
 
@@ -9482,7 +9610,7 @@ do
                 end
 
                 local Entry = Row.Entry
-                if not Entry or Entry.IsDisabled then
+                if not Entry or Entry.IsDisabled or Entry.IsDivider then
                     return
                 end
 
@@ -9495,6 +9623,7 @@ do
                 table.clear(DragInitialValues)
 
                 for _, FilteredEntry in FilteredEntries do
+                    if FilteredEntry.IsDivider then continue end
                     DragInitialValues[FilteredEntry.Value] = Dropdown.Value[FilteredEntry.Value]
                 end
 
@@ -9556,6 +9685,10 @@ do
         end))
 
         local function ValueExists(Val)
+            if IsDropdownDivider(Val) then
+                return false
+            end
+
             if IsSequentialArray(Dropdown.Values) then
                 for _, Existing in Dropdown.Values do
                     if Existing == Val then
@@ -9799,7 +9932,7 @@ do
                     end
                 end
 
-            elseif Dropdown.Values[Default] ~= nil then
+            elseif Dropdown.Values[Default] ~= nil and not IsDropdownDivider(Dropdown.Values[Default]) then
                 table.insert(Resolved, IsDictionary and Default or Dropdown.Values[Default])
             end
 
@@ -11001,16 +11134,21 @@ function Library:SetBackgroundImage(Image: string | number)
     Library:UpdateColorsUsingRegistry()
 end
 
+local function GetNotifySide(): (boolean, boolean)
+    local Side = tostring(Library.NotifySide):lower()
+    return Side:find("left") ~= nil, Side:find("bottom") ~= nil
+end
+
 function Library:UpdateNotificationPositions(Snap: boolean?)
-    local IsLeft = Library.NotifySide:lower() == "left"
-    local XScale = IsLeft and 0 or 1
+    local IsLeft, IsBottom = GetNotifySide()
+    local XScale, YScale, YSign = IsLeft and 0 or 1, IsBottom and 1 or 0, IsBottom and -1 or 1
     local RunningY = 0
 
     for _, FakeBackground in NotifyOrder do
         local Data = Library.Notifications[FakeBackground]
         if not (Data and FakeBackground.Parent) then continue end
 
-        local Target = UDim2.new(XScale, 0, 0, RunningY)
+        local Target = UDim2.new(XScale, 0, YScale, RunningY * YSign)
         if Snap or not Data.PositionInitialized then
             FakeBackground.Position = Target
             Data.PositionInitialized = true
@@ -11025,21 +11163,17 @@ function Library:UpdateNotificationPositions(Snap: boolean?)
     end
 end
 
-function Library:SetNotifySide(Side: string)
+function Library:SetNotifySide(Side: "Left" | "Right" | "TopLeft" | "TopRight" | "BottomLeft" | "BottomRight" | string)
     Library.NotifySide = Side
 
-    local IsLeft = Side:lower() == "left"
-    if IsLeft then
-        NotificationArea.AnchorPoint = Vector2.new(0, 0)
-        NotificationArea.Position = UDim2.fromOffset(6, 6)
-    else
-        NotificationArea.AnchorPoint = Vector2.new(1, 0)
-        NotificationArea.Position = UDim2.new(1, -6, 0, 6)
-    end
+    local IsLeft, IsBottom = GetNotifySide()
+    local Anchor = Vector2.new(IsLeft and 0 or 1, IsBottom and 1 or 0)
+    NotificationArea.AnchorPoint = Anchor
+    NotificationArea.Position = UDim2.new(Anchor.X, IsLeft and 6 or -6, Anchor.Y, IsBottom and -6 or 6)
 
     for FakeBackground in Library.Notifications do
         if not (FakeBackground and FakeBackground.Parent) then continue end
-        FakeBackground.AnchorPoint = if IsLeft then Vector2.new(0, 0) else Vector2.new(1, 0)
+        FakeBackground.AnchorPoint = Anchor
     end
 
     if Library.UpdateNotificationPositions then
@@ -11090,8 +11224,9 @@ function Library:Notify(...)
         end)
     end
 
+    local IsLeft, IsBottom = GetNotifySide()
     local FakeBackground = New("Frame", {
-        AnchorPoint = Library.NotifySide:lower() == "left" and Vector2.new(0, 0) or Vector2.new(1, 0),
+        AnchorPoint = Vector2.new(IsLeft and 0 or 1, IsBottom and 1 or 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
         Size = UDim2.fromOffset(0, 0),
@@ -11102,7 +11237,7 @@ function Library:Notify(...)
     local Holder = New("Frame", {
         AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundColor3 = "MainColor",
-        Position = Library.NotifySide:lower() == "left" and UDim2.new(-1, -8, 0, 0) or UDim2.new(1, 8, 0, 0),
+        Position = IsLeft and UDim2.new(-1, -8, 0, 0) or UDim2.new(1, 8, 0, 0),
         Size = UDim2.new(1, 0, 0, 0),
         ZIndex = 5,
         Parent = FakeBackground,
@@ -11357,7 +11492,7 @@ function Library:Notify(...)
 
         TweenService
             :Create(Holder, Library.NotifyTweenInfo, {
-                Position = Library.NotifySide:lower() == "left" and UDim2.new(-1, -8, 0, -2) or UDim2.new(1, 8, 0, -2),
+                Position = GetNotifySide() and UDim2.new(-1, -8, 0, -2) or UDim2.new(1, 8, 0, -2),
             })
             :Play()
 
@@ -15072,31 +15207,6 @@ function Library:CreateWindow(WindowInfo)
         return Dialog
     end
 
-    local GuiProperties = { "BackgroundTransparency" }
-    local ImageProperties = { "BackgroundTransparency", "ImageTransparency" }
-    local TextProperties = { "BackgroundTransparency", "TextTransparency" }
-    local StrokeProperties = { "Transparency" }
-
-    local function FadeInstance(Desc, Properties)
-        local Cache = TransparencyCache[Desc]
-        if not Cache then
-            Cache = {}
-            TransparencyCache[Desc] = Cache
-        end
-
-        for _, Prop in Properties do
-            if not Library.Toggled then
-                Cache[Prop] = Desc[Prop]
-            end
-
-            if Cache[Prop] ~= nil and Cache[Prop] ~= 1 then
-                TweenService:Create(Desc, Library.WindowAnimationInfo, {
-                    [Prop] = Library.Toggled and Cache[Prop] or 1,
-                }):Play()
-            end
-        end
-    end
-
     function Window:Toggle(Value: boolean?)
         if Fading then
             return
@@ -15119,42 +15229,36 @@ function Library:CreateWindow(WindowInfo)
         end
 
         if Library.Animations and Library.Animations.ToggleWindow == true then
-            local FadeTime = Library.WindowAnimationInfo.Time
+            local Toggled = Library.Toggled
             Fading = true
 
-            if Library.Toggled then
-                MainFrame.Visible = true
-            end
+            local FadeGroup = New("CanvasGroup", {
+                BackgroundTransparency = 1,
+                GroupTransparency = Toggled and 1 or 0,
+                Name = "MainFade",
+                Size = UDim2.fromScale(1, 1),
+                ZIndex = MainFrame.ZIndex,
+                Parent = ScreenGui,
+            })
 
-            if Library.Toggled then
-                FadeInstance(MainFrame, { "BackgroundTransparency" })
-                task.wait(FadeTime / 2)
-            else
-                task.delay(FadeTime / 2, FadeInstance, MainFrame, { "BackgroundTransparency" })
-            end
+            MainFrame.Visible = true
+            MainFrame.Parent = FadeGroup
 
-            for _, Instance in MainFrame:GetDescendants() do
-                if Instance == TopBar then
-                    continue
-                end
+            task.spawn(function()
+                RunService.Heartbeat:Wait()
+                RunService.Heartbeat:Wait()
 
-                if Instance:IsA("GuiObject") then
-                    local ClassName = Instance.ClassName
-                    if ClassName == "ImageLabel" or ClassName == "ImageButton" then
-                        FadeInstance(Instance, ImageProperties)
-                    elseif ClassName == "TextLabel" or ClassName == "TextBox" or ClassName == "TextButton" then
-                        FadeInstance(Instance, TextProperties)
-                    else
-                        FadeInstance(Instance, GuiProperties)
-                    end
-                elseif Instance.ClassName == "UIStroke" then
-                    FadeInstance(Instance, StrokeProperties)
-                end
-            end
+                TweenService:Create(FadeGroup, Library.WindowAnimationInfo, { GroupTransparency = Toggled and 0 or 1 }):Play()
+                task.wait(Library.WindowAnimationInfo.Time)
 
-            task.delay(FadeTime, function()
-                MainFrame.Visible = Library.Toggled
                 Fading = false
+                if Library.Unloaded then
+                    return
+                end
+
+                MainFrame.Visible = Library.Toggled
+                MainFrame.Parent = ScreenGui
+                FadeGroup:Destroy()
             end)
         else
             MainFrame.Visible = Library.Toggled
@@ -16165,7 +16269,6 @@ function Library:Unload()
     table.clear(Library.KeybindToggles)
     table.clear(Library.DependencyBoxes)
 
-    table.clear(TransparencyCache)
     table.clear(ActiveTabTweens)
 
     Library.Toggle = function(...) end

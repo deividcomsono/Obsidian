@@ -251,6 +251,11 @@ export type SliderInfo = {
     AllowRightClickInput: boolean?,
 }
 
+export type DropdownDivider = {
+    DropdownDivider: true,
+    Title: string?,
+}
+
 export type DropdownInfo = {
     Text: string?,
     Values: { [any]: any },
@@ -261,11 +266,13 @@ export type DropdownInfo = {
     DragSelect: boolean?,
     MaxVisibleDropdownItems: number?,
     KeepDisabledValuePosition: boolean?,
+    AutoWidth: boolean?,
     SpecialType: ("Player" | "Team")?,
     ExcludeLocalPlayer: boolean?,
     EnablePlayerImages: boolean?,
     AllowNull: boolean?,
     Searchable: boolean?,
+    FormatValue: ((any) -> string)?,
     FormatDisplayValue: ((any) -> string)?,
     FormatListValue: ((any) -> string)?,
     Tooltip: string?,
@@ -1493,6 +1500,7 @@ export type Library = {
     GetDarkerColor: (self: Library, Color: Color3) -> Color3,
     GetKeyString: (self: Library, KeyCode: Enum.KeyCode) -> string,
     GetTextBounds: (self: Library, Text: string, Font: Font, Size: number, Width: number?) -> (number, number),
+    DropdownDivider: (self: Library, Title: string?) -> DropdownDivider,
     MouseIsOverFrame: (self: Library, Frame: GuiObject, Mouse: Vector2) -> boolean,
     IsInsideFrame: (self: Library, ParentFrame: GuiObject, Frame: GuiObject) -> boolean,
     SafeCallback: (self: Library, Func: (...any) -> ...any, ...any) -> ...any,
