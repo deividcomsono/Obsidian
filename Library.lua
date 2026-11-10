@@ -751,10 +751,6 @@ local function IsDropdownDivider(Value: any): boolean
     return typeof(Value) == "table" and Value.DropdownDivider == true
 end
 
-local function EscapeRichText(Text: string): string
-    return (tostring(Text):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"))
-end
-
 function Library:DropdownDivider(Title: string?)
     return { DropdownDivider = true, Title = Title }
 end
@@ -12601,8 +12597,7 @@ function Library:CreateWindow(WindowInfo)
         end
     end
 
-    function Window:ShowTabInfo(Name, Description, RichText)
-        CurrentTabLabel.RichText = RichText == true
+    function Window:ShowTabInfo(Name, Description)
         CurrentTabLabel.Text = Name
         CurrentTabDescription.Text = Description or ""
         CurrentTabDescription.Visible = typeof(Description) == "string" and Description ~= ""
@@ -14035,8 +14030,8 @@ function Library:CreateWindow(WindowInfo)
         function Tab:UpdateTabInfo()
             local SubTab = Tab.ActiveSubTab
             if SubTab then
-                local Title = string.format('<font transparency="0.5">%s /</font> <b>%s</b>', EscapeRichText(Name), EscapeRichText(SubTab.Name))
-                Window:ShowTabInfo(Title, SubTab.Description or Description, true)
+                local Title = string.format('<font transparency="0.5">%s /</font> <b>%s</b>', Name, SubTab.Name)
+                Window:ShowTabInfo(Title, SubTab.Description or Description)
             elseif Description then
                 Window:ShowTabInfo(Name, Description)
             else

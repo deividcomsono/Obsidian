@@ -1345,7 +1345,7 @@ export type Window = {
     GetSidebarWidth: (self: Window) -> number,
     SetSidebarWidth: (self: Window, Width: number) -> (),
     SetCompact: (self: Window, State: boolean) -> (),
-    ShowTabInfo: (self: Window, Name: string, Description: string?, RichText: boolean?) -> (),
+    ShowTabInfo: (self: Window, Name: string, Description: string?) -> (),
     HideTabInfo: (self: Window) -> (),
     AddTab: (
         self: Window,
