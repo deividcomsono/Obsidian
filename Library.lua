@@ -13827,6 +13827,7 @@ function Library:CreateWindow(WindowInfo)
             end))
 
             function Groupbox:SetDescription(Description: string | nil)
+                Groupbox.Description = Description
                 GroupboxDescription.Text = Description or ""
                 GroupboxDescription.Visible = (Description ~= nil)
 
