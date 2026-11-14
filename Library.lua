@@ -14042,9 +14042,20 @@ function Library:CreateWindow(WindowInfo)
 
         local function SetButtonActive(Active: boolean)
             if TabStroke then
-                TweenService:Create(TabStroke, Library.TweenInfo, {
+                local StrokeTween = TweenService:Create(TabStroke, Library.TweenInfo, {
                     Color = Active and Library.Scheme.AccentColor or Library.Scheme.OutlineColor,
-                }):Play()
+                })
+
+                local Connection; Connection = StrokeTween.Completed:Connect(function(PlaybackState)
+                    Connection:Disconnect()
+                    if PlaybackState ~= Enum.PlaybackState.Completed or not Library.Registry[TabStroke] then
+                        return
+                    end
+
+                    TabStroke.Color = Library.Registry[TabStroke].Color()
+                end)
+
+                StrokeTween:Play()
             else
                 TweenService:Create(TabButton, Library.TweenInfo, {
                     BackgroundTransparency = Active and 0 or 1,
