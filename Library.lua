@@ -8775,8 +8775,6 @@ do
         if self.Destroyed then return nil end
 
         Info = Library:Validate(Info, Templates.Dropdown)
-        Info.FormatDisplayValue = Info.FormatDisplayValue or Info.FormatValue
-        Info.FormatListValue = Info.FormatListValue or Info.FormatValue
 
         local Groupbox = self
         local Container = Groupbox.Container
@@ -8799,6 +8797,9 @@ do
             Values = Info.Values,
             DisabledValues = Info.DisabledValues,
             ValueImages = Info.ValueImages,
+            FormatValue = Info.FormatValue,
+            FormatDisplayValue = Info.FormatDisplayValue,
+            FormatListValue = Info.FormatListValue,
 
             Multi = Info.Multi,
             DragSelect = Info.Multi and not Library.IsMobile and Info.DragSelect == true,
@@ -9072,6 +9073,7 @@ do
             local Str = ""
             local ValueImage = nil
             local IsDictionary = not IsSequentialArray(Dropdown.Values)
+            local FormatDisplayValue = Dropdown.FormatDisplayValue or Dropdown.FormatValue
 
             if Info.Multi then
                 for Key, RawValue in Dropdown.Values do
@@ -9083,7 +9085,7 @@ do
                         end
 
                         Str = Str
-                            .. (Info.FormatDisplayValue and tostring(Info.FormatDisplayValue(RawValue)) or tostring(RawValue))
+                            .. (FormatDisplayValue and tostring(FormatDisplayValue(RawValue)) or tostring(RawValue))
                             .. ", "
                     end
                 end
@@ -9098,8 +9100,8 @@ do
                 ValueImage = GetValueImage(Dropdown.Value, DisplayValue)
                 Str = DisplayValue and tostring(DisplayValue) or ""
 
-                if Str ~= "" and Info.FormatDisplayValue then
-                    Str = tostring(Info.FormatDisplayValue(Str))
+                if Str ~= "" and FormatDisplayValue then
+                    Str = tostring(FormatDisplayValue(Str))
                 end
             end
 
@@ -9150,6 +9152,7 @@ do
             local Values = Dropdown.Values
             local DisabledValues = Dropdown.DisabledValues
             local IsDictionary = not IsSequentialArray(Values)
+            local FormatListValue = Dropdown.FormatListValue or Dropdown.FormatValue
 
             --// Fuzzy-match dropdown values the same way the sidebar search
             --// does, so e.g. "clr" can find "Clear Inventory" in a list \\--
@@ -9189,8 +9192,7 @@ do
                 end
 
                 local Value = IsDictionary and Key or RawValue
-
-                local FormattedValue = tostring(Info.FormatListValue and Info.FormatListValue(RawValue) or RawValue)
+                local FormattedValue = tostring(FormatListValue and FormatListValue(RawValue) or RawValue)
 
                 local MatchScore = 0
                 if IsSearching then
