@@ -240,8 +240,6 @@ local Library = {
         Dropdown = false,
         KeyPicker = false,
         ColorPicker = false,
-        Input = false,
-        Button = false,
     },
 
     --// States \\--
@@ -436,8 +434,6 @@ local Templates = {
             Dropdown = false,
             KeyPicker = false,
             ColorPicker = false,
-            Input = false,
-            Button = false,
         },
 
         TabTransitionTime = 0.22,
