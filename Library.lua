@@ -229,13 +229,14 @@ local Library = {
 
     GroupboxTweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
     RotatingChevronTweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+    SliderTweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 
     Animations = {
         ToggleWindow = false,
         TabSwitch = false,
         Groupbox = false,
         Dropdown = false,
-        KeyPicker = false
+        Slider = false,
     },
 
     --// States \\--
@@ -428,7 +429,7 @@ local Templates = {
             TabSwitch = false,
             Groupbox = false,
             Dropdown = false,
-            KeyPicker = false,
+            Slider = false,
         },
 
         TabTransitionTime = 0.22,
@@ -8441,6 +8442,7 @@ do
         })
 
         local InputTextBox
+        local InputTextBoxStroke
         if Info.AllowRightClickInput then
             InputTextBox = New("TextBox", {
                 BackgroundTransparency = 1,
@@ -8452,7 +8454,7 @@ do
                 ClearTextOnFocus = false,
                 Parent = Bar,
             })
-            New("UIStroke", {
+            InputTextBoxStroke = New("UIStroke", {
                 ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
                 Color = GetTextStrokeColor,
                 LineJoinMode = Enum.LineJoinMode.Miter,
@@ -8501,7 +8503,9 @@ do
             Library.Registry[Fill].BackgroundColor3 = Slider.Disabled and "OutlineColor" or "AccentColor"
         end
 
-        function Slider:Display()
+        local FillTween: TweenBase
+
+        function Slider:Display(Instant: boolean?)
             if Library.Unloaded then
                 return
             end
@@ -8533,7 +8537,33 @@ do
             end
 
             local X = (Slider.Value - Slider.Min) / (Slider.Max - Slider.Min)
-            Fill.Size = UDim2.fromScale(X, 1)
+            local TargetSize = UDim2.fromScale(X, 1)
+
+            if FillTween then
+                StopTween(FillTween, true)
+                FillTween = nil
+            end
+
+            if not Instant and Library.Animations and Library.Animations.Slider then
+                local AnimTweenInfo = Library.SliderTweenInfo or TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                local Tween = TweenService:Create(Fill, AnimTweenInfo, { Size = TargetSize })
+                FillTween = Tween
+
+                local Connection; Connection = Library:GiveSignal(Tween.Completed:Once(function()
+                    if Connection then
+                        Connection:Disconnect()
+                    end
+
+                    if FillTween == Tween then
+                        StopTween(FillTween, true)
+                        FillTween = nil
+                    end
+                end))
+
+                Tween:Play()
+            else
+                Fill.Size = TargetSize
+            end
         end
 
         function Slider:OnChanged(Func)
@@ -8655,6 +8685,28 @@ do
                 Num = Round(Num, Slider.Rounding)
                 Slider:SetValue(Num)
             end))
+
+            table.insert(Slider.Connections, InputTextBox.Focused:Connect(function()
+                if Slider.Disabled then
+                    return
+                end
+
+                Library.Registry[InputTextBoxStroke].Color = "AccentColor"
+                TweenService:Create(InputTextBoxStroke, Library.TweenInfo, {
+                    Color = Library.Scheme.AccentColor,
+                }):Play()
+            end))
+
+            table.insert(Slider.Connections, InputTextBox.FocusLost:Connect(function()
+                if Slider.Disabled then
+                    return
+                end
+
+                Library.Registry[InputTextBoxStroke].Color = GetTextStrokeColor
+                TweenService:Create(InputTextBoxStroke, Library.TweenInfo, {
+                    Color = GetTextStrokeColor(),
+                }):Play()
+            end))
         end
 
         local LastTap = 0
@@ -8732,7 +8784,7 @@ do
         end
 
         Slider:UpdateColors()
-        Slider:Display()
+        Slider:Display(true)
         Groupbox:Resize()
 
         Slider.Holder = Holder
@@ -8744,6 +8796,11 @@ do
 
         function Slider:Destroy()
             Slider.Destroyed = true
+
+            if FillTween then
+                StopTween(FillTween, true)
+                FillTween = nil
+            end
 
             if Slider.Connections then
                 for _, Connection in Slider.Connections do
@@ -13346,6 +13403,48 @@ function Library:CreateWindow(WindowInfo)
                     Parent = Container,
                 })
 
+                local ActiveButtonTweens: { TweenBase } = {}
+
+                local function StopButtonTweens()
+                    for _, Tween in ActiveButtonTweens do
+                        StopTween(Tween, true)
+                    end
+                    table.clear(ActiveButtonTweens)
+                end
+
+                local function SetButtonState(Active: boolean)
+                    StopButtonTweens()
+
+                    local TargetBackgroundTransparency = Active and 1 or 0
+                    local TargetLabelTransparency = Active and 0 or 0.5
+                    local TargetIconTransparency = Active and 0 or 0.5
+
+                    if Library.Animations and Library.Animations.Groupbox then
+                        local AnimTweenInfo = Library.GroupboxTweenInfo or TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+                        table.insert(ActiveButtonTweens, TweenService:Create(Button, AnimTweenInfo, { BackgroundTransparency = TargetBackgroundTransparency }))
+                        if ButtonLabel then
+                            table.insert(ActiveButtonTweens, TweenService:Create(ButtonLabel, AnimTweenInfo, { TextTransparency = TargetLabelTransparency }))
+                        end
+                        if ButtonIcon then
+                            table.insert(ActiveButtonTweens, TweenService:Create(ButtonIcon, AnimTweenInfo, IconProperties(ButtonIcon.ClassName, { ImageTransparency = TargetIconTransparency })))
+                        end
+
+                        for _, Tween in ActiveButtonTweens do
+                            Tween:Play()
+                        end
+                    else
+                        Button.BackgroundTransparency = TargetBackgroundTransparency
+
+                        if ButtonLabel then
+                            ButtonLabel.TextTransparency = TargetLabelTransparency
+                        end
+                        if ButtonIcon then
+                            SetIconProperties(ButtonIcon, { ImageTransparency = TargetIconTransparency })
+                        end
+                    end
+                end
+
                 local Tab = {
                     Type = "SubTab",
                     Name = Name,
@@ -13370,14 +13469,7 @@ function Library:CreateWindow(WindowInfo)
                         Tabbox.ActiveTab:Hide()
                     end
 
-                    Button.BackgroundTransparency = 1
-
-                    if ButtonLabel then
-                        ButtonLabel.TextTransparency = 0
-                    end
-                    if ButtonIcon then
-                        SetIconProperties(ButtonIcon, { ImageTransparency = 0 })
-                    end
+                    SetButtonState(true)
 
                     Line.Visible = false
 
@@ -13389,14 +13481,8 @@ function Library:CreateWindow(WindowInfo)
                 end
 
                 function Tab:Hide()
-                    Button.BackgroundTransparency = 0
+                    SetButtonState(false)
 
-                    if ButtonLabel then
-                        ButtonLabel.TextTransparency = 0.5
-                    end
-                    if ButtonIcon then
-                        SetIconProperties(ButtonIcon, { ImageTransparency = 0.5 })
-                    end
                     Line.Visible = true
                     Container.Visible = false
 
@@ -13446,6 +13532,8 @@ function Library:CreateWindow(WindowInfo)
 
                 function Tab:Destroy()
                     Tab.Destroyed = true
+
+                    StopButtonTweens()
 
                     if Tab.Connections then
                         for _, Connection in Tab.Connections do
