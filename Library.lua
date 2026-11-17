@@ -13828,6 +13828,21 @@ function Library:CreateWindow(WindowInfo)
                 Groupbox:Resize()
             end))
 
+            local LastTopSize = GroupboxTop.AbsoluteSize.Y
+            table.insert(Groupbox.Connections, GroupboxTop:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+                local TopSize = GroupboxTop.AbsoluteSize.Y
+                if TopSize == LastTopSize then
+                    return
+                end
+                LastTopSize = TopSize
+
+                if Groupbox.Visible == false or Groupbox.Destroyed then
+                    return
+                end
+
+                Groupbox:Resize()
+            end))
+
             function Groupbox:SetDescription(Description: string | nil)
                 Groupbox.Description = Description
                 GroupboxDescription.Text = Description or ""
