@@ -231,11 +231,11 @@ local Library = {
     RotatingChevronTweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 
     Animations = {
-        ToggleWindow = false,
-        TabSwitch = false,
-        Groupbox = false,
-        Dropdown = false,
-        KeyPicker = false
+        ToggleWindow = true,
+        TabSwitch = true,
+        Groupbox = true,
+        Dropdown = true,
+        KeyPicker = true
     },
 
     --// States \\--
@@ -424,11 +424,11 @@ local Templates = {
 
         --// Animations \\--
         Animations = {
-            ToggleWindow = false,
-            TabSwitch = false,
-            Groupbox = false,
-            Dropdown = false,
-            KeyPicker = false,
+            ToggleWindow = true,
+            TabSwitch = true,
+            Groupbox = true,
+            Dropdown = true,
+            KeyPicker = true,
         },
 
         TabTransitionTime = 0.22,
@@ -767,6 +767,53 @@ local function StopTween(Tween: TweenBase, Destroy: boolean?)
     if Destroy == true then
         pcall(Tween.Destroy, Tween)
     end
+end
+
+--// Tween Manager: prevents competing tweens on the same instance/property.
+local ActivePropertyTweens = setmetatable({}, { __mode = "k" })
+
+local function CreateTween(Target: Instance, Info: TweenInfo, Properties: { [string]: any }): Tween
+    local Active = ActivePropertyTweens[Target]
+    if not Active then
+        Active = {}
+        ActivePropertyTweens[Target] = Active
+    end
+
+    local Conflicts = {}
+    for Property in Properties do
+        local Previous = Active[Property]
+        if Previous and not table.find(Conflicts, Previous) then
+            table.insert(Conflicts, Previous)
+        end
+    end
+
+    for _, Previous in Conflicts do
+        StopTween(Previous)
+    end
+
+    local Tween = TweenService:Create(Target, Info, Properties)
+    for Property in Properties do
+        Active[Property] = Tween
+    end
+
+    Tween.Completed:Once(function()
+        local Current = ActivePropertyTweens[Target]
+        if not Current then
+            return
+        end
+
+        for Property in Properties do
+            if Current[Property] == Tween then
+                Current[Property] = nil
+            end
+        end
+
+        if not next(Current) then
+            ActivePropertyTweens[Target] = nil
+        end
+    end)
+
+    return Tween
 end
 
 local function Trim(Text: string)
@@ -1683,7 +1730,7 @@ local function SetIconProperties(Target: GuiObject, Properties: { [string]: any 
 end
 
 local function TweenIcon(Target: GuiObject, Properties: { [string]: any }): Tween
-    local Tween = TweenService:Create(Target, Library.TweenInfo, IconProperties(Target.ClassName, Properties))
+    local Tween = CreateTween(Target, Library.TweenInfo, IconProperties(Target.ClassName, Properties))
     Tween:Play()
 
     return Tween
@@ -2683,7 +2730,7 @@ function Library:PlayTabAnimation(Tab, Showing: boolean, OnComplete: (() -> ())?
         TabContainer.Position = StartPosition
         TabContainer.Visible = true
 
-        local Tween = TweenService:Create(TabContainer, TweenInfo, {
+        local Tween = CreateTween(TabContainer, TweenInfo, {
             Position = UDim2.fromScale(0, 0)
         })
 
@@ -3871,7 +3918,7 @@ function Library:AddContextMenu(
             Menu.Size = UDim2.new(OpenSize.X.Scale, OpenSize.X.Offset, 0, 0)
             Menu.Visible = true
 
-            local Tween = TweenService:Create(Menu, TweenInfo, { Size = OpenSize })
+            local Tween = CreateTween(Menu, TweenInfo, { Size = OpenSize })
             Table.OpenCloseTween = Tween
 
             local Connection; Connection = Library:GiveSignal(Tween.Completed:Once(function()
@@ -3958,7 +4005,7 @@ function Library:AddContextMenu(
             local CurrentSize = Menu.Size
             local CollapsedSize = UDim2.new(CurrentSize.X.Scale, CurrentSize.X.Offset, 0, 0)
 
-            local Tween = TweenService:Create(Menu, TweenInfo, { Size = CollapsedSize })
+            local Tween = CreateTween(Menu, TweenInfo, { Size = CollapsedSize })
             Table.OpenCloseTween = Tween
 
             local Connection; Connection = Library:GiveSignal(Tween.Completed:Once(function(PlaybackState)
@@ -4515,13 +4562,13 @@ do
         local function TweenPickerTextTransparency(Transparency: number)
             StopTween(PickerHoverTween)
 
-            PickerHoverTween = TweenService:Create(Picker, Library.TweenInfo, {
+            PickerHoverTween = CreateTween(Picker, Library.TweenInfo, {
                 TextTransparency = Transparency,
             })
             PickerHoverTween:Play()
 
             if SlidingLabel then
-                TweenService:Create(SlidingLabel, Library.TweenInfo, {
+                CreateTween(SlidingLabel, Library.TweenInfo, {
                     TextTransparency = Transparency,
                 }):Play()
             end
@@ -4834,7 +4881,7 @@ do
                     return
                 end
 
-                TweenService:Create(Button, Library.TweenInfo, {
+                CreateTween(Button, Library.TweenInfo, {
                     BackgroundTransparency = 0.7,
                     TextTransparency = 0.1,
                 }):Play()
@@ -4845,7 +4892,7 @@ do
                     return
                 end
 
-                TweenService:Create(Button, Library.TweenInfo, {
+                CreateTween(Button, Library.TweenInfo, {
                     BackgroundTransparency = 1,
                     TextTransparency = 0.5,
                 }):Play()
@@ -4886,14 +4933,14 @@ do
             end))
 
             table.insert(KeyPicker.Connections, RemoveButton.MouseEnter:Connect(function()
-                TweenService:Create(RemoveButton, Library.TweenInfo, {
+                CreateTween(RemoveButton, Library.TweenInfo, {
                     BackgroundTransparency = 0.7,
                     TextTransparency = 0.1,
                 }):Play()
             end))
 
             table.insert(KeyPicker.Connections, RemoveButton.MouseLeave:Connect(function()
-                TweenService:Create(RemoveButton, Library.TweenInfo, {
+                CreateTween(RemoveButton, Library.TweenInfo, {
                     BackgroundTransparency = 1,
                     TextTransparency = 0.5,
                 }):Play()
@@ -4970,11 +5017,11 @@ do
                                 Enum.EasingDirection.InOut
                             )
 
-                            SlideForwardTween = TweenService:Create(SlidingLabel, TweenInfo, {
+                            SlideForwardTween = CreateTween(SlidingLabel, TweenInfo, {
                                 Position = UDim2.fromOffset(-OverflowDistance, 0),
                             })
 
-                            SlideBackTween = TweenService:Create(SlidingLabel, TweenInfo, {
+                            SlideBackTween = CreateTween(SlidingLabel, TweenInfo, {
                                 Position = UDim2.fromOffset(4.5, 0),
                             })
 
@@ -6018,13 +6065,13 @@ do
                 end))
 
                 table.insert(ColorPicker.Connections, Button.MouseEnter:Connect(function()
-                    TweenService:Create(Button, Library.TweenInfo, {
+                    CreateTween(Button, Library.TweenInfo, {
                         BackgroundTransparency = 0.7,
                     }):Play()
                 end))
 
                 table.insert(ColorPicker.Connections, Button.MouseLeave:Connect(function()
-                    TweenService:Create(Button, Library.TweenInfo, {
+                    CreateTween(Button, Library.TweenInfo, {
                         BackgroundTransparency = 1,
                     }):Play()
                 end))
@@ -6115,25 +6162,25 @@ do
         local PasteColorResetId = 0
 
         table.insert(ColorPicker.Connections, CopyColorButton.MouseEnter:Connect(function()
-            TweenService:Create(CopyColorButton, Library.TweenInfo, {
+            CreateTween(CopyColorButton, Library.TweenInfo, {
                 BackgroundColor3 = Library:GetBetterColor(Library.Scheme.MainColor, 10),
             }):Play()
         end))
 
         table.insert(ColorPicker.Connections, CopyColorButton.MouseLeave:Connect(function()
-            TweenService:Create(CopyColorButton, Library.TweenInfo, {
+            CreateTween(CopyColorButton, Library.TweenInfo, {
                 BackgroundColor3 = Library.Scheme.MainColor,
             }):Play()
         end))
 
         table.insert(ColorPicker.Connections, PasteColorButton.MouseEnter:Connect(function()
-            TweenService:Create(PasteColorButton, Library.TweenInfo, {
+            CreateTween(PasteColorButton, Library.TweenInfo, {
                 BackgroundColor3 = Library:GetBetterColor(Library.Scheme.MainColor, 10),
             }):Play()
         end))
 
         table.insert(ColorPicker.Connections, PasteColorButton.MouseLeave:Connect(function()
-            TweenService:Create(PasteColorButton, Library.TweenInfo, {
+            CreateTween(PasteColorButton, Library.TweenInfo, {
                 BackgroundColor3 = Library.Scheme.MainColor,
             }):Play()
         end))
@@ -6381,14 +6428,14 @@ do
 
             table.insert(ColorPicker.Connections, TextBoxInstance.Focused:Connect(function()
                 Library.Registry[Stroke].Color = "AccentColor"
-                TweenService:Create(Stroke, Library.TweenInfo, {
+                CreateTween(Stroke, Library.TweenInfo, {
                     Color = Library.Scheme.AccentColor,
                 }):Play()
             end))
 
             table.insert(ColorPicker.Connections, TextBoxInstance.FocusLost:Connect(function()
                 Library.Registry[Stroke].Color = "OutlineColor"
-                TweenService:Create(Stroke, Library.TweenInfo, {
+                CreateTween(Stroke, Library.TweenInfo, {
                     Color = Library.Scheme.OutlineColor,
                 }):Play()
             end))
@@ -7209,7 +7256,7 @@ do
                     return
                 end
 
-                Button.Tween = TweenService:Create(Button.Label, Library.TweenInfo, {
+                Button.Tween = CreateTween(Button.Label, Library.TweenInfo, {
                     TextTransparency = 0,
                 })
                 Button.Tween:Play()
@@ -7223,7 +7270,7 @@ do
                     return
                 end
 
-                Button.Tween = TweenService:Create(Button.Label, Library.TweenInfo, {
+                Button.Tween = CreateTween(Button.Label, Library.TweenInfo, {
                     TextTransparency = 0.4,
                 })
                 Button.Tween:Play()
@@ -7660,7 +7707,7 @@ do
                 return
             end
 
-            TweenService:Create(Label, Library.TweenInfo, {
+            CreateTween(Label, Library.TweenInfo, {
                 TextTransparency = Toggle.Value and 0 or 0.4,
             }):Play()
             TweenIcon(CheckImage, { ImageTransparency = Toggle.Value and 0 or 1 })
@@ -7932,10 +7979,10 @@ do
                 return
             end
 
-            TweenService:Create(Label, Library.TweenInfo, {
+            CreateTween(Label, Library.TweenInfo, {
                 TextTransparency = Toggle.Value and 0 or 0.4,
             }):Play()
-            TweenService:Create(Ball, Library.TweenInfo, {
+            CreateTween(Ball, Library.TweenInfo, {
                 AnchorPoint = Vector2.new(Offset, 0),
                 Position = UDim2.fromScale(Offset, 0),
             }):Play()
@@ -8275,7 +8322,7 @@ do
             end
 
             Library.Registry[BoxStroke].Color = "AccentColor"
-            TweenService:Create(BoxStroke, Library.TweenInfo, {
+            CreateTween(BoxStroke, Library.TweenInfo, {
                 Color = Library.Scheme.AccentColor,
             }):Play()
         end))
@@ -8286,7 +8333,7 @@ do
             end
 
             Library.Registry[BoxStroke].Color = "OutlineColor"
-            TweenService:Create(BoxStroke, Library.TweenInfo, {
+            CreateTween(BoxStroke, Library.TweenInfo, {
                 Color = Library.Scheme.OutlineColor,
             }):Play()
         end))
@@ -8923,14 +8970,14 @@ do
 
             table.insert(Dropdown.Connections, SearchBox.Focused:Connect(function()
                 Library.Registry[DisplayStroke].Color = "AccentColor"
-                TweenService:Create(DisplayStroke, Library.TweenInfo, {
+                CreateTween(DisplayStroke, Library.TweenInfo, {
                     Color = Library.Scheme.AccentColor,
                 }):Play()
             end))
 
             table.insert(Dropdown.Connections, SearchBox.FocusLost:Connect(function()
                 Library.Registry[DisplayStroke].Color = "OutlineColor"
-                TweenService:Create(DisplayStroke, Library.TweenInfo, {
+                CreateTween(DisplayStroke, Library.TweenInfo, {
                     Color = Library.Scheme.OutlineColor,
                 }):Play()
             end))
@@ -9581,10 +9628,10 @@ do
                     return
                 end
 
-                TweenService:Create(Container, Library.TweenInfo, {
+                CreateTween(Container, Library.TweenInfo, {
                     BackgroundTransparency = 0.85,
                 }):Play()
-                TweenService:Create(Button, Library.TweenInfo, {
+                CreateTween(Button, Library.TweenInfo, {
                     TextTransparency = 0.25,
                 }):Play()
 
@@ -9601,10 +9648,10 @@ do
                     return
                 end
 
-                TweenService:Create(Container, Library.TweenInfo, {
+                CreateTween(Container, Library.TweenInfo, {
                     BackgroundTransparency = 1,
                 }):Play()
-                TweenService:Create(Button, Library.TweenInfo, {
+                CreateTween(Button, Library.TweenInfo, {
                     TextTransparency = 0.5,
                 }):Play()
 
@@ -11161,7 +11208,7 @@ function Library:UpdateNotificationPositions(Snap: boolean?)
             Data.PositionInitialized = true
 
         elseif FakeBackground.Position ~= Target then
-            TweenService:Create(FakeBackground, Library.NotifyTweenInfo, {
+            CreateTween(FakeBackground, Library.NotifyTweenInfo, {
                 Position = Target,
             }):Play()
         end
@@ -11554,7 +11601,7 @@ function Library:Notify(...)
     Data:Resize()
 
     FakeBackground.Visible = true
-    TweenService:Create(Holder, Library.NotifyTweenInfo, {
+    CreateTween(Holder, Library.NotifyTweenInfo, {
         Position = UDim2.fromOffset(0, 0),
     }):Play()
 
@@ -12155,14 +12202,14 @@ function Library:CreateWindow(WindowInfo)
 
         Library:GiveSignal(SearchBox.Focused:Connect(function()
             Library.Registry[SearchBoxStroke].Color = "AccentColor"
-            TweenService:Create(SearchBoxStroke, Library.TweenInfo, {
+            CreateTween(SearchBoxStroke, Library.TweenInfo, {
                 Color = Library.Scheme.AccentColor,
             }):Play()
         end))
 
         Library:GiveSignal(SearchBox.FocusLost:Connect(function()
             Library.Registry[SearchBoxStroke].Color = "OutlineColor"
-            TweenService:Create(SearchBoxStroke, Library.TweenInfo, {
+            CreateTween(SearchBoxStroke, Library.TweenInfo, {
                 Color = Library.Scheme.OutlineColor,
             }):Play()
         end))
@@ -13797,7 +13844,7 @@ function Library:CreateWindow(WindowInfo)
 
                 if Library.Animations and Library.Animations.Groupbox then
                     local TweenInfo = Library.GroupboxTweenInfo or TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-                    local Tween = TweenService:Create(GroupboxHolder, TweenInfo, { Size = TargetSize })
+                    local Tween = CreateTween(GroupboxHolder, TweenInfo, { Size = TargetSize })
                     ResizeTween = Tween
 
                     local Connection; Connection = Library:GiveSignal(Tween.Completed:Once(function()
@@ -13850,7 +13897,7 @@ function Library:CreateWindow(WindowInfo)
                 GroupboxContainer.Visible = not Collapsed
                 if Library.Animations and Library.Animations.Groupbox then
                     local TweenInfo = Library.GroupboxTweenInfo or TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-                    local Tween = TweenService:Create(GroupboxCollapseArrow, TweenInfo, { Rotation = TargetRotation })
+                    local Tween = CreateTween(GroupboxCollapseArrow, TweenInfo, { Rotation = TargetRotation })
                     CollapseArrowTween = Tween
 
                     local Connection; Connection = Library:GiveSignal(Tween.Completed:Connect(function()
@@ -14022,7 +14069,7 @@ function Library:CreateWindow(WindowInfo)
                 return
             end
 
-            TweenService:Create(TabLabel, Library.TweenInfo, {
+            CreateTween(TabLabel, Library.TweenInfo, {
                 TextTransparency = Hovering and 0.25 or 0.5,
             }):Play()
             if TabIcon then
@@ -14044,7 +14091,7 @@ function Library:CreateWindow(WindowInfo)
 
         local function SetButtonActive(Active: boolean)
             if TabStroke then
-                local StrokeTween = TweenService:Create(TabStroke, Library.TweenInfo, {
+                local StrokeTween = CreateTween(TabStroke, Library.TweenInfo, {
                     Color = Active and Library.Scheme.AccentColor or Library.Scheme.OutlineColor,
                 })
 
@@ -14059,16 +14106,16 @@ function Library:CreateWindow(WindowInfo)
 
                 StrokeTween:Play()
             else
-                TweenService:Create(TabButton, Library.TweenInfo, {
+                CreateTween(TabButton, Library.TweenInfo, {
                     BackgroundTransparency = Active and 0 or 1,
                 }):Play()
             end
             if TabIndicator then
-                TweenService:Create(TabIndicator, Library.TweenInfo, {
+                CreateTween(TabIndicator, Library.TweenInfo, {
                     BackgroundTransparency = Active and 0 or 1,
                 }):Play()
             end
-            TweenService:Create(TabLabel, Library.TweenInfo, {
+            CreateTween(TabLabel, Library.TweenInfo, {
                 TextTransparency = Active and 0 or 0.5,
             }):Play()
             if TabIcon then
@@ -14502,14 +14549,14 @@ function Library:CreateWindow(WindowInfo)
 
             Box.Focused:Connect(function()
                 Library.Registry[BoxStroke].Color = "AccentColor"
-                TweenService:Create(BoxStroke, Library.TweenInfo, {
+                CreateTween(BoxStroke, Library.TweenInfo, {
                     Color = Library.Scheme.AccentColor,
                 }):Play()
             end)
 
             Box.FocusLost:Connect(function()
                 Library.Registry[BoxStroke].Color = "OutlineColor"
-                TweenService:Create(BoxStroke, Library.TweenInfo, {
+                CreateTween(BoxStroke, Library.TweenInfo, {
                     Color = Library.Scheme.OutlineColor,
                 }):Play()
             end)
@@ -14537,13 +14584,13 @@ function Library:CreateWindow(WindowInfo)
             )
 
             Button.MouseEnter:Connect(function()
-                TweenService:Create(Button, Library.TweenInfo, {
+                CreateTween(Button, Library.TweenInfo, {
                     TextTransparency = 0,
                 }):Play()
             end)
 
             Button.MouseLeave:Connect(function()
-                TweenService:Create(Button, Library.TweenInfo, {
+                CreateTween(Button, Library.TweenInfo, {
                     TextTransparency = 0.4,
                 }):Play()
             end)
@@ -14594,7 +14641,7 @@ function Library:CreateWindow(WindowInfo)
                 return
             end
 
-            TweenService:Create(TabLabel, Library.TweenInfo, {
+            CreateTween(TabLabel, Library.TweenInfo, {
                 TextTransparency = Hovering and 0.25 or 0.5,
             }):Play()
             if TabIcon then
@@ -14611,17 +14658,17 @@ function Library:CreateWindow(WindowInfo)
                 Library.ActiveTab:Hide()
             end
 
-            TweenService:Create(TabButton, Library.TweenInfo, {
+            CreateTween(TabButton, Library.TweenInfo, {
                 BackgroundTransparency = 0,
             }):Play()
 
             if TabIndicator then
-                TweenService:Create(TabIndicator, Library.TweenInfo, {
+                CreateTween(TabIndicator, Library.TweenInfo, {
                     BackgroundTransparency = 0,
                 }):Play()
             end
 
-            TweenService:Create(TabLabel, Library.TweenInfo, {
+            CreateTween(TabLabel, Library.TweenInfo, {
                 TextTransparency = 0,
             }):Play()
 
@@ -14645,17 +14692,17 @@ function Library:CreateWindow(WindowInfo)
         end
 
         function Tab:Hide()
-            TweenService:Create(TabButton, Library.TweenInfo, {
+            CreateTween(TabButton, Library.TweenInfo, {
                 BackgroundTransparency = 1,
             }):Play()
 
             if TabIndicator then
-                TweenService:Create(TabIndicator, Library.TweenInfo, {
+                CreateTween(TabIndicator, Library.TweenInfo, {
                     BackgroundTransparency = 1,
                 }):Play()
             end
 
-            TweenService:Create(TabLabel, Library.TweenInfo, {
+            CreateTween(TabLabel, Library.TweenInfo, {
                 TextTransparency = 0.5,
             }):Play()
 
@@ -14861,7 +14908,7 @@ function Library:CreateWindow(WindowInfo)
                 return
             end
 
-            TweenService:Create(TabLabel, Library.TweenInfo, {
+            CreateTween(TabLabel, Library.TweenInfo, {
                 TextTransparency = Hovering and 0.25 or 0.5,
             }):Play()
             if TabIcon then
@@ -14878,17 +14925,17 @@ function Library:CreateWindow(WindowInfo)
                 Library.ActiveTab:Hide()
             end
 
-            TweenService:Create(TabButton, Library.TweenInfo, {
+            CreateTween(TabButton, Library.TweenInfo, {
                 BackgroundTransparency = 0,
             }):Play()
 
             if TabIndicator then
-                TweenService:Create(TabIndicator, Library.TweenInfo, {
+                CreateTween(TabIndicator, Library.TweenInfo, {
                     BackgroundTransparency = 0,
                 }):Play()
             end
 
-            TweenService:Create(TabLabel, Library.TweenInfo, {
+            CreateTween(TabLabel, Library.TweenInfo, {
                 TextTransparency = 0,
             }):Play()
 
@@ -14910,17 +14957,17 @@ function Library:CreateWindow(WindowInfo)
         end
 
         function Tab:Hide()
-            TweenService:Create(TabButton, Library.TweenInfo, {
+            CreateTween(TabButton, Library.TweenInfo, {
                 BackgroundTransparency = 1,
             }):Play()
 
             if TabIndicator then
-                TweenService:Create(TabIndicator, Library.TweenInfo, {
+                CreateTween(TabIndicator, Library.TweenInfo, {
                     BackgroundTransparency = 1,
                 }):Play()
             end
 
-            TweenService:Create(TabLabel, Library.TweenInfo, {
+            CreateTween(TabLabel, Library.TweenInfo, {
                 TextTransparency = 0.5,
             }):Play()
 
@@ -15039,7 +15086,7 @@ function Library:CreateWindow(WindowInfo)
             Visible = true,
             Parent = MainFrame,
         })
-        TweenService:Create(DialogOverlay, Library.TweenInfo, {
+        CreateTween(DialogOverlay, Library.TweenInfo, {
             BackgroundTransparency = 0.5,
         }):Play()
 
@@ -15074,7 +15121,7 @@ function Library:CreateWindow(WindowInfo)
             Scale = 0.95,
             Parent = DialogFrame,
         })
-        TweenService:Create(DialogScale, Library.TweenInfo, {
+        CreateTween(DialogScale, Library.TweenInfo, {
             Scale = 1
         }):Play()
         local _InnerPadding = New("UIPadding", {
@@ -15288,8 +15335,8 @@ function Library:CreateWindow(WindowInfo)
             end
             table.clear(Dialog.Elements)
 
-            local CloseTween = TweenService:Create(DialogScale, Library.TweenInfo, { Scale = 0.95 })
-            TweenService:Create(DialogOverlay, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
+            local CloseTween = CreateTween(DialogScale, Library.TweenInfo, { Scale = 0.95 })
+            CreateTween(DialogOverlay, Library.TweenInfo, { BackgroundTransparency = 1 }):Play()
             CloseTween:Play()
 
             task.delay(Library.TweenInfo.Time, function()
@@ -15427,11 +15474,11 @@ function Library:CreateWindow(WindowInfo)
                 SetDisabled = function(self, Disabled)
                     IsActive = not Disabled
                     if Disabled then
-                        TweenService:Create(TextBtn, Library.TweenInfo, { BackgroundTransparency = 0.5 }):Play()
-                        TweenService:Create(BtnLabel, Library.TweenInfo, { TextTransparency = 0.5 }):Play()
+                        CreateTween(TextBtn, Library.TweenInfo, { BackgroundTransparency = 0.5 }):Play()
+                        CreateTween(BtnLabel, Library.TweenInfo, { TextTransparency = 0.5 }):Play()
                     else
-                        TweenService:Create(TextBtn, Library.TweenInfo, { BackgroundTransparency = 0 }):Play()
-                        TweenService:Create(BtnLabel, Library.TweenInfo, { TextTransparency = 0 }):Play()
+                        CreateTween(TextBtn, Library.TweenInfo, { BackgroundTransparency = 0 }):Play()
+                        CreateTween(BtnLabel, Library.TweenInfo, { TextTransparency = 0 }):Play()
                     end
                 end
             }
@@ -15441,13 +15488,13 @@ function Library:CreateWindow(WindowInfo)
 
             TextBtn.MouseEnter:Connect(function()
                 if not IsActive then return end
-                TweenService:Create(TextBtn, Library.TweenInfo, {
+                CreateTween(TextBtn, Library.TweenInfo, {
                     BackgroundColor3 = HoverColor
                 }):Play()
             end)
             TextBtn.MouseLeave:Connect(function()
                 if not IsActive then return end
-                TweenService:Create(TextBtn, Library.TweenInfo, {
+                CreateTween(TextBtn, Library.TweenInfo, {
                     BackgroundColor3 = ActiveColor
                 }):Play()
             end)
@@ -15463,14 +15510,14 @@ function Library:CreateWindow(WindowInfo)
             end)
 
             if WaitTime > 0 then
-                TweenService:Create(ProgressBar, TweenInfo.new(WaitTime, Enum.EasingStyle.Linear), {
+                CreateTween(ProgressBar, TweenInfo.new(WaitTime, Enum.EasingStyle.Linear), {
                     Size = UDim2.new(1, 0, 0, 2)
                 }):Play()
 
                 task.delay(WaitTime, function()
                     ButtonWrap:SetDisabled(false)
                     if ProgressBar then
-                        TweenService:Create(ProgressBar, Library.TweenInfo, {
+                        CreateTween(ProgressBar, Library.TweenInfo, {
                             BackgroundTransparency = 1
                         }):Play()
                     end
@@ -15535,7 +15582,7 @@ function Library:CreateWindow(WindowInfo)
                 RunService.Heartbeat:Wait()
                 RunService.Heartbeat:Wait()
 
-                TweenService:Create(FadeGroup, Library.WindowAnimationInfo, { GroupTransparency = Toggled and 0 or 1 }):Play()
+                CreateTween(FadeGroup, Library.WindowAnimationInfo, { GroupTransparency = Toggled and 0 or 1 }):Play()
                 task.wait(Library.WindowAnimationInfo.Time)
 
                 Fading = false
@@ -15597,7 +15644,7 @@ function Library:CreateWindow(WindowInfo)
             Parent = DividerLine,
         })
         SidebarGrabber.MouseEnter:Connect(function()
-            TweenService:Create(DividerLine, Library.TweenInfo, {
+            CreateTween(DividerLine, Library.TweenInfo, {
                 BackgroundColor3 = Library:GetLighterColor(Library.Scheme.OutlineColor),
             }):Play()
         end)
@@ -15605,7 +15652,7 @@ function Library:CreateWindow(WindowInfo)
             if Dragging then
                 return
             end
-            TweenService:Create(DividerLine, Library.TweenInfo, {
+            CreateTween(DividerLine, Library.TweenInfo, {
                 BackgroundColor3 = Library.Scheme.OutlineColor,
             }):Play()
         end)
@@ -15627,7 +15674,7 @@ function Library:CreateWindow(WindowInfo)
                 end
 
                 Library.CantDragForced = false
-                TweenService:Create(DividerLine, Library.TweenInfo, {
+                CreateTween(DividerLine, Library.TweenInfo, {
                     BackgroundColor3 = Library.Scheme.OutlineColor,
                 }):Play()
 
@@ -15964,7 +16011,7 @@ function Library:CreateLoading(LoadingInfo)
 
     local RotationTween
     if LoadingInfo.LoadingIconTweenTime > 0 then
-        RotationTween = TweenService:Create(
+        RotationTween = CreateTween(
             LoadingIcon,
             TweenInfo.new(LoadingInfo.LoadingIconTweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, -1),
             { Rotation = 360 }
@@ -16157,9 +16204,9 @@ function Library:CreateLoading(LoadingInfo)
             SidebarDivider.Visible = true
         end
 
-        TweenService:Create(MainFrame, Library.TweenInfo, { Size = UDim2.fromOffset(FinalWidth, FinalHeight) }):Play()
-        TweenService:Create(SideBar, Library.TweenInfo, { Position = UDim2.fromOffset(Loading.ContentWidth, 0), Size = UDim2.new(0, ShowSidebar and Loading.SidebarWidth or 0, 1, 0) }):Play()
-        TweenService:Create(Container, Library.TweenInfo, { Size = UDim2.new(0, ShowSidebar and Loading.ContentWidth or Loading.WindowWidth, 1, 0) }):Play()
+        CreateTween(MainFrame, Library.TweenInfo, { Size = UDim2.fromOffset(FinalWidth, FinalHeight) }):Play()
+        CreateTween(SideBar, Library.TweenInfo, { Position = UDim2.fromOffset(Loading.ContentWidth, 0), Size = UDim2.new(0, ShowSidebar and Loading.SidebarWidth or 0, 1, 0) }):Play()
+        CreateTween(Container, Library.TweenInfo, { Size = UDim2.new(0, ShowSidebar and Loading.ContentWidth or Loading.WindowWidth, 1, 0) }):Play()
 
         if not ShowSidebar then
             task.delay(Library.TweenInfo.Time, function()
@@ -16223,7 +16270,7 @@ function Library:CreateLoading(LoadingInfo)
         end
 
         if TweenTime > 0 then
-            RotationTween = TweenService:Create(
+            RotationTween = CreateTween(
                 LoadingIcon,
                 TweenInfo.new(TweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, -1),
                 { Rotation = 360 }
@@ -16242,7 +16289,7 @@ function Library:CreateLoading(LoadingInfo)
         Loading.CurrentStep = math.clamp(Step, 0, Loading.TotalSteps)
 
         local Progress = Loading.CurrentStep / Loading.TotalSteps
-        TweenService:Create(SliderFill, Library.TweenInfo, { Size = UDim2.fromScale(Progress, 1) }):Play()
+        CreateTween(SliderFill, Library.TweenInfo, { Size = UDim2.fromScale(Progress, 1) }):Play()
 
         ProgressLabel.Text = string.format("%d/%d", Loading.CurrentStep, Loading.TotalSteps)
     end
@@ -16401,12 +16448,12 @@ function Library:CreateLoading(LoadingInfo)
             local HoverColor = Variant == "Ghost" and Library.Scheme.MainColor or Library:GetBetterColor(ActiveColor, 10)
 
             TextBtn.MouseEnter:Connect(function()
-                TweenService:Create(TextBtn, Library.TweenInfo, {
+                CreateTween(TextBtn, Library.TweenInfo, {
                     BackgroundColor3 = HoverColor
                 }):Play()
             end)
             TextBtn.MouseLeave:Connect(function()
-                TweenService:Create(TextBtn, Library.TweenInfo, {
+                CreateTween(TextBtn, Library.TweenInfo, {
                     BackgroundColor3 = ActiveColor
                 }):Play()
             end)
